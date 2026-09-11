@@ -20,6 +20,7 @@ const Battle = {
     this.banner = null;
     this.reward = null;
     this.rage = false;
+    this.bossPhase = 1;
 
     Cam.locked = true;
     this.arenaL = Cam.x + 80;
@@ -265,12 +266,7 @@ const Battle = {
     m.x += Player.face * 10;
 
     if (m.hp <= 0) this._die();
-    else if (this.def.boss && !this.rage && m.hp < m.maxHp * .5) {
-      this.rage = true;
-      m.state = 'tele'; m.t = 0; m.atk = 'roar';
-      Sfx.roar(); Cam.kick(12);
-      this.banner = { text: 'IT IS ANGRY NOW', t: 0, dur: 2.2, color: '#ff6a6a' };
-    }
+    else this._checkBossPhase();
   },
 
   _die() {
@@ -317,11 +313,39 @@ const Battle = {
 
   /* ------------------------------- monster ----------------------------- */
 
+  // which attacks are on the table right now
+  _atkPool() {
+    const d = this.def;
+    if (!d.boss) return d.atk;
+    if (this.bossPhase >= 3) return ['lunge', 'slam', 'sweep', 'spew', 'lunge', 'sweep', 'slam', 'spew'];
+    if (this.bossPhase === 2) return ['lunge', 'slam', 'spit', 'sweep', 'lunge', 'spew'];
+    return ['lunge', 'slam', 'spit', 'lunge'];
+  },
+
+  // the boss gets worse in two clear steps
+  _checkBossPhase() {
+    if (!this.def.boss) return;
+    const f = this.m.hp / this.m.maxHp;
+    const want = f < .32 ? 3 : (f < .66 ? 2 : 1);
+    if (want <= this.bossPhase) return;
+    this.bossPhase = want;
+    this.rage = want >= 2;
+    this.m.state = 'tele'; this.m.t = 0; this.m.atk = 'roar';
+    Sfx.roar(); Cam.kick(14);
+    this.banner = want === 2
+      ? { text: 'IT STOPS PLAYING', t: 0, dur: 2.4, color: '#ff8a5a' }
+      : { text: 'IT REMEMBERS YOUR FATHER', t: 0, dur: 2.8, color: '#ff4d4d' };
+    Particles.burst(this.m.x, this.m.y, 60, {
+      color: want === 3 ? '#ff4d4d' : '#ff9a5a',
+      vx: rand(-400, 400), vy: rand(-360, 120), g: 320, size: rand(3, 9), life: rand(.8, 1.6)
+    });
+  },
+
   _updateMonster(dt) {
     const m = this.m, d = this.def;
     m.t += dt;
     m.flash = Math.max(0, m.flash - dt * 4);
-    const rageMul = this.rage ? 1.35 : 1;
+    const rageMul = this.bossPhase >= 3 ? 1.7 : (this.rage ? 1.35 : 1);
     const restY = this.restY;
 
     // always face the player
@@ -341,7 +365,7 @@ const Battle = {
         else if (Math.abs(dx) < 120) m.x -= sign(dx) * d.speed * .4 * dt;
         m.cool -= dt * rageMul;
         if (m.cool <= 0) {
-          m.atk = choice(d.atk);
+          m.atk = choice(this._atkPool());
           m.state = 'tele'; m.t = 0;
           m.target = Player.x;
         }
@@ -350,12 +374,14 @@ const Battle = {
 
       case 'tele': {
         m.face = wantFace;
-        const dur = (m.atk === 'roar' ? 1.1 : (m.atk === 'slam' ? .68 : .62)) / rageMul;
+        const dur = (m.atk === 'roar' ? 1.1 : (m.atk === 'slam' ? .68 :
+                    (m.atk === 'sweep' ? .78 : .62))) / rageMul;
         const p = clamp(m.t / dur, 0, 1);
         m.thrashAmt = 1 + p * 2.2;
-        m.gape = m.atk === 'spit' ? p * .9 : p * .5;
+        m.gape = (m.atk === 'spit' || m.atk === 'spew') ? p * .95 : p * .5;
         if (m.atk === 'lunge') { m.x -= m.face * 70 * dt; m.rot = -m.face * p * .12; }
         if (m.atk === 'slam') { m.y = approach(m.y, restY - 140, dt * 320); m.rot = -m.face * p * .3; }
+        if (m.atk === 'sweep') { m.y = approach(m.y, restY - 90, dt * 260); m.rot = approach(m.rot, -m.face * .4, dt * 3); }
         if (m.atk === 'roar') { m.y = approach(m.y, restY - 70, dt * 200); m.gape = .9; }
         if (chance(dt * 24)) {
           Particles.burst(m.x + rand(-this.len / 3, this.len / 3), m.y + rand(-20, 26), 1,
@@ -367,7 +393,13 @@ const Battle = {
           if (m.atk === 'lunge') { m.state = 'lunge'; m.vx = m.face * (520 + d.speed * 1.9) * rageMul; Sfx.roar(); }
           else if (m.atk === 'slam') { m.state = 'slam'; Sfx.whoosh(); }
           else if (m.atk === 'spit') { m.state = 'spit'; m.shots = 0; }
-          else { m.state = 'recover'; m.recDur = .5; Sfx.roar(); Cam.kick(10); }
+          else if (m.atk === 'spew') { m.state = 'spew'; m.shots = 0; Sfx.roar(); }
+          else if (m.atk === 'sweep') {
+            m.state = 'sweep';
+            m.sweepDir = (m.x > (this.arenaL + this.arenaR) / 2) ? -1 : 1;
+            m.face = m.sweepDir;
+            Sfx.roar(); Cam.kick(6);
+          } else { m.state = 'recover'; m.recDur = .5; Sfx.roar(); Cam.kick(10); }
         }
         break;
       }
@@ -435,6 +467,50 @@ const Battle = {
           Particles.burst(hx, hy, 6, { color: '#9fd4e4', vx: m.face * rand(60, 200), vy: rand(-90, 20), g: 500, size: 3, life: .4 });
         }
         if (m.t > .62) { m.state = 'recover'; m.t = 0; m.recDur = .78 / rageMul; }
+        break;
+      }
+
+      // it rears up and scythes the whole deck. jump it.
+      case 'sweep': {
+        const dir = m.sweepDir;
+        m.x += dir * (620 + d.speed * 2.4) * rageMul * dt;
+        m.y = approach(m.y, restY + 26, dt * 420);
+        m.rot = approach(m.rot, dir * .1, dt * 4);
+        m.gape = .6;
+        m.thrashAmt = 3.4;
+        const hb = { x: m.x - this.len * .5, y: DECK_Y - 52, w: this.len, h: 52 };
+        const pb = { x: Player.x - 13, y: Player.y - 46, w: 26, h: 46 };
+        if (overlaps(hb, pb)) this._hurtPlayer(d.dmg, m.x);
+        if (chance(dt * 40)) {
+          Particles.burst(m.x + rand(-this.len / 2, this.len / 2), DECK_Y - 4, 1,
+            { color: 'rgba(200,224,240,.6)', vx: -dir * 200, vy: -70, g: 500, size: rand(2, 5), life: .45 });
+        }
+        if ((dir > 0 && m.x > this.arenaR + 20) || (dir < 0 && m.x < this.arenaL - 20) || m.t > 1.5) {
+          m.state = 'recover'; m.t = 0; m.recDur = .9 / rageMul;
+          Cam.kick(6);
+        }
+        break;
+      }
+
+      // a wide barrage, aimed everywhere at once
+      case 'spew': {
+        m.gape = 1;
+        m.face = wantFace;
+        const every = .13;
+        const want = Math.min(8, Math.floor(m.t / every) + 1);
+        while (m.shots < want) {
+          const k = m.shots++;
+          const hx = m.x + m.face * this.len * .36;
+          const hy = m.y + 6;
+          const spread = (k / 7 - .5) * 2;
+          const dx = (Player.x - hx) + spread * 300;
+          this.globs.push({
+            x: hx, y: hy, vx: dx * 1.0,
+            vy: -330 - Math.abs(dx) * .1, r: 13, t: 0
+          });
+          Sfx.noise({ f: 800, f2: 180, dur: .14, vol: .12 });
+        }
+        if (m.t > 1.2) { m.state = 'recover'; m.t = 0; m.recDur = .8 / rageMul; }
         break;
       }
 
@@ -689,8 +765,19 @@ const Battle = {
       else { hg.addColorStop(0, '#e2645c'); hg.addColorStop(1, '#8e2c3a'); }
       g.fillStyle = hg;
       roundRect(g, bx, by, bw * p, 12, 5); g.fill();
+      // the two places where it gets worse
+      if (this.def.boss) {
+        g.fillStyle = 'rgba(12,10,18,.85)';
+        for (const f of [.32, .66]) g.fillRect(bx + bw * f - 1.5, by, 3, 12);
+      }
       g.strokeStyle = '#c8a45c'; g.lineWidth = 2;
       roundRect(g, bx, by, bw, 12, 5); g.stroke();
+      if (this.def.boss && this.bossPhase > 1) {
+        Text.draw(g, 'PHASE ' + this.bossPhase, VIEW_W / 2 + bw / 2 + 4, by + 11, {
+          size: 11, align: 'left', color: this.bossPhase >= 3 ? '#ff5a5a' : '#ff9a6a',
+          weight: 'bold', font: 'Verdana, sans-serif'
+        });
+      }
     }
 
     /* banner */

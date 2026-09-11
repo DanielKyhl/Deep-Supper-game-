@@ -155,25 +155,25 @@ const MONSTERS = [
   { id: 'hollow', name: 'The Hollow Trawler', depth: 4, plan: 'husk',
     hp: 620, len: 380, girth: .34, value: 700, dmg: 2, speed: 126, eyes: 4,
     body: [64, 68, 74], belly: [158, 164, 170], fin: [40, 44, 50], eye: '#9effc4', glow: '#9effc4',
-    atk: ['lunge', 'slam', 'spit', 'slam'],
+    atk: ['lunge', 'slam', 'spit', 'sweep'],
     flavour: 'There are planks in its belly. Painted ones. You know the colour.' },
 
   { id: 'cathedral', name: 'Cathedral Ray', depth: 4, plan: 'ray',
     hp: 700, len: 440, girth: .28, value: 780, dmg: 2, speed: 134, eyes: 3,
     body: [46, 56, 92], belly: [140, 152, 200], fin: [30, 38, 66], eye: '#ffe9a8', glow: '#8fa8ff',
-    atk: ['lunge', 'slam', 'spit', 'lunge', 'slam'],
+    atk: ['lunge', 'sweep', 'spit', 'lunge', 'slam'],
     flavour: 'It passes over you slowly, the way weather does.' },
 
   { id: 'penance', name: 'Nine-Eyed Penance', depth: 4, plan: 'maw',
     hp: 780, len: 360, girth: .46, value: 850, dmg: 3, speed: 128, eyes: 9,
     body: [88, 48, 62], belly: [198, 150, 160], fin: [58, 30, 42], eye: '#ffd257', glow: '#ff7a5a',
-    atk: ['lunge', 'slam', 'spit', 'slam', 'lunge'],
+    atk: ['lunge', 'slam', 'spew', 'sweep', 'lunge'],
     flavour: 'Nine eyes and all of them apologetic. That is somehow worse.' },
 
   { id: 'choir', name: 'The Drowned Choir', depth: 4, plan: 'bloom',
     hp: 660, len: 400, girth: .50, value: 820, dmg: 2, speed: 118, eyes: 12,
     body: [70, 84, 118], belly: [186, 200, 226], fin: [48, 58, 86], eye: '#e8f4ff', glow: '#a8d8ff',
-    atk: ['spit', 'spit', 'slam', 'lunge', 'spit'],
+    atk: ['spit', 'spew', 'slam', 'sweep', 'spit'],
     flavour: 'Every face in it is roughly the same face, and it is nearly yours.' },
 
   /* -------------------------------- boss ------------------------------- */
