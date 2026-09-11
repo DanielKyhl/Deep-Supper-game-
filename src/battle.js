@@ -186,9 +186,13 @@ const Battle = {
     P.vy += 1750 * dt;
     P.y += P.vy * dt;
     if (P.y >= DECK_Y) {
-      if (P.vy > 260) Particles.burst(P.x, DECK_Y, 5, { color: 'rgba(210,220,236,.6)', vy: -50, g: 400, size: 2.5, life: .3 });
+      if (P.vy > 260) {
+        P.landT = .2;
+        Particles.burst(P.x, DECK_Y, 6, { color: 'rgba(210,220,236,.6)', vx: rand(-90, 90), vy: -50, g: 400, size: 2.5, life: .34 });
+      }
       P.y = DECK_Y; P.vy = 0;
     }
+    P.landT = Math.max(0, (P.landT || 0) - dt);
     P.air = P.y - DECK_Y;
     P.x = clamp(P.x, this.arenaL, this.arenaR);
 
@@ -301,6 +305,7 @@ const Battle = {
     Sfx.hurt();
     Cam.kick(7);
     this.hitstop = .07;
+    Game.hurtFlash = 1;
     Floaters.add(P.x, P.y - 70, '-' + dmg, { color: '#ff7a7a', size: 24 });
     Particles.burst(P.x, P.y - 40, 12, { color: '#e2464c', vx: rand(-160, 160), vy: rand(-220, -40), g: 700, size: rand(2, 5), life: .6 });
     if (P.hp <= 0) {
@@ -668,7 +673,7 @@ const Battle = {
 
     const w = WEAPONS[Math.max(0, P.weapon)];
     const o = {
-      face: P.face, t: P.animT, state: P.bState === 'attack' ? 'idle' : P.bState,
+      face: P.face, t: P.animT, state: P.bState === 'attack' ? 'idle' : P.bState, squash: bodySquash(P),
       air: -P.air, rollT: P.rollT > 0 ? (.34 - P.rollT) : 0,
       hold: P.weapon >= 0 ? 'weapon' : null, weapon: w
     };

@@ -355,3 +355,10 @@ function hexRgb(h) {
   const n = parseInt(h, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
+
+// how much the boy should squash or stretch right now
+function bodySquash(P) {
+  if (P.landT > 0) return lerp(.80, 1, 1 - P.landT / .2);
+  if (P.y < DECK_Y - 2) return clamp(1 + Math.abs(P.vy) / 3400, 1, 1.13);
+  return 1;
+}

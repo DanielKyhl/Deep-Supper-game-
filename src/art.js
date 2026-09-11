@@ -1230,20 +1230,28 @@ const Art = {
     const st = o.state || 'idle';
     let legA = 0, legB = 0, armA = 0, armB = 0, bob = 0, crouch = 0;
 
+    let lean = 0, headT = 0;
     if (st === 'walk') {
       const p = Math.sin(t * 12);
       legA = p * 5; legB = -p * 5; armA = -p * 4; armB = p * 4;
       bob = Math.abs(Math.sin(t * 12)) * 2;
+      lean = .07;
+      headT = Math.sin(t * 12 + 1) * .04;
     } else if (st === 'jump') {
       legA = 4; legB = -3; armA = -6; armB = -4;
+      lean = .05;
     } else if (st === 'roll') {
       // handled below
     } else if (st === 'hurt') {
       armA = -7; armB = -7; legA = 3;
+      lean = -.22;
     } else {
       bob = Math.sin(t * 2.4) * 1.3;
       armA = Math.sin(t * 2.4) * 1.2;
+      headT = Math.sin(t * 1.9) * .02;
     }
+
+    const sq = o.squash === undefined ? 1 : o.squash;
 
     g.save();
     g.translate(x + (o.lunge || 0) * f, y - bob);
@@ -1270,6 +1278,12 @@ const Art = {
     const skin = '#f1c493', skinD = '#d2a074';
     const coat = '#f0bd4a', coatD = '#c8963a';
     const pants = '#3b5a80', pantsD = '#2c4462';
+
+    // squash on landing, stretch in the air, and a slight lean into motion
+    if (sq !== 1 || lean !== 0) {
+      g.scale(1 / sq, sq);
+      g.rotate(lean);
+    }
 
     // back arm
     g.save();
@@ -1308,7 +1322,9 @@ const Art = {
     g.fillStyle = '#8f3739';
     g.fillRect(2, -39, 5, 9 + Math.sin(t * 5) * 2);
 
-    // head
+    // head — rides on its own little tilt so the walk has some bounce
+    g.save();
+    g.translate(0, -38); g.rotate(headT); g.translate(0, 38);
     g.fillStyle = skin;
     roundRect(g, -8, -52, 16, 14, 3); g.fill();
     g.fillStyle = skinD;
@@ -1333,6 +1349,7 @@ const Art = {
     g.fillRect(-13, -51, 26, 2);
     g.fillStyle = 'rgba(255,255,255,.18)';
     g.fillRect(-8, -61, 14, 2);
+    g.restore();   // end head tilt
 
     // front arm (+ held item)
     g.save();

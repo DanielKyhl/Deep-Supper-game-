@@ -166,6 +166,7 @@ const Game = {
     if (Input.tap('mute')) { Sfx.toggleMute(); this.muteFlash = 1.6; this.muteMsg = Sfx.muted ? 'sound off' : 'sound on'; }
     if (Input.tap('music')) { this.muteFlash = 1.6; this.muteMsg = Music.toggle() ? 'music on' : 'music off'; }
     this.muteFlash = Math.max(0, this.muteFlash - dt);
+    this.hurtFlash = Math.max(0, (this.hurtFlash || 0) - dt * 2.2);
     this.syncMusic();
 
     // fade machine
@@ -278,7 +279,11 @@ const Game = {
     if (Input.tap('jump') && onGround) { P.vy = -560; Sfx.whoosh(); }
     P.vy += 1750 * dt;
     P.y += P.vy * dt;
-    if (P.y >= DECK_Y) { P.y = DECK_Y; P.vy = 0; }
+    if (P.y >= DECK_Y) {
+      if (P.vy > 260) P.landT = .2;
+      P.y = DECK_Y; P.vy = 0;
+    }
+    P.landT = Math.max(0, (P.landT || 0) - dt);
     P.air = P.y - DECK_Y;
 
     P.state = !onGround ? 'jump' : (mv !== 0 ? 'walk' : 'idle');
@@ -351,6 +356,18 @@ const Game = {
       Text.draw(g, this.muteMsg || '', VIEW_W - 24, 28, {
         size: 14, align: 'right', color: '#9fb0d0', font: 'Verdana, sans-serif'
       });
+      g.restore();
+    }
+
+    // a red bloom round the edges when something lands on you
+    if (this.hurtFlash > 0) {
+      const a = this.hurtFlash;
+      g.save();
+      const rg = g.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 150, VIEW_W / 2, VIEW_H / 2, 560);
+      rg.addColorStop(0, 'rgba(180,20,30,0)');
+      rg.addColorStop(1, 'rgba(180,20,30,' + (a * .55) + ')');
+      g.fillStyle = rg;
+      g.fillRect(0, 0, VIEW_W, VIEW_H);
       g.restore();
     }
 
@@ -500,7 +517,7 @@ const Game = {
   drawPlayerOnDeck(g) {
     const P = Player;
     const sx = P.x - Cam.x;
-    const o = { face: P.face, t: P.animT, state: P.state };
+    const o = { face: P.face, t: P.animT, state: P.state, squash: bodySquash(P) };
 
     if (this.state === 'fish') {
       o.hold = 'rod';
