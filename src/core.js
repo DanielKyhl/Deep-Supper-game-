@@ -347,3 +347,11 @@ function panel(g, x, y, w, h, o) {
   roundRect(g, x + 4, y + 4, w - 8, h - 8, 4); g.stroke();
   g.restore();
 }
+
+// '#rrggbb' -> [r,g,b]
+function hexRgb(h) {
+  h = String(h).replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
