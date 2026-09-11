@@ -637,7 +637,7 @@ const Battle = {
       g.moveTo(sx - w.dir * 26, DECK_Y);
       g.quadraticCurveTo(sx, DECK_Y - 40 - Math.sin(w.t * 20) * 5, sx + w.dir * 20, DECK_Y - 2);
       g.stroke();
-      g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.5;
+      g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 3;
       g.beginPath();
       g.moveTo(sx - w.dir * 16, DECK_Y);
       g.quadraticCurveTo(sx + w.dir * 4, DECK_Y - 26, sx + w.dir * 16, DECK_Y - 2);
@@ -655,7 +655,7 @@ const Battle = {
       g.fill();
       g.fillStyle = 'rgba(230,248,255,.6)';
       g.beginPath(); g.arc(sx - 3, b.y - 3, b.r * .32, 0, 6.2832); g.fill();
-      g.strokeStyle = 'rgba(60,130,160,.8)'; g.lineWidth = 1.5;
+      g.strokeStyle = 'rgba(60,130,160,.8)'; g.lineWidth = 3;
       g.beginPath(); g.ellipse(sx, b.y, b.r * 1.12, b.r * .88, Math.atan2(b.vy, b.vx), 0, 6.2832); g.stroke();
       g.restore();
     }
@@ -775,7 +775,7 @@ const Battle = {
         g.fillStyle = 'rgba(12,10,18,.85)';
         for (const f of [.32, .66]) g.fillRect(bx + bw * f - 1.5, by, 3, 12);
       }
-      g.strokeStyle = '#c8a45c'; g.lineWidth = 2;
+      g.strokeStyle = '#c8a45c'; g.lineWidth = 3;
       roundRect(g, bx, by, bw, 12, 5); g.stroke();
       if (this.def.boss && this.bossPhase > 1) {
         Text.draw(g, 'PHASE ' + this.bossPhase, VIEW_W / 2 + bw / 2 + 4, by + 11, {

@@ -177,7 +177,7 @@ const CUT = {
         size: 62, align: 'center', color: '#f2e2bd', weight: 'bold',
         font: 'Georgia, serif', shadow: 'rgba(0,0,0,.8)', sdx: 3, sdy: 4
       });
-      g.strokeStyle = 'rgba(200,164,92,.75)'; g.lineWidth = 2;
+      g.strokeStyle = 'rgba(200,164,92,.75)'; g.lineWidth = 3;
       g.beginPath(); g.moveTo(VIEW_W / 2 - 190, yy + 20); g.lineTo(VIEW_W / 2 + 190, yy + 20); g.stroke();
       if (c.sub) Text.draw(g, c.sub, VIEW_W / 2, yy + 52, {
         size: 22, align: 'center', color: '#a8b4cf', italic: true, font: 'Georgia, serif'

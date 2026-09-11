@@ -208,7 +208,7 @@ const Shop = {
     // list
     const rows = this.rows();
     const listY = tabY + 50;
-    const rowH = 52;
+    const rowH = 60;
     const maxRows = Math.floor((Y + H - listY - 44) / rowH);
     let start = 0;
     if (rows.length > maxRows) start = clamp(this.sel - Math.floor(maxRows / 2), 0, rows.length - maxRows);
@@ -219,10 +219,10 @@ const Shop = {
       const on = i === this.sel;
 
       if (r.kind === 'head') {
-        Text.draw(g, r.name, X + 30, y + 30, {
+        Text.draw(g, r.name, X + 30, y + 26, {
           size: 13, color: '#7f8aa8', weight: 'bold', font: 'Verdana, sans-serif'
         });
-        g.strokeStyle = 'rgba(140,150,180,.25)'; g.lineWidth = 1;
+        g.strokeStyle = 'rgba(140,150,180,.25)'; g.lineWidth = 3;
         g.beginPath(); g.moveTo(X + 84, y + 25); g.lineTo(X + W - 30, y + 25); g.stroke();
         continue;
       }
@@ -230,9 +230,9 @@ const Shop = {
       if (on) {
         g.fillStyle = 'rgba(200,164,92,.14)';
         roundRect(g, X + 20, y, W - 40, rowH - 6, 5); g.fill();
-        g.strokeStyle = 'rgba(232,199,106,.65)'; g.lineWidth = 1.5;
+        g.strokeStyle = 'rgba(232,199,106,.65)'; g.lineWidth = 3;
         roundRect(g, X + 20, y, W - 40, rowH - 6, 5); g.stroke();
-        Text.draw(g, '▸', X + 12, y + 32, { size: 18, color: '#e8c76a' });
+        Text.draw(g, '▸', X + 12, y + 36, { size: 18, color: '#e8c76a' });
       }
       if (this.flashT > 0 && i === this.flashRow) {
         g.globalAlpha = this.flashT * 1.6;
@@ -247,28 +247,28 @@ const Shop = {
 
       if (r.kind === 'fish') { Art.fishIcon(g, X + 48, y + 24, 1.15, r.body, r.belly); nx = X + 74; }
 
-      Text.draw(g, r.name, nx, y + 22, { size: 19, color: nameCol, weight: on ? 'bold' : 'normal' });
-      if (r.sub) Text.draw(g, r.sub, nx, y + 40, {
+      Text.draw(g, r.name, nx, y + 24, { size: 19, color: nameCol, weight: on ? 'bold' : 'normal' });
+      if (r.sub) Text.draw(g, r.sub, nx, y + 48, {
         size: 13, color: dim ? '#4e566d' : '#8d97b4', italic: true, font: 'Georgia, serif'
       });
-      if (r.stat) Text.draw(g, r.stat, X + W - 150, y + 40, {
+      if (r.stat) Text.draw(g, r.stat, X + W - 150, y + 48, {
         size: 12, color: '#75809c', align: 'right', font: 'Verdana, sans-serif'
       });
 
       // right column
       const rx = X + W - 44;
       if (r.kind === 'all' || r.kind === 'fish') {
-        Text.draw(g, r.value + '§', rx, y + 30, {
+        Text.draw(g, r.value + '§', rx, y + 34, {
           size: 21, color: '#f0cf8a', weight: 'bold', align: 'right', font: 'Verdana, sans-serif'
         });
       } else if (r.owned) {
         Text.draw(g, r.kind === 'rod' && r.idx === Player.rod ? 'IN USE' : (r.kind === 'weapon' && r.idx === Player.weapon ? 'IN USE' : 'OWNED'),
-          rx, y + 30, { size: 13, color: '#6f9e84', weight: 'bold', align: 'right', font: 'Verdana, sans-serif' });
+          rx, y + 34, { size: 13, color: '#6f9e84', weight: 'bold', align: 'right', font: 'Verdana, sans-serif' });
       } else if (r.locked) {
-        Text.draw(g, '—', rx, y + 30, { size: 18, color: '#4e566d', align: 'right' });
+        Text.draw(g, '—', rx, y + 34, { size: 18, color: '#4e566d', align: 'right' });
       } else {
         const afford = Player.coins >= r.price;
-        Text.draw(g, r.price + '§', rx, y + 30, {
+        Text.draw(g, r.price + '§', rx, y + 34, {
           size: 21, color: afford ? '#f0cf8a' : '#a05a5a', weight: 'bold', align: 'right', font: 'Verdana, sans-serif'
         });
       }

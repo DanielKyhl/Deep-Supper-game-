@@ -404,7 +404,7 @@ const Fishing = {
     g.quadraticCurveTo(cpx, cpy, hx, hy);
     g.stroke();
     g.strokeStyle = lg;
-    g.lineWidth = 2;
+    g.lineWidth = 3;
     g.beginPath();
     g.moveTo(tipX, tipY);
     g.quadraticCurveTo(cpx, cpy, hx, hy);
@@ -412,7 +412,7 @@ const Fishing = {
 
     // where it pierces the surface
     if (this.hook.depth > -20) {
-      g.strokeStyle = 'rgba(220,240,250,.5)'; g.lineWidth = 1.6;
+      g.strokeStyle = 'rgba(220,240,250,.5)'; g.lineWidth = 3;
       for (let i = 0; i < 3; i++) {
         const r = 7 + i * 8 + Math.sin(this.t * 3 + i) * 2;
         g.globalAlpha = .4 - i * .1;
@@ -461,7 +461,7 @@ const Fishing = {
     // hook + bait — scaled up a little so it stays findable at depth
     g.save();
     g.scale(1.5, 1.5);
-    g.strokeStyle = '#e4e8ee'; g.lineWidth = 2.4; g.lineCap = 'round';
+    g.strokeStyle = '#e4e8ee'; g.lineWidth = 3; g.lineCap = 'round';
     g.beginPath();
     g.moveTo(0, -10); g.lineTo(0, 2);
     g.quadraticCurveTo(8, 10, 0, 13);
@@ -557,7 +557,7 @@ const Fishing = {
     wg.addColorStop(0, '#123047'); wg.addColorStop(1, '#050c1c');
     g.fillStyle = wg; g.fill();
     g.clip();
-    g.strokeStyle = 'rgba(255,255,255,.05)'; g.lineWidth = 1;
+    g.strokeStyle = 'rgba(255,255,255,.05)'; g.lineWidth = 3;
     for (let i = 1; i < 10; i++) {
       g.beginPath(); g.moveTo(gx + sh, gy + i * gh / 10); g.lineTo(gx + gw + sh, gy + i * gh / 10); g.stroke();
     }
@@ -568,13 +568,13 @@ const Fishing = {
     g.fillStyle = inBar ? 'rgba(126,214,150,.42)' : 'rgba(126,180,214,.26)';
     g.fill();
     g.strokeStyle = inBar ? 'rgba(150,240,178,.9)' : 'rgba(150,190,224,.55)';
-    g.lineWidth = 2; g.stroke();
+    g.lineWidth = 3; g.stroke();
     Art.fishIcon(g, gx + gw / 2 + sh, gy + this.fy * gh, 1.25,
       this.intro ? [140, 156, 120] : this.target.body,
       this.intro ? [222, 226, 198] : this.target.belly);
     g.restore();
 
-    g.strokeStyle = '#c8a45c'; g.lineWidth = 2;
+    g.strokeStyle = '#c8a45c'; g.lineWidth = 3;
     roundRect(g, gx + sh, gy, gw, gh, 6); g.stroke();
 
     const px = gx + gw + 22 + sh;
@@ -585,7 +585,7 @@ const Fishing = {
     pg.addColorStop(0, '#8ce0a4'); pg.addColorStop(1, '#3f9e68');
     g.fillStyle = pg;
     roundRect(g, px + 3, gy + gh - ph + 3, 20, Math.max(0, ph - 6), 4); g.fill();
-    g.strokeStyle = '#c8a45c'; g.lineWidth = 2;
+    g.strokeStyle = '#c8a45c'; g.lineWidth = 3;
     roundRect(g, px, gy, 26, gh, 5); g.stroke();
     Text.draw(g, 'LINE', px + 13, gy + gh + 20, { size: 11, align: 'center', color: '#9aa7c4', font: 'Verdana, sans-serif' });
 

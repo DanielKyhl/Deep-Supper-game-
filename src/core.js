@@ -18,6 +18,38 @@ const WALK_R    = 1826;
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
+/* ----------------------- the pixel-art pipeline --------------------------
+   The whole game is drawn into a small offscreen buffer and blown up with
+   nearest-neighbour filtering. Game code keeps working in 960x540
+   coordinates throughout: the buffer carries a permanent 1/PIX base
+   transform, so nothing else has to know the resolution changed.
+   PIX is the only number to touch if you want chunkier or finer pixels
+   (must divide 960 and 540 evenly: 2 -> 480x270, 3 -> 320x180).          */
+
+const PIX = 3;
+const PW = VIEW_W / PIX;   // 320
+const PH = VIEW_H / PIX;   // 180
+
+const buffer = document.createElement('canvas');
+buffer.width = PW;
+buffer.height = PH;
+const bctx = buffer.getContext('2d');
+bctx.imageSmoothingEnabled = false;
+ctx.imageSmoothingEnabled = false;
+
+// replaces setTransform(1,0,0,1,0,0) — back to plain 960-space, not identity
+function resetTransform(g) { g.setTransform(1 / PIX, 0, 0, 1 / PIX, 0, 0); }
+
+// snap a 960-space coordinate onto the buffer's pixel grid
+function snap(v) { return Math.round(v / PIX) * PIX; }
+
+// blow the buffer up onto the visible canvas
+function present() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(buffer, 0, 0, PW, PH, 0, 0, VIEW_W, VIEW_H);
+}
+
 /* ---------------------------------- math -------------------------------- */
 
 function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
@@ -190,8 +222,10 @@ const Cam = {
   update(dt) {
     this.shake = Math.max(0, this.shake - dt * 26);
     const s = this.shake;
-    this.shakeX = (Math.random() * 2 - 1) * s;
-    this.shakeY = (Math.random() * 2 - 1) * s * .7;
+    // snap to the pixel grid so the view never sits between pixels
+    this.x = snap(this.x);
+    this.shakeX = snap((Math.random() * 2 - 1) * s);
+    this.shakeY = snap((Math.random() * 2 - 1) * s * .7);
   }
 };
 
@@ -278,33 +312,57 @@ const Floaters = {
 
 /* --------------------------------- text --------------------------------- */
 
+/* Text is drawn with the bitmap font in font.js. The option bag is the one
+   the rest of the game already passes around — `size` is a 960-space font
+   height, which maps onto a whole number of font pixels so glyphs always
+   land square on the buffer grid. `y` stays the baseline, as it was with
+   fillText, so no call site had to move.                                  */
 const Text = {
+  // 960-space pixel size of one font pixel, for a requested font height
+  scaleFor(size) {
+    return clamp(Math.round((size || 18) / 22), 1, 4) * PIX;
+  },
+
   draw(g, str, x, y, o) {
     o = o || {};
+    str = String(str);
+    const px = this.scaleFor(o.size);
+    const w = Font.width(str, px);
+    let dx = x;
+    if (o.align === 'center') dx = x - w / 2;
+    else if (o.align === 'right') dx = x - w;
+    // callers position by baseline; the glyph box sits above it
+    let dy = y - FONT_H * px;
+    if (o.baseline === 'top') dy = y;
+    else if (o.baseline === 'middle') dy = y - FONT_H * px / 2;
+    dx = snap(dx); dy = snap(dy);
+
     g.save();
     if (o.alpha !== undefined) g.globalAlpha = o.alpha;
-    const size = o.size || 18;
-    g.font = `${o.weight || 'normal'} ${o.italic ? 'italic ' : ''}${size}px ${o.font || 'Georgia, serif'}`;
-    g.textAlign = o.align || 'left';
-    g.textBaseline = o.baseline || 'alphabetic';
-    if (o.shadow) { g.fillStyle = o.shadow; g.fillText(str, x + (o.sdx || 2), y + (o.sdy || 2)); }
+    if (o.shadow) Font.draw(g, str, dx + px, dy + px, px, o.shadow);
     if (o.outline) {
-      g.lineWidth = o.outlineW || 3;
-      g.strokeStyle = o.outline;
-      g.lineJoin = 'round';
-      g.strokeText(str, x, y);
+      g.beginPath();
+      if (px <= PIX) {
+        // At one buffer pixel per font pixel a full outline closes up the
+        // counters of 'a', 'e', '0' and friends. A drop shadow keeps small
+        // text legible against the world and still lifts it off.
+        Font.path(g, str, dx + px, dy + px, px);
+      } else {
+        Font.path(g, str, dx - px, dy, px);
+        Font.path(g, str, dx + px, dy, px);
+        Font.path(g, str, dx, dy - px, px);
+        Font.path(g, str, dx, dy + px, px);
+      }
+      g.fillStyle = o.outline;
+      g.fill();
     }
-    g.fillStyle = o.color || '#fff';
-    g.fillText(str, x, y);
+    Font.draw(g, str, dx, dy, px, o.color || '#fff');
     g.restore();
   },
+
   width(g, str, o) {
     o = o || {};
-    g.save();
-    g.font = `${o.weight || 'normal'} ${o.size || 18}px ${o.font || 'Georgia, serif'}`;
-    const w = g.measureText(str).width;
-    g.restore();
-    return w;
+    return Font.width(String(str), this.scaleFor(o.size));
   },
   wrap(g, str, maxW, o) {
     const words = str.split(' ');
@@ -342,8 +400,8 @@ function panel(g, x, y, w, h, o) {
   grad.addColorStop(1, o.bottom || 'rgba(12,15,28,.97)');
   roundRect(g, x, y, w, h, o.r === undefined ? 6 : o.r);
   g.fillStyle = grad; g.fill();
-  g.lineWidth = 2; g.strokeStyle = o.border || '#c8a45c'; g.stroke();
-  g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,.08)';
+  g.lineWidth = 3; g.strokeStyle = o.border || '#c8a45c'; g.stroke();
+  g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,.08)';
   roundRect(g, x + 4, y + 4, w - 8, h - 8, 4); g.stroke();
   g.restore();
 }

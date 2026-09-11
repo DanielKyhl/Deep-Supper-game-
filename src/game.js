@@ -318,8 +318,8 @@ const Game = {
   /* -------------------------------- drawing ---------------------------- */
 
   draw() {
-    const g = ctx;
-    g.setTransform(1, 0, 0, 1, 0, 0);
+    const g = bctx;
+    resetTransform(g);
     g.clearRect(0, 0, VIEW_W, VIEW_H);
 
     g.save();
@@ -375,6 +375,8 @@ const Game = {
       g.fillStyle = 'rgba(3,4,10,' + this.fade.a + ')';
       g.fillRect(0, 0, VIEW_W, VIEW_H);
     }
+
+    present();   // buffer -> screen, nearest-neighbour
   },
 
   drawWorld(g) {
@@ -382,7 +384,7 @@ const Game = {
 
     // the whole world slides up when you are following a line down
     g.save();
-    g.translate(0, -this.viewY);
+    g.translate(0, -snap(this.viewY));
     if (this.viewY > 1) {
       // keep the top of the frame from going transparent as the sky rides up
       g.fillStyle = css(skyAt(night).top);
@@ -474,7 +476,7 @@ const Game = {
     // the swell it pushes ahead of itself
     g.globalAlpha = .5;
     g.strokeStyle = 'rgba(214,236,250,.7)';
-    g.lineWidth = 2.5;
+    g.lineWidth = 3;
     g.beginPath();
     g.moveTo(x - 520, y - 44);
     g.quadraticCurveTo(x, y - 74 + Math.sin(t * 2) * 3, x + 520, y - 44);
@@ -649,7 +651,7 @@ const Game = {
       size: 78, align: 'center', color: '#f2e2bd', weight: 'bold',
       font: 'Georgia, serif', shadow: 'rgba(0,0,0,.85)', sdx: 4, sdy: 5
     });
-    g.strokeStyle = 'rgba(200,164,92,.8)'; g.lineWidth = 2;
+    g.strokeStyle = 'rgba(200,164,92,.8)'; g.lineWidth = 3;
     g.beginPath(); g.moveTo(VIEW_W / 2 - 230, y + 22); g.lineTo(VIEW_W / 2 + 230, y + 22); g.stroke();
     Text.draw(g, 'a small boy, a large sea, and dinner', VIEW_W / 2, y + 54, {
       size: 22, align: 'center', color: '#a8b4cf', italic: true, font: 'Georgia, serif'
@@ -660,21 +662,19 @@ const Game = {
       size: 22, align: 'center', color: 'rgba(240,207,138,' + a + ')', weight: 'bold', font: 'Georgia, serif'
     });
 
-    const W = 560, X = VIEW_W / 2 - W / 2;
-    panel(g, X, 360, W, 96, { alpha: .82 });
-    const cols = [
-      ['A / D', 'walk the deck'],
-      ['SPACE', 'jump  ·  hold to reel'],
-      ['E', 'interact  ·  set the hook'],
-      ['J / K', 'swing  ·  roll'],
-      ['Q', 'use a bandage'],
-      ['M / ESC', 'mute  ·  pause']
+    const W = 640, X = VIEW_W / 2 - W / 2;
+    panel(g, X, 366, W, 108, { alpha: .82 });
+    const rows = [
+      ['A D', 'walk',      'J', 'swing'],
+      ['SPC', 'jump/reel', 'K', 'roll'],
+      ['E',   'interact',  'Q', 'bandage']
     ];
-    cols.forEach((c, i) => {
-      const cx = X + 26 + (i % 3) * 180;
-      const cy = 392 + Math.floor(i / 3) * 34;
-      Text.draw(g, c[0], cx, cy, { size: 15, color: '#f0cf8a', weight: 'bold', font: 'Verdana, sans-serif' });
-      Text.draw(g, c[1], cx, cy + 17, { size: 12, color: '#9aa7c4', font: 'Verdana, sans-serif' });
+    rows.forEach((r, i) => {
+      const cy = 396 + i * 24;
+      Text.draw(g, r[0], X + 30, cy, { size: 15, color: '#f0cf8a' });
+      Text.draw(g, r[1], X + 120, cy, { size: 15, color: '#9aa7c4' });
+      Text.draw(g, r[2], X + 350, cy, { size: 15, color: '#f0cf8a' });
+      Text.draw(g, r[3], X + 410, cy, { size: 15, color: '#9aa7c4' });
     });
   },
 
