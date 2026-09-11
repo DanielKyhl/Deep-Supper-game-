@@ -10,7 +10,7 @@ const Player = {
   animT: 0,
   hp: 5, maxHp: 5,
   coins: 0,
-  rod: 0, weapon: -1,
+  rod: 0, weapon: -1, introDone: false,
   bandages: 0, lockets: 0, lantern: false, luck: false,
   catches: [],
   kills: {}, totalKills: 0, sold: 0, casts: 0,
@@ -22,7 +22,7 @@ const Player = {
   reset() {
     this.x = 640; this.y = DECK_Y; this.vy = 0; this.face = 1;
     this.hp = 5; this.maxHp = 5; this.coins = 0;
-    this.rod = 0; this.weapon = -1;
+    this.rod = 0; this.weapon = -1; this.introDone = false;
     this.bandages = 0; this.lockets = 0; this.lantern = false; this.luck = false;
     this.catches.length = 0; this.kills = {}; this.totalKills = 0; this.sold = 0; this.casts = 0;
     this.beatBoss = false;
@@ -38,7 +38,7 @@ const SPOTS = [
 ];
 
 const Game = {
-  state: 'title',
+  state: 'title', viewY: 0,
   t: 0, night: 1, crateOpen: false,
   fade: { a: 0, dir: 0, cb: null },
   msgs: [], msgWho: '',
@@ -363,6 +363,15 @@ const Game = {
   drawWorld(g) {
     const t = this.t, night = this.night;
 
+    // the whole world slides up when you are following a line down
+    g.save();
+    g.translate(0, -this.viewY);
+    if (this.viewY > 1) {
+      // keep the top of the frame from going transparent as the sky rides up
+      g.fillStyle = css(skyAt(night).top);
+      g.fillRect(0, -this.viewY - 20, VIEW_W, this.viewY + 24);
+    }
+
     Art.sky(g, night, t);
     Art.harbour(g, CUT.harbourX, night, t);
     Art.sea(g, Cam.x, t, night);
@@ -393,11 +402,21 @@ const Game = {
 
     Art.seaFront(g, Cam.x, t, night);
 
+    // everything below the surface, once a line is down there
+    if (this.state === 'fish' && (this.viewY > 1 || Fishing.hook.depth > 0)) {
+      const info = Fishing.waterInfo();
+      Art.underwater(g, {
+        viewY: this.viewY, t, night, shapes: info.shapes, watcher: info.watcher
+      });
+    }
+
     // the enormous thing, passing between you and the boat
     if (CUT.bigShadow > 0) this.drawBigShadow(g, CUT.bigShadow, t);
 
     // fishing line hangs over the near rail, in front of the water
     if (this.state === 'fish') Fishing.drawLine(g);
+
+    Particles.draw(g, 0, 'water');
 
     // wake
     if (CUT.wake > 0) {
@@ -411,6 +430,8 @@ const Game = {
       }
       g.restore();
     }
+
+    g.restore();          // end of the vertical view pan
 
     Particles.draw(g, this.state === 'fish' ? 0 : Cam.x);
 

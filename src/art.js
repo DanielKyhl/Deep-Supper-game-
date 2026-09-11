@@ -218,6 +218,153 @@ const Art = {
     this._band(g, camX, t, HORIZON_Y + 66, 8, 240, 1.1, .06, css(shade(c.mid, -.10)), css(c.foam, .12));
   },
 
+  /* The water column you drop a line into. Drawn in water-space (the caller
+     has already translated by -viewY), so depth is absolute: 500 is the
+     surface and it only gets worse from there.                            */
+  underwater(g, o) {
+    const top = WATER_TOP;
+    const t = o.t, viewY = o.viewY;
+    const vis0 = viewY - 40, vis1 = viewY + VIEW_H + 40;
+
+    const grad = g.createLinearGradient(0, top, 0, top + 1100);
+    grad.addColorStop(0, css(mix([26, 82, 104], [10, 30, 50], o.night)));
+    grad.addColorStop(.16, css(mix([16, 56, 78], [7, 22, 40], o.night)));
+    grad.addColorStop(.45, '#0a1d2c');
+    grad.addColorStop(.78, '#071523');
+    grad.addColorStop(1, '#05111c');
+    g.fillStyle = grad;
+    g.fillRect(-60, top, VIEW_W + 120, 5200);
+
+    // shafts of lantern light, only near the surface
+    const shaft = clamp(1 - viewY / 420, 0, 1);
+    if (shaft > .01) {
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = shaft * .16;
+      for (let i = 0; i < 5; i++) {
+        const sx = 180 + i * 170 + Math.sin(t * .4 + i) * 26;
+        g.fillStyle = 'rgba(190,226,244,1)';
+        g.beginPath();
+        g.moveTo(sx - 16, top);
+        g.lineTo(sx + 16, top);
+        g.lineTo(sx + 78 + i * 6, top + 440);
+        g.lineTo(sx - 62 - i * 5, top + 440);
+        g.closePath(); g.fill();
+      }
+      g.restore();
+    }
+
+    // thermoclines — the water changes its mind at certain depths
+    g.save();
+    for (let i = 1; i < 9; i++) {
+      const y = top + i * 340;
+      if (y < vis0 - 60 || y > vis1 + 60) continue;
+      g.globalAlpha = .12;
+      g.fillStyle = i % 2 ? '#0b2436' : '#071823';
+      g.beginPath();
+      g.moveTo(-60, y);
+      for (let x = -60; x <= VIEW_W + 60; x += 40) {
+        g.lineTo(x, y + Math.sin(x / 150 + t * .5 + i) * 9);
+      }
+      g.lineTo(VIEW_W + 60, y + 120);
+      g.lineTo(-60, y + 120);
+      g.closePath(); g.fill();
+    }
+    g.restore();
+
+    // marine snow, rising past you as you descend
+    g.save();
+    for (let i = 0; i < 190; i++) {
+      const hx = ((i * 73.7) % 101) / 101;
+      const hy = ((i * 149.3) % 211) / 211;
+      const sp = 6 + (i % 7) * 3;
+      let y = top + hy * 4600 - (t * sp) % 4600;
+      if (y < top) y += 4600;
+      if (y < vis0 || y > vis1) continue;
+      const x = hx * (VIEW_W + 80) - 40 + Math.sin(t * .6 + i) * 7;
+      const s = .8 + (i % 4) * .5;
+      g.globalAlpha = .10 + (i % 5) * .04;
+      g.fillStyle = '#cfe4f0';
+      g.beginPath(); g.arc(x, y, s, 0, 6.2832); g.fill();
+    }
+    g.restore();
+
+    // depth markings down the side, so you know how bad it is getting
+    g.save();
+    for (let i = 1; i <= 26; i++) {
+      const y = top + i * 200;
+      if (y < vis0 || y > vis1) continue;
+      g.fillStyle = 'rgba(170,210,232,.55)';
+      g.fillRect(VIEW_W - 76, y, 20, 1.6);
+      Text.draw(g, (i * 4) + ' fm', VIEW_W - 50, y + 5, {
+        size: 12, color: 'rgba(178,214,236,.75)', font: 'Verdana, sans-serif'
+      });
+    }
+    g.restore();
+
+    // things that are not your business, passing at depth
+    for (const s of (o.shapes || [])) {
+      const y = top + s.depth;
+      if (y < vis0 - 200 || y > vis1 + 200) continue;
+      g.save();
+      g.translate(s.x, y);
+      g.scale(s.dir, 1);
+      // darker than the water, with a cold rim so it reads against the black
+      g.globalAlpha = s.a + .25;
+      g.fillStyle = '#020a14';
+      const wob = Math.sin(t * 1.4 + s.ph) * .12;
+      g.beginPath();
+      g.ellipse(0, 0, s.r, s.r * .26, wob, 0, 6.2832);
+      g.fill();
+      g.beginPath();
+      g.moveTo(-s.r, 0); g.lineTo(-s.r * 1.5, -s.r * .34); g.lineTo(-s.r * 1.45, s.r * .3);
+      g.closePath(); g.fill();
+      g.globalAlpha = (s.a + .2) * .8;
+      g.strokeStyle = 'rgba(150,196,224,.45)'; g.lineWidth = 1.2;
+      g.beginPath();
+      g.ellipse(0, 0, s.r, s.r * .26, wob, -2.5, -.5);
+      g.stroke();
+      // one small cold eye
+      g.globalAlpha = 1;
+      this._glowBlob(g, s.r * .62, -s.r * .06, 20, 'rgba(150,220,236,.8)', .30 + s.a);
+      g.fillStyle = 'rgba(190,236,250,.8)';
+      g.beginPath(); g.arc(s.r * .62, -s.r * .06, 1.7, 0, 6.2832); g.fill();
+      g.restore();
+    }
+
+    // and the one that is
+    if (o.watcher && o.watcher.a > .01) {
+      const w = o.watcher;
+      const y = top + w.depth;
+      g.save();
+      g.globalAlpha = w.a;
+      // a suggestion of mass around the eyes
+      g.fillStyle = 'rgba(2,4,10,.85)';
+      g.beginPath();
+      g.ellipse(w.x, y, 420, 120, Math.sin(t * .3) * .04, 0, 6.2832);
+      g.fill();
+      const blink = Math.sin(t * .8 + 1) > .965 ? .08 : 1;
+      for (let i = 0; i < 3; i++) {
+        const ex = w.x - 90 + i * 92, ey = y - 20 + (i === 1 ? -14 : 0);
+        const r = (i === 1 ? 16 : 13) * blink;
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        const rg = g.createRadialGradient(ex, ey, 1, ex, ey, 130);
+        rg.addColorStop(0, 'rgba(255,40,40,.55)');
+        rg.addColorStop(.35, 'rgba(180,20,20,.18)');
+        rg.addColorStop(1, 'rgba(120,0,0,0)');
+        g.fillStyle = rg;
+        g.beginPath(); g.arc(ex, ey, 130, 0, 6.2832); g.fill();
+        g.restore();
+        g.fillStyle = '#ff3a3a';
+        g.beginPath(); g.ellipse(ex, ey, r * .8, r, 0, 0, 6.2832); g.fill();
+        g.fillStyle = '#2a0004';
+        g.beginPath(); g.ellipse(ex, ey, r * .22, r * .9, 0, 0, 6.2832); g.fill();
+      }
+      g.restore();
+    }
+  },
+
   // drawn in front of the hull so the boat sits *in* the water
   seaFront(g, camX, t, night) {
     const c = this._seaCols(night);

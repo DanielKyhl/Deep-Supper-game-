@@ -8,6 +8,8 @@ const VIEW_W = 960, VIEW_H = 540;
 // World layout (world-space pixels; the boat is longer than the screen)
 const HORIZON_Y = 300;   // where sky meets sea
 const DECK_Y    = 400;   // the surface characters stand on (feet line)
+const WATER_Y   = 470;   // the surface your line goes through
+const WATER_TOP = 500;   // where the underwater column starts drawing
 const BOAT_L    = 0;
 const BOAT_R    = 1900;
 const WALK_L    = 74;    // player movement clamp
@@ -211,7 +213,8 @@ const Particles = {
       shape: o.shape || 'rect',
       drag: o.drag === undefined ? 0.2 : o.drag,
       spin: rand(-6, 6), rot: rand(0, 6.3),
-      fixed: !!o.fixed
+      fixed: !!o.fixed || !!o.water,
+      water: !!o.water        // lives in the water column, drawn under the pan
     });
   },
   burst(x, y, n, o) { for (let i = 0; i < n; i++) this.add(x, y, o); },
@@ -226,8 +229,10 @@ const Particles = {
       p.rot += p.spin * dt;
     }
   },
-  draw(g, camX) {
+  draw(g, camX, layer) {
+    const wantWater = layer === 'water';
     for (const p of this.list) {
+      if (!!p.water !== wantWater) continue;
       const a = 1 - p.life / p.max;
       g.save();
       g.globalAlpha = a;
