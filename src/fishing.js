@@ -167,28 +167,34 @@ const Fishing = {
   _reel(dt, rod) {
     const m = this.target;
 
+    // The bar's centre can only travel within [half, 1-half], so the fish has to
+    // live in that same band — otherwise it can pin itself against the very top or
+    // bottom of the track where no amount of reeling can ever cover it.
+    const half = this.barFrac / 2;
+    const lo = half, hi = 1 - half;
+
     // --- the fish ---
     this.fTimer -= dt;
     if (this.fTimer <= 0) {
       this.fTimer = rand(.35, 1.15);
-      this.fTarget = chance(.25) ? rand(0, 1) : clamp(this.fy + rand(-.42, .42), 0, 1);
+      this.fTarget = chance(.25) ? rand(lo, hi) : clamp(this.fy + rand(-.42, .42), lo, hi);
     }
     const acc = (this.fTarget - this.fy) * (7 + m.depth * 2.2);
     this.fvy += acc * dt;
     this.fvy *= (1 - Math.min(.9, dt * 5.4));
-    this.fy = clamp(this.fy + this.fvy * dt * this.fSpeed * 3.2, 0, 1);
+    this.fy = clamp(this.fy + this.fvy * dt * this.fSpeed * 3.2, lo, hi);
+    if (this.fy <= lo || this.fy >= hi) this.fvy *= .4;
 
     // --- the bar ---
     const pulling = Input.held('confirm') || Input.held('interact') || Input.held('up');
     this.bvy += (pulling ? -2.35 : 2.05) * dt;
     this.bvy *= (1 - Math.min(.9, dt * 2.4));
     this.by += this.bvy * dt;
-    const half = this.barFrac / 2;
-    if (this.by < half) { this.by = half; this.bvy = Math.max(0, this.bvy) * .35; }
-    if (this.by > 1 - half) { this.by = 1 - half; this.bvy = Math.min(0, this.bvy) * .35; }
+    if (this.by < lo) { this.by = lo; this.bvy = Math.max(0, this.bvy) * .35; }
+    if (this.by > hi) { this.by = hi; this.bvy = Math.min(0, this.bvy) * .35; }
 
-    // --- overlap ---
-    const inBar = Math.abs(this.fy - this.by) < half;
+    // --- overlap --- (<=, so a fish parked on the band edge still counts)
+    const inBar = Math.abs(this.fy - this.by) <= half + 1e-6;
     if (inBar) {
       this.prog += dt * 0.30 * rod.reel;
       this.tension = Math.max(0, this.tension - dt * 1.2);
