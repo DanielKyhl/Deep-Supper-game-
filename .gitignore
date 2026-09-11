@@ -1,0 +1,11 @@
+# OS / editor cruft
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# local Claude Code settings (shared config is committed)
+.claude/settings.local.json
