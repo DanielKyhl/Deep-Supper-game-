@@ -40,13 +40,18 @@ const Battle = {
       state: 'enter', t: 0, flash: 0, gape: 0,
       cool: 1.0, target: 0, hits: 0,
       thrashSpeed: 5, thrashAmt: 1,
-      shots: 0
+      shots: 0,
+      // a stable per-fight seed so its lumps and wobbles stay its own
+      seed: (def.id.charCodeAt(0) * 7 + def.id.length * 13 + def.len) % 97 + 1,
+      rage: false
     };
     Sfx.roar();
     Cam.kick(8);
   },
 
   get len() { return this.def.len; },
+  get girth() { return this.def.girth === undefined ? .27 : this.def.girth; },
+  get restY() { return DECK_Y - this.len * this.girth - 16; },
 
   /* ------------------------------- update ------------------------------ */
 
@@ -59,7 +64,7 @@ const Battle = {
       m.t += dt;
       const p = clamp(m.t / 1.5, 0, 1);
       m.x = lerp(Cam.x + VIEW_W + 180, Cam.x + VIEW_W - 300, ease(p));
-      m.y = lerp(DECK_Y - 280, DECK_Y - this.len * 0.24 - 18, ease(p));
+      m.y = lerp(DECK_Y - 320, this.restY, ease(p));
       m.rot = lerp(-0.6, 0, ease(p));
       m.gape = Math.sin(p * Math.PI) * .8;
       if (p >= 1 && m.t > 2.2) {
@@ -218,8 +223,8 @@ const Battle = {
   },
 
   _monsterHurtbox() {
-    const m = this.m, L = this.len;
-    return { x: m.x - L * .42, y: m.y - L * .20, w: L * .84, h: L * .40 };
+    const m = this.m, L = this.len, gh = L * this.girth;
+    return { x: m.x - L * .42, y: m.y - gh * 1.05, w: L * .84, h: gh * 2.1 };
   },
 
   _tryHit() {
@@ -317,7 +322,7 @@ const Battle = {
     m.t += dt;
     m.flash = Math.max(0, m.flash - dt * 4);
     const rageMul = this.rage ? 1.35 : 1;
-    const restY = DECK_Y - this.len * 0.24 - 18;
+    const restY = this.restY;
 
     // always face the player
     const wantFace = Player.x < m.x ? -1 : 1;
@@ -506,7 +511,7 @@ const Battle = {
     g.save();
     const drawM = {
       x: m.x - camX, y: m.y, face: m.face, rot: m.rot, len: this.len,
-      def: this.def, flash: m.flash, gape: m.gape,
+      def: this.def, flash: m.flash, gape: m.gape, seed: m.seed, rage: this.rage,
       thrashSpeed: 5 + (this.rage ? 3 : 0), thrashAmt: m.thrashAmt
     };
     if (this.rage && this.phase === 'fight') {

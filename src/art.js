@@ -1175,187 +1175,1090 @@ const Art = {
     g.restore();
   },
 
-  /* ------------------------------ monsters ----------------------------- */
+  /* ============================== monsters ==============================
+     Nine body plans. Nothing here is a rigid shape rotated about a point:
+     every silhouette is rebuilt each frame around a spine or a pulse, so
+     the things breathe, writhe and never sit still.                      */
 
-  monsterPath(g, m, len, h) {
-    const L = len / 2;
+  // cheap deterministic wobble in roughly [-1, 1]
+  _n(seed, i, t, sp) {
+    return Math.sin(seed * 12.9898 + i * 4.1 + t * (sp || 1)) * .55
+         + Math.sin(seed * 7.233 + i * 2.13 - t * (sp || 1) * 1.63) * .45;
+  },
+
+  // closed curve through control points — the workhorse for organic outlines
+  _smooth(g, pts) {
+    const n = pts.length;
+    if (n < 3) return;
     g.beginPath();
-    g.moveTo(L, 0);                                   // snout
-    g.bezierCurveTo(L * .6, -h * 1.05, L * .1, -h * 1.15, -L * .35, -h * .72);
-    g.bezierCurveTo(-L * .62, -h * .5, -L * .82, -h * .3, -L, -h * .16);  // tail root
-    g.lineTo(-L, h * .16);
-    g.bezierCurveTo(-L * .82, h * .32, -L * .62, h * .55, -L * .35, h * .8);
-    g.bezierCurveTo(L * .1, h * 1.18, L * .6, h * .95, L, 0);
+    g.moveTo((pts[n - 1][0] + pts[0][0]) / 2, (pts[n - 1][1] + pts[0][1]) / 2);
+    for (let i = 0; i < n; i++) {
+      const p = pts[i], q = pts[(i + 1) % n];
+      g.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
+    }
     g.closePath();
   },
 
+  // fill a silhouette, outline it, and take the hit-flash on the same path
+  _flesh(g, pts, fill, stroke, flash, alpha) {
+    this._smooth(g, pts);
+    g.save();
+    if (alpha !== undefined) g.globalAlpha = alpha;
+    g.fillStyle = fill; g.fill();
+    if (stroke) { g.strokeStyle = stroke; g.lineWidth = 2.4; g.stroke(); }
+    g.restore();
+    if (flash > 0) {
+      this._smooth(g, pts);
+      g.save(); g.globalAlpha = Math.min(1, flash) * .9;
+      g.fillStyle = '#fff'; g.fill(); g.restore();
+    }
+  },
+
+  // a tapering limb that curls; used for tentacles, threads, legs, barbels
+  _limb(g, o) {
+    const seg = o.seg || 12;
+    const pts = [];
+    let x = o.x, y = o.y, a = o.ang;
+    const step = o.len / seg;
+    for (let i = 0; i <= seg; i++) {
+      pts.push([x, y, lerp(o.w0, o.w1, i / seg)]);
+      a += o.curl / seg + this._n(o.seed || 1, i * .6, o.t, o.sp || 2.2) * (o.wave || .14);
+      x += Math.cos(a) * step;
+      y += Math.sin(a) * step;
+    }
+    // outline down one side and back the other
+    g.beginPath();
+    for (let i = 0; i <= seg; i++) {
+      const p = pts[i], q = pts[Math.min(seg, i + 1)];
+      const ang = Math.atan2(q[1] - p[1], q[0] - p[0]) + Math.PI / 2;
+      const px = p[0] + Math.cos(ang) * p[2], py = p[1] + Math.sin(ang) * p[2];
+      if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+    }
+    for (let i = seg; i >= 0; i--) {
+      const p = pts[i], q = pts[Math.max(0, i - 1)];
+      const ang = Math.atan2(p[1] - q[1], p[0] - q[0]) + Math.PI / 2;
+      g.lineTo(p[0] - Math.cos(ang) * p[2], p[1] - Math.sin(ang) * p[2]);
+    }
+    g.closePath();
+    g.fillStyle = o.color; g.fill();
+    if (o.stroke) { g.strokeStyle = o.stroke; g.lineWidth = 1.6; g.stroke(); }
+    if (o.suckers) {
+      g.fillStyle = o.sucker || 'rgba(255,255,255,.3)';
+      for (let i = 2; i < seg; i += 2) {
+        const p = pts[i];
+        g.beginPath(); g.arc(p[0], p[1], Math.max(1, p[2] * .42), 0, 6.2832); g.fill();
+      }
+    }
+    if (o.hook) {
+      const p = pts[seg], q = pts[seg - 1];
+      const ang = Math.atan2(p[1] - q[1], p[0] - q[0]);
+      g.save(); g.translate(p[0], p[1]); g.rotate(ang);
+      g.strokeStyle = '#c8ccd4'; g.lineWidth = 3; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(12, 1, 10, 11);
+      g.stroke(); g.lineCap = 'butt'; g.restore();
+    }
+    return pts[seg];
+  },
+
+  // an eye that can be slit, round, or milky-blind, and that blinks
+  _eye(g, x, y, r, col, o) {
+    o = o || {};
+    const blink = o.blink === undefined ? 1 : o.blink;
+    g.save();
+    g.translate(x, y);
+    g.fillStyle = 'rgba(8,6,12,.85)';
+    g.beginPath(); g.arc(0, 0, r * 1.24, 0, 6.2832); g.fill();
+    g.fillStyle = col;
+    g.beginPath(); g.ellipse(0, 0, r, r * blink, 0, 0, 6.2832); g.fill();
+    if (blink > .25) {
+      g.fillStyle = 'rgba(10,6,14,.92)';
+      if (o.slit) {
+        g.beginPath(); g.ellipse(r * .1, 0, r * .22, r * .82 * blink, 0, 0, 6.2832); g.fill();
+      } else {
+        g.beginPath(); g.arc(r * .12, 0, r * .44 * Math.min(1, blink * 1.4), 0, 6.2832); g.fill();
+      }
+      g.fillStyle = 'rgba(255,255,255,.75)';
+      g.beginPath(); g.arc(-r * .28, -r * .3, r * .17, 0, 6.2832); g.fill();
+    }
+    if (o.glow) {
+      g.globalCompositeOperation = 'lighter';
+      const rg = g.createRadialGradient(0, 0, 1, 0, 0, r * 4.2);
+      rg.addColorStop(0, o.glow); rg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalAlpha = .38 * blink;
+      g.fillStyle = rg;
+      g.beginPath(); g.arc(0, 0, r * 4.2, 0, 6.2832); g.fill();
+    }
+    g.restore();
+  },
+
+  // a row of teeth following a curve
+  _teeth(g, x0, y0, x1, y1, n, size, dir, col) {
+    g.fillStyle = col || '#f4eedc';
+    for (let i = 0; i < n; i++) {
+      const f = (i + .5) / n;
+      const x = lerp(x0, x1, f), y = lerp(y0, y1, f);
+      const s = size * (.55 + Math.abs(Math.sin(f * 3.1)) * .9);
+      g.beginPath();
+      g.moveTo(x - s * .42, y);
+      g.lineTo(x + s * .42, y);
+      g.lineTo(x + (i % 2 ? .12 : -.12) * s, y + s * dir);
+      g.closePath(); g.fill();
+    }
+  },
+
+  _glowBlob(g, x, y, r, col, a) {
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    const rg = g.createRadialGradient(x, y, 1, x, y, r);
+    rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = a === undefined ? .5 : a;
+    g.fillStyle = rg;
+    g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.fill();
+    g.restore();
+  },
+
+  // crusted growths that make a surface look lived-on
+  _growths(g, pts, seed, n, col) {
+    g.fillStyle = col;
+    for (let i = 0; i < n; i++) {
+      const p = pts[Math.floor(Math.abs(this._n(seed, i * 3.7, 0, 0)) * (pts.length - 1))];
+      if (!p) continue;
+      const r = 2 + Math.abs(this._n(seed, i, 0, 0)) * 4;
+      g.beginPath(); g.arc(p[0], p[1], r, 0, 6.2832); g.fill();
+      g.fillStyle = 'rgba(0,0,0,.2)';
+      g.beginPath(); g.arc(p[0], p[1], r * .45, 0, 6.2832); g.fill();
+      g.fillStyle = col;
+    }
+  },
+
+  /* ------------------------- the dispatcher --------------------------- */
+
   monster(g, m, t) {
-    const len = m.len, h = len * 0.27;
     const d = m.def;
+    const len = m.len, h = len * (d.girth || .27);
+    const seed = m.seed || 1;
+
+    // deck shadow, in screen space so it stays flat
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = 'rgba(0,0,0,.32)';
+    g.beginPath(); g.ellipse(m.x, DECK_Y + 2, len * .36, 11, 0, 0, 6.2832); g.fill();
+    g.restore();
+
     g.save();
     g.translate(m.x, m.y);
     g.scale(m.face, 1);
     g.rotate(m.rot || 0);
 
-    const thrash = Math.sin(t * (m.thrashSpeed || 5)) * (m.thrashAmt || 1);
+    const S = {
+      len, h, seed, t,
+      body: d.body, belly: d.belly, fin: d.fin, eyeCol: d.eye, glow: d.glow,
+      flash: m.flash || 0,
+      gape: m.gape || 0,
+      thr: m.thrashAmt === undefined ? 1 : m.thrashAmt,
+      blink: (Math.sin(t * 1.7 + seed) > .93 || Math.sin(t * .7 + seed * 2) > .97) ? .12 : 1,
+      dark: css(shade(d.body, -.4)),
+      mid: css(d.body),
+      lite: css(shade(d.body, .18)),
+      bel: css(d.belly),
+      finC: css(d.fin),
+      eyes: d.eyes === undefined ? 2 : d.eyes
+    };
 
-    // shadow on the deck
-    g.save();
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.fillStyle = 'rgba(0,0,0,.3)';
-    g.beginPath(); g.ellipse(m.x, DECK_Y + 2, len * .38, 10, 0, 0, 6.2832); g.fill();
+    const fn = this['_plan_' + (d.plan || 'eel')] || this._plan_eel;
+    fn.call(this, g, S, m);
+
     g.restore();
+  },
 
-    const body = d.body, belly = d.belly, finC = d.fin;
+  /* ------------------------------- eel -------------------------------- */
 
-    // tail fin
-    g.save();
-    g.translate(-len / 2, 0);
-    g.rotate(thrash * .22);
-    g.fillStyle = css(finC);
-    g.beginPath();
-    g.moveTo(4, 0);
-    g.lineTo(-len * .30, -h * 1.25);
-    g.lineTo(-len * .18, -h * .18);
-    g.lineTo(-len * .30, h * 1.15);
-    g.closePath(); g.fill();
-    g.fillStyle = css(shade(finC, -.25));
-    g.beginPath();
-    g.moveTo(2, 0); g.lineTo(-len * .26, -h * .95); g.lineTo(-len * .16, -h * .1); g.closePath(); g.fill();
-    g.restore();
+  _plan_eel(g, S) {
+    const { len, h, t, seed, thr } = S;
+    const N = 20, half = len / 2;
+    const spine = [];
+    for (let i = 0; i <= N; i++) {
+      const f = i / N;
+      const x = half - f * len;
+      const amp = (6 + f * 26) * thr;
+      const y = Math.sin(f * 5.2 - t * 4.4) * amp + Math.sin(f * 2.1 - t * 2.1) * amp * .4;
+      spine.push([x, y, f]);
+    }
+    const wid = f => h * (f < .18 ? (.55 + f * 2.4) : Math.pow(1 - (f - .18) / .82, .75)) + 1;
 
-    // dorsal fin — base buried in the back, swept backwards
-    g.fillStyle = css(shade(finC, .08));
+    // dorsal ribbon, behind the body
     g.beginPath();
-    g.moveTo(len * .20, -h * .70);
-    g.quadraticCurveTo(len * .01, -h * 1.72 - thrash * 3, -len * .15, -h * 1.14);
-    g.lineTo(-len * .30, -h * .50);
-    g.closePath(); g.fill();
-    g.fillStyle = css(shade(finC, -.22));
-    g.beginPath();
-    g.moveTo(len * .06, -h * .70);
-    g.quadraticCurveTo(-len * .02, -h * 1.30 - thrash * 2, -len * .13, -h * 1.02);
-    g.lineTo(-len * .20, -h * .50);
-    g.closePath(); g.fill();
+    for (let i = 0; i <= N; i++) {
+      const [x, y, f] = spine[i];
+      const o = wid(f) + 6 + Math.sin(f * 9 - t * 5) * 5;
+      if (i === 0) g.moveTo(x, y - o); else g.lineTo(x, y - o);
+    }
+    for (let i = N; i >= 0; i--) {
+      const [x, y, f] = spine[i];
+      g.lineTo(x, y - wid(f) * .6);
+    }
+    g.closePath();
+    g.fillStyle = css(S.fin, .82); g.fill();
 
     // body
-    this.monsterPath(g, d, len, h);
-    const bg = g.createLinearGradient(0, -h, 0, h);
-    bg.addColorStop(0, css(shade(body, .16)));
-    bg.addColorStop(.45, css(body));
-    bg.addColorStop(.78, css(mix(body, belly, .55)));
-    bg.addColorStop(1, css(belly));
-    g.fillStyle = bg; g.fill();
-    g.strokeStyle = css(shade(body, -.35)); g.lineWidth = 2.5; g.stroke();
-
-    // scale speckle
-    g.save();
-    this.monsterPath(g, d, len, h); g.clip();
-    g.fillStyle = 'rgba(0,0,0,.10)';
-    for (let i = 0; i < 44; i++) {
-      const a = (i * 97.3) % 1, b = (i * 57.7) % 1;
-      g.beginPath();
-      g.arc(-len / 2 + a * len, -h + b * h * 2, 2.2 + (i % 3), 0, 6.2832);
-      g.fill();
+    const top = [], bot = [];
+    for (let i = 0; i <= N; i++) {
+      const [x, y, f] = spine[i];
+      const w = wid(f);
+      top.push([x, y - w]);
+      bot.push([x, y + w]);
     }
-    // lateral line
-    g.strokeStyle = css(shade(body, -.3), .6); g.lineWidth = 2;
-    g.beginPath();
-    g.moveTo(len * .42, -h * .06);
-    g.quadraticCurveTo(0, h * .14, -len * .48, 0);
-    g.stroke();
-    g.restore();
+    const outline = top.concat(bot.reverse());
+    const bg = g.createLinearGradient(0, -h, 0, h);
+    bg.addColorStop(0, S.lite); bg.addColorStop(.55, S.mid); bg.addColorStop(1, S.bel);
+    this._flesh(g, outline, bg, S.dark, S.flash);
 
-    // pectoral fin
+    // segmented banding
     g.save();
-    g.translate(len * .16, h * .42);
-    g.rotate(.5 + thrash * .16);
-    g.fillStyle = css(shade(finC, -.05));
-    g.beginPath();
-    g.moveTo(0, 0); g.lineTo(-h * .28, h * .95); g.lineTo(h * .55, h * .5);
-    g.closePath(); g.fill();
+    this._smooth(g, outline); g.clip();
+    g.strokeStyle = 'rgba(0,0,0,.16)'; g.lineWidth = 2;
+    for (let i = 2; i < N; i += 2) {
+      const [x, y, f] = spine[i], w = wid(f);
+      g.beginPath();
+      g.moveTo(x, y - w); g.quadraticCurveTo(x - 5, y, x, y + w); g.stroke();
+    }
+    if (S.glow) {
+      for (let i = 3; i < N; i += 3) {
+        const [x, y, f] = spine[i];
+        this._glowBlob(g, x, y + wid(f) * .4, 14, S.glow, .35);
+      }
+    }
     g.restore();
 
-    // gills
-    g.strokeStyle = css(shade(body, -.4), .75); g.lineWidth = 2.4;
-    for (let i = 0; i < 3; i++) {
+    // head: skull tapering to a long jaw
+    const hy = spine[0][1];
+    g.save();
+    g.translate(half, hy);
+    const hh = h * 1.15;
+    this._flesh(g, [
+      [-len * .14, -hh * .9], [len * .02, -hh * 1.05], [len * .1, -hh * .5],
+      [len * .13, 0], [len * .08, hh * .55], [-len * .1, hh * .95]
+    ], S.mid, S.dark, S.flash);
+
+    // gill slits
+    g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 2.2;
+    for (let i = 0; i < 4; i++) {
       g.beginPath();
-      g.moveTo(len * .22 - i * 9, -h * .52);
-      g.quadraticCurveTo(len * .19 - i * 9, 0, len * .22 - i * 9, h * .42);
+      g.moveTo(-len * .1 + i * 7, -hh * .5);
+      g.quadraticCurveTo(-len * .12 + i * 7, 0, -len * .1 + i * 7, hh * .45);
       g.stroke();
     }
 
-    // jaw
-    const gape = m.gape || 0;
+    // jaws — hinged well back, needle teeth
+    const gp = .18 + S.gape * .95;
+    g.save(); g.rotate(gp * .5);
+    this._flesh(g, [[-len * .06, -4], [len * .1, 2], [len * .2, 8], [len * .06, 14], [-len * .06, 10]],
+      css(shade(S.body, -.18)), S.dark, S.flash);
+    this._teeth(g, -len * .04, 2, len * .18, 6, 8, 9, -1);
+    g.restore();
+    g.save(); g.rotate(-gp * .22);
+    this._flesh(g, [[-len * .06, 2], [len * .1, -4], [len * .2, -8], [len * .06, -14], [-len * .06, -10]],
+      css(shade(S.body, -.05)), S.dark, S.flash);
+    this._teeth(g, -len * .04, -2, len * .18, -6, 8, 9, 1);
+    g.restore();
+    if (S.gape > .1) {
+      g.fillStyle = 'rgba(30,6,18,.92)';
+      g.beginPath(); g.ellipse(len * .05, 0, len * .1, 10 + S.gape * 16, 0, 0, 6.2832); g.fill();
+    }
+
+    // eyes, high and small
+    for (let i = 0; i < S.eyes; i++) {
+      this._eye(g, -len * .02 + i * 6, -hh * .45 - i * 3, h * .22, S.eyeCol,
+        { slit: true, blink: S.blink, glow: S.glow });
+    }
+    g.restore();
+  },
+
+  /* ------------------------------ angler ------------------------------ */
+
+  _plan_angler(g, S) {
+    const { len, h, t, seed } = S;
+    const breathe = 1 + Math.sin(t * 2.2 + seed) * .04;
+
+    // spindly tail and fins first
+    this._limb(g, {
+      x: -len * .34, y: 0, ang: Math.PI + .1, len: len * .3, w0: h * .3, w1: 2,
+      curl: .5, wave: .1, t, sp: 3.1, seed, color: S.finC
+    });
+    for (const s of [-1, 1]) {
+      g.save();
+      g.translate(-len * .05, s * h * .75);
+      g.rotate(s * (.5 + Math.sin(t * 3 + seed) * .12));
+      g.fillStyle = css(S.fin, .9);
+      g.beginPath();
+      g.moveTo(0, 0);
+      for (let i = 0; i <= 5; i++) {
+        const a = i / 5;
+        g.lineTo(h * (.3 + a * .9), s * h * (.2 + Math.sin(a * 3 + t * 4) * .18 + a * .5));
+      }
+      g.lineTo(h * .2, s * h * .2);
+      g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1.4;
+      for (let i = 1; i < 5; i++) {
+        g.beginPath(); g.moveTo(h * .2, s * h * .2);
+        g.lineTo(h * (.3 + i / 5 * .9), s * h * (.2 + Math.sin(i / 5 * 3 + t * 4) * .18 + i / 5 * .5));
+        g.stroke();
+      }
+      g.restore();
+    }
+
+    // the sack of a body
+    const pts = [];
+    for (let i = 0; i < 16; i++) {
+      const a = i / 16 * 6.2832;
+      const lump = 1 + this._n(seed, i, t, .9) * .12;
+      const rx = len * .40 * lump * (a > 3.6 && a < 5.8 ? 1.08 : 1);
+      const ry = h * 1.02 * lump * breathe;
+      pts.push([Math.cos(a) * rx + len * .02, Math.sin(a) * ry]);
+    }
+    const bg = g.createRadialGradient(-len * .1, -h * .4, h * .2, 0, 0, len * .5);
+    bg.addColorStop(0, S.lite); bg.addColorStop(.6, S.mid); bg.addColorStop(1, css(shade(S.body, -.25)));
+    this._flesh(g, pts, bg, S.dark, S.flash);
+
+    // slack belly
+    g.save(); this._smooth(g, pts); g.clip();
+    g.fillStyle = css(S.belly, .5);
+    g.beginPath(); g.ellipse(0, h * .62, len * .34, h * .45, 0, 0, 6.2832); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,.14)'; g.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      g.beginPath();
+      g.moveTo(-len * .3, h * (-.2 + i * .3));
+      g.quadraticCurveTo(0, h * (-.1 + i * .3), len * .3, h * (-.25 + i * .3));
+      g.stroke();
+    }
+    this._growths(g, pts, seed, 7, 'rgba(255,255,255,.16)');
+    g.restore();
+
+    // the enormous jaw
+    const gp = .3 + S.gape * 1.05;
+    const jx = len * .3;
     g.save();
-    g.translate(len * .30, h * .1);
-    // lower jaw swings open
+    g.translate(jx, h * .1);
+    g.rotate(gp * .42);
+    this._flesh(g, [[-len * .3, -6], [-len * .05, 6], [len * .16, 10], [len * .1, 22], [-len * .3, 14]],
+      css(shade(S.body, -.2)), S.dark, S.flash);
+    this._teeth(g, -len * .26, 2, len * .14, 8, 9, 15, -1);
+    g.restore();
     g.save();
-    g.rotate(gape * .55);
-    g.fillStyle = css(shade(body, -.22));
+    g.translate(jx, h * .1);
+    g.rotate(-gp * .3);
+    this._flesh(g, [[-len * .3, 4], [-len * .05, -8], [len * .17, -10], [len * .09, -24], [-len * .3, -14]],
+      css(shade(S.body, -.06)), S.dark, S.flash);
+    this._teeth(g, -len * .26, -2, len * .15, -8, 9, 16, 1);
+    g.restore();
+    if (S.gape > .08) {
+      g.fillStyle = 'rgba(36,4,20,.94)';
+      g.beginPath(); g.ellipse(jx - len * .06, h * .1, len * .14, 8 + S.gape * 26, 0, 0, 6.2832); g.fill();
+    }
+
+    // illicium: a stalk, and a small kind light on the end of it
+    const lx = len * .12, ly = -h * .95;
+    const sway = Math.sin(t * 1.6 + seed) * .3;
+    g.strokeStyle = css(shade(S.body, -.3)); g.lineWidth = 4;
     g.beginPath();
-    g.moveTo(-6, -4);
-    g.quadraticCurveTo(len * .12, h * .12, len * .21, h * .04);
-    g.lineTo(len * .2, h * .22);
-    g.quadraticCurveTo(len * .06, h * .3, -6, h * .16);
-    g.closePath(); g.fill();
-    // lower teeth
-    g.fillStyle = '#f6f2e2';
+    g.moveTo(lx, ly);
+    const bx = lx + len * .34 + Math.sin(t * 1.1) * 8, by = ly - h * .85 + sway * 20;
+    g.quadraticCurveTo(lx + len * .1, ly - h * 1.1, bx, by);
+    g.stroke();
+    if (S.glow) {
+      this._glowBlob(g, bx, by, 46, S.glow, .55 + Math.sin(t * 3.3) * .12);
+      g.fillStyle = S.glow;
+      g.beginPath(); g.arc(bx, by, 7, 0, 6.2832); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.9)';
+      g.beginPath(); g.arc(bx - 2, by - 2, 3, 0, 6.2832); g.fill();
+      // little filaments
+      g.strokeStyle = css(S.fin, .8); g.lineWidth = 1.4;
+      for (let i = 0; i < 5; i++) {
+        const a = i / 5 * 6.2832 + t;
+        g.beginPath(); g.moveTo(bx, by);
+        g.lineTo(bx + Math.cos(a) * 14, by + Math.sin(a) * 14);
+        g.stroke();
+      }
+    }
+
+    // small dead eyes set too far back
+    for (let i = 0; i < S.eyes; i++) {
+      this._eye(g, len * .14 - i * 16, -h * .5 - i * 8, h * .17, S.eyeCol, { blink: S.blink, glow: S.glow });
+    }
+  },
+
+  /* ----------------------------- tentacle ----------------------------- */
+
+  _plan_tentacle(g, S) {
+    const { len, h, t, seed } = S;
+    const arms = 8;
+    const pulse = 1 + Math.sin(t * 1.9 + seed) * .06;
+
+    // back arms
+    for (let i = 0; i < arms; i++) {
+      if (i % 2) continue;
+      const f = i / (arms - 1);
+      this._limb(g, {
+        x: len * .18, y: (f - .5) * h * 1.2,
+        ang: .1 + (f - .5) * 1.5, len: len * (.5 + f * .2),
+        w0: h * .17, w1: 1.5, curl: .8 + f * .5, wave: .2, sp: 2.4 + i * .2,
+        t, seed: seed + i, color: css(shade(S.body, -.22)), stroke: 'rgba(0,0,0,.25)',
+        suckers: true, sucker: css(S.belly, .5)
+      });
+    }
+
+    // mantle
+    const pts = [];
+    for (let i = 0; i < 15; i++) {
+      const a = i / 15 * 6.2832;
+      const lump = 1 + this._n(seed, i, t, 1.3) * .1;
+      pts.push([Math.cos(a) * len * .36 * lump - len * .06,
+                Math.sin(a) * h * 1.0 * lump * pulse]);
+    }
+    const bg = g.createRadialGradient(-len * .12, -h * .3, h * .1, -len * .06, 0, len * .45);
+    bg.addColorStop(0, S.lite); bg.addColorStop(.7, S.mid); bg.addColorStop(1, css(shade(S.body, -.3)));
+    this._flesh(g, pts, bg, S.dark, S.flash);
+
+    g.save(); this._smooth(g, pts); g.clip();
+    // veins
+    g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 1.8;
     for (let i = 0; i < 6; i++) {
-      const tx = len * .03 + i * (len * .031);
-      g.beginPath();
-      g.moveTo(tx, 0); g.lineTo(tx + 5, 0); g.lineTo(tx + 2.5, -9 - (i % 2) * 4);
-      g.closePath(); g.fill();
+      const yy = -h + i * h * .35;
+      g.beginPath(); g.moveTo(-len * .45, yy);
+      g.quadraticCurveTo(-len * .1, yy + Math.sin(i + t) * 8, len * .2, yy + 4);
+      g.stroke();
     }
-    g.restore();
-    // mouth interior
-    if (gape > .05) {
-      g.fillStyle = 'rgba(28,8,16,.9)';
-      g.beginPath();
-      g.moveTo(-6, -4);
-      g.quadraticCurveTo(len * .1, -2, len * .2, 0);
-      g.lineTo(len * .2, gape * h * .7);
-      g.quadraticCurveTo(len * .06, gape * h * .8, -6, gape * h * .3);
-      g.closePath(); g.fill();
-    }
-    // upper teeth
-    g.fillStyle = '#f6f2e2';
-    for (let i = 0; i < 7; i++) {
-      const tx = len * .01 + i * (len * .029);
-      g.beginPath();
-      g.moveTo(tx, -2); g.lineTo(tx + 5, -2); g.lineTo(tx + 2.5, 8 + (i % 2) * 5);
-      g.closePath(); g.fill();
-    }
+    this._growths(g, pts, seed + 3, 9, css(S.belly, .35));
     g.restore();
 
-    // eye
-    const ex = len * .33, ey = -h * .42;
-    g.fillStyle = '#0c0a12';
-    g.beginPath(); g.arc(ex, ey, h * .19, 0, 6.2832); g.fill();
-    g.fillStyle = d.eye;
-    g.beginPath(); g.arc(ex, ey, h * .14, 0, 6.2832); g.fill();
-    g.fillStyle = '#0a0810';
-    g.beginPath(); g.ellipse(ex + h * .02, ey, h * .05, h * .11, 0, 0, 6.2832); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.8)';
-    g.beginPath(); g.arc(ex - h * .05, ey - h * .05, h * .035, 0, 6.2832); g.fill();
-    // eye glow
+    // front arms
+    for (let i = 0; i < arms; i++) {
+      if (!(i % 2)) continue;
+      const f = i / (arms - 1);
+      this._limb(g, {
+        x: len * .2, y: (f - .5) * h * 1.4,
+        ang: -.05 + (f - .5) * 1.8, len: len * (.55 + f * .25),
+        w0: h * .2, w1: 2, curl: .9 + f * .6, wave: .24, sp: 2.8 + i * .3,
+        t, seed: seed + i * 2, color: S.mid, stroke: S.dark,
+        suckers: true, sucker: css(S.belly, .65),
+        hook: i === 3 || i === 5
+      });
+    }
+
+    // beak in the middle of all that
     g.save();
-    g.globalCompositeOperation = 'lighter';
-    const eg = g.createRadialGradient(ex, ey, 1, ex, ey, h * .55);
-    eg.addColorStop(0, 'rgba(255,255,255,.20)');
-    eg.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = eg;
-    g.beginPath(); g.arc(ex, ey, h * .55, 0, 6.2832); g.fill();
+    g.translate(len * .2, 0);
+    g.rotate(S.gape * .3);
+    g.fillStyle = '#221a24';
+    g.beginPath(); g.moveTo(-6, -14); g.quadraticCurveTo(18, -6, 6, 4); g.lineTo(-8, 0); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(-6, 14); g.quadraticCurveTo(16, 7, 5, -2); g.lineTo(-8, 2); g.closePath(); g.fill();
     g.restore();
 
-    // hit flash
-    if (m.flash > 0) {
-      g.globalAlpha = Math.min(1, m.flash);
-      this.monsterPath(g, d, len, h);
-      g.fillStyle = '#fff'; g.fill();
-      g.globalAlpha = 1;
+    // eyes scattered wrongly over the mantle
+    for (let i = 0; i < S.eyes; i++) {
+      const a = i * 2.1 + seed;
+      this._eye(g,
+        -len * .06 + Math.cos(a) * len * .2,
+        Math.sin(a) * h * .5,
+        h * (.22 - i * .02), S.eyeCol,
+        { slit: true, blink: i === 0 ? S.blink : 1, glow: S.glow });
+    }
+  },
+
+  /* -------------------------------- ray ------------------------------- */
+
+  _plan_ray(g, S) {
+    const { len, h, t, seed, thr } = S;
+
+    /* A wing is a membrane anchored along the body, sweeping back and out to
+       a tip that ripples. Fin rays fan across it so it reads as a wing and
+       not as a triangle.                                                   */
+    const wing = (side, col, phase, rays) => {
+      const flap = Math.sin(t * 2.4 + phase) * thr;
+      const tipY = side * h * (2.0 + flap * .55);
+      const tipX = -len * .02 + flap * len * .05;
+      g.beginPath();
+      g.moveTo(len * .28, side * h * .1);                       // at the nose
+      g.quadraticCurveTo(len * .2, tipY * .55, tipX, tipY);      // leading edge
+      // rippling trailing edge back to the tail root
+      for (let i = 0; i <= 8; i++) {
+        const f = i / 8;
+        const x = lerp(tipX, -len * .38, f);
+        const y = lerp(tipY, side * h * .35, f)
+                + Math.sin(f * 4.2 - t * 3.4 + phase) * h * .28 * (1 - f) * thr;
+        g.lineTo(x, y);
+      }
+      g.quadraticCurveTo(-len * .1, side * h * .3, len * .28, side * h * .1);
+      g.closePath();
+      g.fillStyle = col; g.fill();
+      g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = 1.8; g.stroke();
+      if (rays) {
+        g.save();
+        g.clip();
+        g.strokeStyle = 'rgba(0,0,0,.16)'; g.lineWidth = 2;
+        for (let i = 1; i < 9; i++) {
+          const f = i / 9;
+          const x = lerp(len * .24, -len * .34, f);
+          const y = lerp(tipY, side * h * .35, f * .9) + Math.sin(f * 4.2 - t * 3.4 + phase) * h * .2 * (1 - f);
+          g.beginPath();
+          g.moveTo(lerp(len * .2, -len * .2, f), side * h * .15);
+          g.quadraticCurveTo((x + len * .1) / 2, y * .6, x, y);
+          g.stroke();
+        }
+        g.restore();
+      }
+    };
+    wing(-1, css(shade(S.body, -.38)), 0, false);
+
+    // whip tail with barbs
+    const tip = this._limb(g, {
+      x: -len * .36, y: 0, ang: Math.PI - .06, len: len * .62,
+      w0: h * .22, w1: 1.5, curl: .22, wave: .16, sp: 2.2, t, seed,
+      color: css(shade(S.body, -.2)), stroke: S.dark
+    });
+    g.fillStyle = '#e8e2d0';
+    for (let i = 0; i < 4; i++) {
+      const bx = -len * .5 - i * len * .08, by = Math.sin(t * 2.2 + i) * 6;
+      g.beginPath();
+      g.moveTo(bx, by - 3); g.lineTo(bx - 12, by - 11); g.lineTo(bx - 4, by); g.closePath(); g.fill();
     }
 
+    // the disc of the body
+    const pts = [];
+    for (let i = 0; i < 14; i++) {
+      const a = i / 14 * 6.2832;
+      pts.push([Math.cos(a) * len * .34 - len * .04, Math.sin(a) * h * .95 * (1 + this._n(seed, i, t, .8) * .07)]);
+    }
+    const bg = g.createLinearGradient(0, -h, 0, h);
+    bg.addColorStop(0, S.lite); bg.addColorStop(.5, S.mid); bg.addColorStop(1, S.bel);
+    this._flesh(g, pts, bg, S.dark, S.flash);
+
+    g.save(); this._smooth(g, pts); g.clip();
+    g.fillStyle = 'rgba(0,0,0,.12)';
+    for (let i = 0; i < 10; i++) {
+      const a = i * 2.4 + seed;
+      g.beginPath();
+      g.ellipse(Math.cos(a) * len * .22, Math.sin(a) * h * .6, 5 + (i % 3) * 3, 3, a, 0, 6.2832);
+      g.fill();
+    }
+    g.restore();
+
+    // the face is on the underside and it is too human
+    const mx = len * .18, my = h * .5;
+    g.save();
+    g.translate(mx, my);
+    g.rotate(.25);
+    g.fillStyle = 'rgba(28,10,18,.9)';
+    g.beginPath();
+    g.ellipse(0, 0, len * .1, 4 + S.gape * 16, 0, 0, 6.2832);
+    g.fill();
+    this._teeth(g, -len * .085, -2 - S.gape * 8, len * .085, -2 - S.gape * 8, 7, 7, 1, '#efe7d4');
+    this._teeth(g, -len * .085, 2 + S.gape * 8, len * .085, 2 + S.gape * 8, 7, 7, -1, '#efe7d4');
+    g.restore();
+    // nostril pits
+    g.fillStyle = 'rgba(0,0,0,.45)';
+    g.beginPath(); g.arc(len * .24, h * .3, 3, 0, 6.2832); g.fill();
+    g.beginPath(); g.arc(len * .28, h * .36, 2.4, 0, 6.2832); g.fill();
+
+    // eyes on top, set well apart along the skull
+    for (let i = 0; i < S.eyes; i++) {
+      this._eye(g, len * .24 - i * len * .11, -h * (.5 + i * .18), h * (.19 - i * .02),
+        S.eyeCol, { blink: i === 0 ? S.blink : 1, glow: S.glow });
+    }
+
+    // near wing, in front of everything
+    wing(1, css(S.body, .97), 1.9, true);
+    if (S.glow) {
+      for (let i = 0; i < 5; i++) {
+        this._glowBlob(g, lerp(len * .1, -len * .3, i / 4), h * (1.1 + i * .15), 22, S.glow, .28);
+      }
+    }
+  },
+
+  /* --------------------------- crustacean ----------------------------- */
+
+  _plan_crustacean(g, S) {
+    const { len, h, t, seed, thr } = S;
+    const step = Math.sin(t * 5.2) * thr;
+
+    // legs behind
+    for (let i = 0; i < 4; i++) {
+      const bx = -len * .3 + i * len * .17;
+      const ph = i * 1.3;
+      g.save();
+      g.strokeStyle = css(shade(S.body, -.35));
+      g.lineWidth = 6; g.lineCap = 'round';
+      const kneeY = h * .5 + Math.sin(t * 5 + ph) * 6;
+      g.beginPath();
+      g.moveTo(bx, h * .2);
+      g.lineTo(bx - 16, kneeY);
+      g.lineTo(bx - 6 + Math.sin(t * 5 + ph) * 9, h * 1.5);
+      g.stroke();
+      g.lineCap = 'butt';
+      g.restore();
+    }
+
+    // carapace: overlapping plates
+    const plates = 5;
+    for (let i = plates - 1; i >= 0; i--) {
+      const f = i / plates;
+      const x = -len * .34 + f * len * .52;
+      const w = len * .17 * (1 - f * .35);
+      const hh = h * (1.02 - f * .42);
+      const pts = [];
+      for (let k = 0; k < 10; k++) {
+        const a = k / 10 * 6.2832;
+        pts.push([x + Math.cos(a) * w, Math.sin(a) * hh - h * .1 + Math.sin(t * 4 + i) * 1.5]);
+      }
+      this._flesh(g, pts, i % 2 ? S.mid : S.lite, S.dark, S.flash);
+      // spines along the ridge
+      g.fillStyle = css(shade(S.body, -.28));
+      for (let k = -1; k <= 1; k += 2) {
+        g.beginPath();
+        g.moveTo(x - 6, -hh * .8 - h * .1);
+        g.lineTo(x + k * 3, -hh * 1.5 - h * .1);
+        g.lineTo(x + 6, -hh * .75 - h * .1);
+        g.closePath(); g.fill();
+      }
+    }
+
+    // legs in front
+    for (let i = 0; i < 4; i++) {
+      const bx = -len * .24 + i * len * .17;
+      const ph = i * 1.3 + 1.6;
+      g.strokeStyle = css(shade(S.body, -.12));
+      g.lineWidth = 7; g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(bx, h * .3);
+      g.lineTo(bx - 18 + Math.sin(t * 5 + ph) * 4, h * .8);
+      g.lineTo(bx - 4 + Math.sin(t * 5 + ph) * 14, h * 1.75);
+      g.stroke();
+      g.lineCap = 'butt';
+    }
+
+    // claws — the loudest thing about it, so draw them big
+    for (const s of [-1, 1]) {
+      const open = .24 + S.gape * .95 + Math.abs(step) * .18;
+      g.save();
+      g.translate(len * .26, s * h * .5);
+      g.rotate(s * .22 + Math.sin(t * 2 + s) * .1);
+      // upper arm, then forearm
+      g.strokeStyle = css(shade(S.body, -.26)); g.lineWidth = 13; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(-len * .1, s * 8); g.lineTo(len * .05, 0); g.stroke();
+      g.strokeStyle = css(shade(S.body, -.1)); g.lineWidth = 15;
+      g.beginPath(); g.moveTo(len * .04, 0); g.lineTo(len * .16, -s * 4); g.stroke();
+      g.lineCap = 'butt';
+      g.translate(len * .16, -s * 4);
+      // fixed half
+      g.save(); g.rotate(open * .55);
+      this._flesh(g, [[-2, -2], [len * .1, 6], [len * .22, 10], [len * .26, 3],
+                      [len * .12, -2], [-2, -7]], S.mid, S.dark, S.flash);
+      this._teeth(g, len * .04, 3, len * .21, 7, 4, 6, -1, css(S.belly));
+      g.restore();
+      // moving half
+      g.save(); g.rotate(-open);
+      this._flesh(g, [[-2, 2], [len * .1, -7], [len * .23, -11], [len * .27, -3],
+                      [len * .12, 3], [-2, 7]], S.lite, S.dark, S.flash);
+      this._teeth(g, len * .04, -3, len * .22, -8, 4, 6, 1, css(S.belly));
+      g.restore();
+      g.restore();
+    }
+
+    // head plate and eyestalks
+    g.save();
+    g.translate(len * .26, -h * .1);
+    this._flesh(g, [[-len * .1, -h * .5], [len * .08, -h * .55], [len * .14, 0],
+                    [len * .07, h * .5], [-len * .1, h * .45]], S.lite, S.dark, S.flash);
+    // mandibles
+    g.fillStyle = css(shade(S.body, -.35));
+    for (const s of [-1, 1]) {
+      g.save(); g.rotate(s * (.2 + S.gape * .5));
+      g.beginPath(); g.moveTo(len * .06, 0); g.lineTo(len * .17, s * 9); g.lineTo(len * .07, s * 4);
+      g.closePath(); g.fill();
+      g.restore();
+    }
+    // eyestalks, held up and back clear of the claws
+    for (let i = 0; i < S.eyes; i++) {
+      const s = i % 2 ? 1 : -1, k = Math.floor(i / 2);
+      const ex = len * .02 - k * 13, ey = -h * (.62 + k * .26) + s * 9 + Math.sin(t * 3 + i) * 2;
+      g.strokeStyle = css(shade(S.body, -.15)); g.lineWidth = 4;
+      g.beginPath();
+      g.moveTo(-len * .02, -h * .3);
+      g.quadraticCurveTo(ex + 6, ey + 10, ex, ey);
+      g.stroke();
+      this._eye(g, ex, ey, h * .14, S.eyeCol, { blink: i === 0 ? S.blink : 1, glow: S.glow });
+    }
+    g.restore();
+  },
+
+  /* ------------------------------- bloom ------------------------------ */
+
+  _plan_bloom(g, S) {
+    const { len, h, t, seed, thr } = S;
+    const pulse = .84 + Math.sin(t * 1.7 + seed) * .16 * thr;
+
+    // trailing threads, drawn first so the bell sits over them
+    for (let i = 0; i < 11; i++) {
+      const f = i / 10;
+      this._limb(g, {
+        x: -len * .02 + (f - .5) * len * .4, y: h * .55,
+        ang: 1.5 + (f - .5) * .4, len: len * (.5 + (i % 3) * .28),
+        w0: 3 + (i % 2) * 3, w1: .6, curl: Math.sin(i * 2.3 + seed) * .5,
+        wave: .3, sp: 1.4 + i * .1, t, seed: seed + i,
+        color: css(S.fin, .62), seg: 14
+      });
+    }
+    // frilled oral arms
+    for (let i = 0; i < 4; i++) {
+      const f = i / 3;
+      this._limb(g, {
+        x: (f - .5) * len * .22, y: h * .5,
+        ang: 1.4 + (f - .5) * .8, len: len * .42,
+        w0: h * .2, w1: 3, curl: Math.sin(i + seed) * .7, wave: .22, sp: 1.9,
+        t, seed: seed + i * 3, color: css(S.belly, .55), stroke: css(S.fin, .5), seg: 10
+      });
+    }
+
+    // the bell
+    const pts = [];
+    for (let i = 0; i < 18; i++) {
+      const a = i / 18 * 6.2832;
+      const wob = 1 + this._n(seed, i, t, 1.1) * .08;
+      const rx = len * .42 * wob * (1 + (1 - pulse) * .3);
+      const ry = h * .92 * wob * pulse;
+      pts.push([Math.cos(a) * rx, Math.sin(a) * ry - h * .1]);
+    }
+    if (S.glow) this._glowBlob(g, 0, -h * .1, len * .55, S.glow, .3);
+    this._flesh(g, pts, css(S.body, .52), css(S.fin, .7), S.flash);
+    // inner bell
+    g.save(); this._smooth(g, pts); g.clip();
+    g.fillStyle = css(S.belly, .3);
+    g.beginPath(); g.ellipse(0, h * .1, len * .3, h * .55, 0, 0, 6.2832); g.fill();
+    g.strokeStyle = css(S.fin, .5); g.lineWidth = 2;
+    for (let i = 0; i < 7; i++) {
+      const x = -len * .36 + i * len * .12;
+      g.beginPath(); g.moveTo(x, -h * .9); g.lineTo(x + Math.sin(t + i) * 6, h * .8); g.stroke();
+    }
+    // the things suspended inside
+    for (let i = 0; i < S.eyes; i++) {
+      const a = i * 1.9 + seed;
+      const ex = Math.cos(a) * len * .24, ey = Math.sin(a) * h * .5 - h * .1;
+      g.fillStyle = css(S.belly, .5);
+      g.beginPath(); g.ellipse(ex, ey + 6, 9, 12, 0, 0, 6.2832); g.fill();
+      this._eye(g, ex, ey, h * .13, S.eyeCol, { blink: i % 3 === 0 ? S.blink : 1 });
+    }
+    g.restore();
+    // rim
+    g.save();
+    this._smooth(g, pts);
+    g.strokeStyle = css(S.fin, .85); g.lineWidth = 3; g.stroke();
+    g.restore();
+    if (S.glow) {
+      for (let i = 0; i < 8; i++) {
+        const a = i / 8 * 6.2832;
+        this._glowBlob(g, Math.cos(a) * len * .4, Math.sin(a) * h * .85 - h * .1, 18, S.glow, .4);
+      }
+    }
+  },
+
+  /* ------------------------------- husk ------------------------------- */
+
+  _plan_husk(g, S) {
+    const { len, h, t, seed } = S;
+
+    // trailing net and chain
+    g.strokeStyle = 'rgba(150,140,110,.5)'; g.lineWidth = 1.4;
+    for (let i = 0; i < 7; i++) {
+      g.beginPath();
+      g.moveTo(-len * .3 + i * 9, h * .5);
+      g.quadraticCurveTo(-len * .5 + i * 9, h * (1 + Math.sin(t + i) * .1), -len * .62 + i * 12, h * 1.4);
+      g.stroke();
+    }
+    // a broken mast, still standing out of its back
+    g.save();
+    g.rotate(-.24);
+    g.fillStyle = css(WOOD.hullDark);
+    g.fillRect(-len * .12, -h * 2.5, 11, h * 2.0);
+    g.fillStyle = 'rgba(255,255,255,.08)';
+    g.fillRect(-len * .12, -h * 2.5, 4, h * 2.0);
+    g.fillStyle = css(mix([210, 200, 178], [70, 78, 96], .5), .55);
+    g.beginPath();
+    g.moveTo(-len * .1, -h * 2.35);
+    g.quadraticCurveTo(len * .1 + Math.sin(t) * 8, -h * 1.9, -len * .09, -h * 1.2);
+    g.closePath(); g.fill();
+    g.restore();
+
+    // body: a lumpy mass of flesh, timber and rope
+    const pts = [];
+    for (let i = 0; i < 17; i++) {
+      const a = i / 17 * 6.2832;
+      const lump = 1 + this._n(seed, i, t, .6) * .17;
+      pts.push([Math.cos(a) * len * .42 * lump, Math.sin(a) * h * 1.0 * lump]);
+    }
+    const bg = g.createLinearGradient(0, -h, 0, h);
+    bg.addColorStop(0, S.lite); bg.addColorStop(.55, S.mid); bg.addColorStop(1, css(shade(S.body, -.32)));
+    this._flesh(g, pts, bg, S.dark, S.flash);
+
+    g.save(); this._smooth(g, pts); g.clip();
+    // planks set into it, painted
+    for (let i = 0; i < 6; i++) {
+      const a = i * 1.7 + seed;
+      g.save();
+      g.translate(Math.cos(a) * len * .2, Math.sin(a) * h * .55);
+      g.rotate(a);
+      g.fillStyle = css(mix(WOOD.hull, [90, 100, 110], .35));
+      g.fillRect(-24, -6, 48, 12);
+      g.fillStyle = i % 2 ? 'rgba(180,70,70,.5)' : 'rgba(200,180,120,.35)';
+      g.fillRect(-24, -6, 48, 4);
+      g.fillStyle = 'rgba(0,0,0,.3)';
+      g.fillRect(-24, 5, 48, 2);
+      g.restore();
+    }
+    // rope wound through the flesh
+    g.strokeStyle = 'rgba(180,164,120,.6)'; g.lineWidth = 4;
+    for (let i = 0; i < 3; i++) {
+      g.beginPath();
+      g.moveTo(-len * .5, -h * .4 + i * h * .5);
+      g.quadraticCurveTo(0, -h * .2 + i * h * .6 + Math.sin(t + i) * 5, len * .5, -h * .5 + i * h * .5);
+      g.stroke();
+    }
+    this._growths(g, pts, seed + 5, 10, 'rgba(210,220,200,.3)');
+    g.restore();
+
+    // the mouth is a sprung hull seam
+    const gp = S.gape;
+    g.save();
+    g.translate(len * .18, h * .15);
+    g.rotate(.12);
+    g.fillStyle = 'rgba(14,20,18,.95)';
+    g.beginPath();
+    g.moveTo(-len * .26, 0);
+    g.quadraticCurveTo(0, -8 - gp * 20, len * .2, -2);
+    g.quadraticCurveTo(0, 10 + gp * 24, -len * .26, 0);
+    g.closePath(); g.fill();
+    // nails for teeth
+    g.fillStyle = '#c8ccd4';
+    for (let i = 0; i < 11; i++) {
+      const f = i / 10, x = lerp(-len * .24, len * .17, f);
+      const yy = -6 - gp * 14 * Math.sin(f * Math.PI);
+      g.fillRect(x, yy, 2.4, 7 + (i % 3) * 3);
+      g.fillRect(x + 3, -yy - 4, 2.4, 6 + (i % 2) * 4);
+    }
+    g.restore();
+
+    // lantern eyes, placed where no eyes belong
+    for (let i = 0; i < S.eyes; i++) {
+      const a = i * 2.5 + seed * .5;
+      this._eye(g, Math.cos(a) * len * .26 + len * .05, Math.sin(a) * h * .6 - h * .2,
+        h * (.17 + (i % 2) * .05), S.eyeCol, { blink: i === 1 ? S.blink : 1, glow: S.glow });
+    }
+  },
+
+  /* -------------------------------- maw ------------------------------- */
+
+  _plan_maw(g, S) {
+    const { len, h, t, seed, thr } = S;
+    const gp = .18 + S.gape * .9;
+    const breathe = 1 + Math.sin(t * 2.4 + seed) * .05 * thr;
+
+    // stubby tendrils around the back
+    for (let i = 0; i < 7; i++) {
+      const a = 2.0 + i * .42;
+      this._limb(g, {
+        x: Math.cos(a) * len * .3, y: Math.sin(a) * h * .8,
+        ang: a, len: len * .3, w0: h * .12, w1: 1.5,
+        curl: .6, wave: .26, sp: 2.6, t, seed: seed + i,
+        color: css(shade(S.body, -.25))
+      });
+    }
+
+    // the body, near enough a sphere
+    const pts = [];
+    for (let i = 0; i < 16; i++) {
+      const a = i / 16 * 6.2832;
+      const lump = 1 + this._n(seed, i, t, 1.0) * .09;
+      pts.push([Math.cos(a) * len * .42 * lump * breathe, Math.sin(a) * h * 1.0 * lump * breathe]);
+    }
+    const bg = g.createRadialGradient(-len * .12, -h * .3, h * .1, 0, 0, len * .5);
+    bg.addColorStop(0, S.lite); bg.addColorStop(.65, S.mid); bg.addColorStop(1, css(shade(S.body, -.3)));
+    this._flesh(g, pts, bg, S.dark, S.flash);
+
+    // the mouth: concentric rings of teeth going back into the dark
+    g.save();
+    g.translate(len * .2, 0);
+    const R = h * (.62 + gp * .5);
+    g.fillStyle = 'rgba(26,4,14,.96)';
+    g.beginPath(); g.ellipse(0, 0, R * .62, R, 0, 0, 6.2832); g.fill();
+    for (let ring = 3; ring >= 0; ring--) {
+      const rr = R * (1 - ring * .21);
+      const n = 12 + ring * 2;
+      g.fillStyle = ring === 0 ? '#f4eedc' : css(mix([244, 238, 220], [60, 20, 34], ring * .26));
+      for (let i = 0; i < n; i++) {
+        const a = i / n * 6.2832 + ring * .3 + Math.sin(t * .6 + ring) * .1;
+        const ex = Math.cos(a) * rr * .62, ey = Math.sin(a) * rr;
+        const s = 5 + (i % 3) * 3 - ring;
+        g.save();
+        g.translate(ex, ey);
+        g.rotate(Math.atan2(ey, ex * .62) + Math.PI / 2);
+        g.beginPath();
+        g.moveTo(-s * .4, 0); g.lineTo(s * .4, 0); g.lineTo(0, -s * 1.7);
+        g.closePath(); g.fill();
+        g.restore();
+      }
+    }
+    if (S.glow) this._glowBlob(g, 0, 0, R * 1.4, S.glow, .3 + gp * .2);
+    g.restore();
+
+    // the audience
+    for (let i = 0; i < S.eyes; i++) {
+      const a = -1.9 + i * (3.8 / Math.max(1, S.eyes - 1));
+      const ex = Math.cos(a) * len * .3 - len * .04;
+      const ey = Math.sin(a) * h * .74;
+      this._eye(g, ex, ey, h * (.16 + (i % 2) * .04), S.eyeCol,
+        { blink: i % 3 === 0 ? S.blink : 1, slit: i % 2 === 0, glow: S.glow });
+    }
+  },
+
+  /* ----------------------------- leviathan ---------------------------- */
+
+  _plan_leviathan(g, S, m) {
+    const { len, h, t, seed, thr } = S;
+    const N = 22, half = len / 2;
+    const rage = m && m.rage;
+    const spine = [];
+    for (let i = 0; i <= N; i++) {
+      const f = i / N;
+      const x = half - f * len;
+      const amp = (4 + f * 22) * thr;
+      const y = Math.sin(f * 3.4 - t * (rage ? 3.4 : 2.2)) * amp
+              + Math.sin(f * 1.6 - t * 1.3) * amp * .5;
+      spine.push([x, y, f]);
+    }
+    const wid = f => h * (f < .3 ? (.5 + f * 1.8) : Math.pow(1 - (f - .3) / .72, .6) * 1.04) + 2;
+
+    // flank tendrils trailing behind
+    for (let i = 0; i < 6; i++) {
+      const k = 6 + i * 2;
+      const [sx, sy, sf] = spine[k];
+      this._limb(g, {
+        x: sx, y: sy + (i % 2 ? 1 : -1) * wid(sf) * .8,
+        ang: Math.PI + (i % 2 ? .5 : -.5), len: len * .3,
+        w0: h * .12, w1: 1, curl: (i % 2 ? .6 : -.6), wave: .2, sp: 2.2,
+        t, seed: seed + i, color: css(shade(S.body, -.3))
+      });
+    }
+
+    // dorsal crest of spines
+    g.fillStyle = css(S.fin);
+    for (let i = 1; i < N - 2; i++) {
+      const [x, y, f] = spine[i], w = wid(f);
+      const sp = (h * .7) * Math.sin(f * Math.PI) + 6;
+      g.beginPath();
+      g.moveTo(x + 7, y - w);
+      g.lineTo(x - 3, y - w - sp);
+      g.lineTo(x - 9, y - w * .9);
+      g.closePath(); g.fill();
+    }
+
+    // body
+    const top = [], bot = [];
+    for (let i = 0; i <= N; i++) {
+      const [x, y, f] = spine[i];
+      const w = wid(f) * (1 + this._n(seed, i, t, .8) * .05);
+      top.push([x, y - w]); bot.push([x, y + w]);
+    }
+    const outline = top.concat(bot.slice().reverse());
+    const bg = g.createLinearGradient(0, -h * 1.2, 0, h * 1.2);
+    bg.addColorStop(0, css(shade(S.body, .22)));
+    bg.addColorStop(.5, S.mid);
+    bg.addColorStop(1, S.bel);
+    this._flesh(g, outline, bg, S.dark, S.flash);
+
+    g.save();
+    this._smooth(g, outline); g.clip();
+    // glowing veins under the hide
+    g.strokeStyle = rage ? 'rgba(255,70,70,.5)' : css(S.fin, .5);
+    g.lineWidth = 3;
+    for (let k = 0; k < 5; k++) {
+      g.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const [x, y, f] = spine[i];
+        const yy = y + Math.sin(f * 7 + k * 2 + t * 1.4) * wid(f) * .5;
+        if (i === 0) g.moveTo(x, yy); else g.lineTo(x, yy);
+      }
+      g.stroke();
+    }
+    // harpoons and chains left in it by people who tried
+    for (let i = 0; i < 4; i++) {
+      const k = 5 + i * 4;
+      const [x, y, f] = spine[k];
+      g.save();
+      g.translate(x, y - wid(f) * .5);
+      g.rotate(-.6 + i * .3);
+      g.fillStyle = '#8d949e'; g.fillRect(0, -2, 40, 4);
+      g.fillStyle = '#c8ccd4';
+      g.beginPath(); g.moveTo(0, -5); g.lineTo(-14, 0); g.lineTo(0, 5); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(160,150,120,.6)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(38, 0); g.quadraticCurveTo(60, 14, 54, 40); g.stroke();
+      g.restore();
+    }
+    this._growths(g, outline, seed, 16, 'rgba(200,210,214,.28)');
+    g.restore();
+
+    // rows of eyes down the flank
+    for (let i = 0; i < S.eyes; i++) {
+      const k = 2 + i * 2;
+      const [x, y, f] = spine[Math.min(N, k)];
+      this._eye(g, x, y - wid(f) * .45, h * (.2 - i * .012),
+        rage ? '#ff2a2a' : S.eyeCol,
+        { slit: true, blink: i === 2 ? S.blink : 1, glow: rage ? '#ff3a3a' : S.glow });
+    }
+
+    // the head, and a jaw that opens four ways
+    const hy = spine[0][1];
+    g.save();
+    g.translate(half - len * .02, hy);
+    const hh = h * 1.25;
+    this._flesh(g, [
+      [-len * .16, -hh], [len * .02, -hh * 1.06], [len * .12, -hh * .45],
+      [len * .14, 0], [len * .12, hh * .45], [len * .02, hh * 1.06], [-len * .16, hh]
+    ], css(shade(S.body, .06)), S.dark, S.flash);
+
+    const gp = .12 + S.gape;
+    for (const s of [-1, 1]) {
+      // outer mandibles
+      g.save();
+      g.rotate(s * gp * .8);
+      this._flesh(g, [[-len * .04, s * 4], [len * .1, s * 10], [len * .22, s * 16],
+                      [len * .1, s * 26], [-len * .04, s * 18]],
+        css(shade(S.body, -.2)), S.dark, S.flash);
+      this._teeth(g, -len * .02, s * 8, len * .2, s * 15, 7, 14, s);
+      g.restore();
+      // inner mandibles
+      g.save();
+      g.rotate(s * gp * .3);
+      this._flesh(g, [[-len * .04, s * 1], [len * .12, s * 3], [len * .23, s * 5],
+                      [len * .12, s * 12], [-len * .04, s * 8]],
+        css(shade(S.body, -.08)), S.dark, S.flash);
+      this._teeth(g, -len * .02, s * 3, len * .21, s * 5, 8, 12, s);
+      g.restore();
+    }
+    if (S.gape > .05) {
+      g.fillStyle = 'rgba(40,2,16,.96)';
+      g.beginPath(); g.ellipse(len * .06, 0, len * .1, 6 + S.gape * 34, 0, 0, 6.2832); g.fill();
+      if (rage) this._glowBlob(g, len * .06, 0, 60, '#ff3a3a', .45);
+    }
+    // barbels hanging off the chin
+    for (let i = 0; i < 4; i++) {
+      this._limb(g, {
+        x: -len * .06, y: hh * (.5 + i * .18), ang: 1.9 + i * .1, len: len * .22,
+        w0: 5, w1: 1, curl: .5, wave: .3, sp: 2.4, t, seed: seed + i * 7,
+        color: css(shade(S.body, -.15))
+      });
+    }
+    // the big eye
+    this._eye(g, len * .04, -hh * .5, h * .28, rage ? '#ff2a2a' : S.eyeCol,
+      { slit: true, blink: S.blink, glow: rage ? '#ff3a3a' : S.glow });
     g.restore();
   },
 

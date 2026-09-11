@@ -64,49 +64,125 @@ const GOODS = [
 ];
 
 /* ------------------------------- monsters -------------------------------- */
-/* len  : nose-to-tail length in px            hp/dmg : combat
-   value: base coin value (rolled ±)           atk    : attack pool         */
+/* plan  : which body Art draws it with — eel, angler, tentacle, ray,
+           crustacean, bloom, husk, maw, leviathan
+   len   : nose-to-tail in px      girth : half-height as a fraction of len
+   eyes  : how many, and how badly arranged
+   glow  : bioluminescence colour, or null for things that do not light up  */
 
 const MONSTERS = [
-  { id: 'gnashfin', name: 'Gnashfin', depth: 1, hp: 46, len: 230, value: 34, dmg: 1, speed: 78,
-    body: [86, 130, 122], belly: [188, 214, 198], fin: [60, 96, 96], eye: '#ffd76a',
+
+  /* ------------------------------ depth 1 ------------------------------ */
+
+  { id: 'gnashfin', name: 'Gnashfin', depth: 1, plan: 'eel',
+    hp: 58, len: 240, girth: .13, value: 44, dmg: 1, speed: 84, eyes: 2,
+    body: [86, 130, 122], belly: [188, 214, 198], fin: [60, 96, 96], eye: '#ffd76a', glow: null,
     atk: ['lunge', 'lunge', 'spit'],
-    flavour: 'It has far too many teeth for a thing that size.' },
+    flavour: 'Far too many teeth for a thing that size. They keep going back.' },
 
-  { id: 'bristlejaw', name: 'Bristlejaw', depth: 1, hp: 68, len: 252, value: 52, dmg: 1, speed: 86,
-    body: [120, 96, 132], belly: [210, 190, 206], fin: [84, 62, 100], eye: '#ff8f5a',
+  { id: 'bristlejaw', name: 'Bristlejaw', depth: 1, plan: 'angler',
+    hp: 76, len: 230, girth: .30, value: 58, dmg: 1, speed: 78, eyes: 2,
+    body: [120, 96, 132], belly: [210, 190, 206], fin: [84, 62, 100], eye: '#ff8f5a', glow: '#ffb05a',
     atk: ['lunge', 'spit', 'slam'],
-    flavour: 'Its jaw hangs wrong, like a door off one hinge.' },
+    flavour: 'The little light on its head is doing an impression of a friend.' },
 
-  { id: 'glasseye', name: 'Glasseye Lurker', depth: 2, hp: 102, len: 278, value: 96, dmg: 1, speed: 96,
-    body: [72, 108, 148], belly: [176, 206, 226], fin: [48, 74, 112], eye: '#c9f6ff',
-    atk: ['lunge', 'slam', 'spit', 'spit'],
-    flavour: 'The eye does not blink. It has not blinked in years.' },
-
-  { id: 'nettlejack', name: 'Nettlejack', depth: 2, hp: 128, len: 286, value: 124, dmg: 1, speed: 104,
-    body: [92, 134, 88], belly: [196, 214, 162], fin: [62, 96, 58], eye: '#ffe066',
+  { id: 'palefinger', name: 'Palefinger', depth: 1, plan: 'tentacle',
+    hp: 66, len: 210, girth: .34, value: 52, dmg: 1, speed: 92, eyes: 3,
+    body: [206, 196, 188], belly: [236, 230, 222], fin: [170, 156, 150], eye: '#4a3b52', glow: null,
     atk: ['lunge', 'slam', 'spit'],
-    flavour: 'Stinging threads trail off it like cut rigging.' },
+    flavour: 'It has hands. Small ones. Rather a lot of them.' },
 
-  { id: 'tidemaw', name: 'Tidemaw', depth: 3, hp: 178, len: 322, value: 198, dmg: 1, speed: 112,
-    body: [58, 74, 116], belly: [150, 168, 208], fin: [38, 48, 84], eye: '#ff6a6a',
+  { id: 'netbiter', name: 'Netbiter', depth: 1, plan: 'crustacean',
+    hp: 92, len: 226, girth: .28, value: 66, dmg: 1, speed: 70, eyes: 4,
+    body: [150, 88, 64], belly: [214, 168, 130], fin: [110, 60, 44], eye: '#f2e2bd', glow: null,
+    atk: ['slam', 'lunge', 'slam'],
+    flavour: 'Every net on this coast has a piece missing. Here it all is.' },
+
+  /* ------------------------------ depth 2 ------------------------------ */
+
+  { id: 'glasseye', name: 'Glasseye Lurker', depth: 2, plan: 'angler',
+    hp: 148, len: 286, girth: .33, value: 122, dmg: 1, speed: 96, eyes: 1,
+    body: [72, 108, 148], belly: [176, 206, 226], fin: [48, 74, 112], eye: '#c9f6ff', glow: '#8fe6ff',
+    atk: ['lunge', 'slam', 'spit', 'spit'],
+    flavour: 'The eye does not blink. It has not blinked in a very long time.' },
+
+  { id: 'nettlejack', name: 'Nettlejack', depth: 2, plan: 'bloom',
+    hp: 132, len: 264, girth: .42, value: 136, dmg: 1, speed: 104, eyes: 6,
+    body: [92, 134, 88], belly: [196, 214, 162], fin: [62, 96, 58], eye: '#ffe066', glow: '#b6ff8a',
+    atk: ['spit', 'spit', 'slam', 'lunge'],
+    flavour: 'Stinging threads trail off it like cut rigging. They are still growing.' },
+
+  { id: 'ropethroat', name: 'Rope-Throat', depth: 2, plan: 'eel',
+    hp: 170, len: 320, girth: .11, value: 158, dmg: 1, speed: 118, eyes: 2,
+    body: [64, 70, 96], belly: [162, 170, 196], fin: [42, 46, 70], eye: '#ff6a6a', glow: null,
+    atk: ['lunge', 'lunge', 'slam'],
+    flavour: 'Knotted three times around itself and still longer than the boat.' },
+
+  { id: 'shalebank', name: 'Shalebank Crawler', depth: 2, plan: 'crustacean',
+    hp: 196, len: 272, girth: .30, value: 176, dmg: 1, speed: 74, eyes: 6,
+    body: [98, 104, 92], belly: [172, 178, 158], fin: [66, 72, 62], eye: '#ffcf4a', glow: null,
+    atk: ['slam', 'slam', 'lunge', 'spit'],
+    flavour: 'It wears the seabed. Some of the seabed is other crawlers.' },
+
+  /* ------------------------------ depth 3 ------------------------------ */
+
+  { id: 'tidemaw', name: 'Tidemaw', depth: 3, plan: 'maw',
+    hp: 310, len: 300, girth: .44, value: 288, dmg: 2, speed: 112, eyes: 8,
+    body: [58, 74, 116], belly: [150, 168, 208], fin: [38, 48, 84], eye: '#ff6a6a', glow: '#7a9cff',
     atk: ['lunge', 'slam', 'slam', 'spit'],
-    flavour: 'Something older wore this shape first.' },
+    flavour: 'Mostly mouth. The eyes are arranged around it like an audience.' },
 
-  { id: 'gallowsgill', name: 'Gallowsgill', depth: 3, hp: 214, len: 342, value: 262, dmg: 2, speed: 120,
-    body: [104, 62, 62], belly: [206, 168, 154], fin: [70, 40, 44], eye: '#ffcf4a',
+  { id: 'gallowsgill', name: 'Gallowsgill', depth: 3, plan: 'ray',
+    hp: 356, len: 360, girth: .26, value: 336, dmg: 2, speed: 124, eyes: 2,
+    body: [104, 62, 62], belly: [206, 168, 154], fin: [70, 40, 44], eye: '#ffcf4a', glow: null,
     atk: ['lunge', 'slam', 'spit', 'lunge'],
-    flavour: 'Rope scars ring its throat. Someone tried this before.' },
+    flavour: 'Rope scars ring its throat. Somebody tried this before you.' },
 
-  { id: 'hollow', name: 'The Hollow Trawler', depth: 4, hp: 276, len: 366, value: 380, dmg: 2, speed: 126,
-    body: [64, 68, 74], belly: [158, 164, 170], fin: [40, 44, 50], eye: '#9effc4',
+  { id: 'weepingbell', name: 'The Weeping Bell', depth: 3, plan: 'bloom',
+    hp: 288, len: 330, girth: .48, value: 352, dmg: 2, speed: 96, eyes: 0,
+    body: [122, 96, 150], belly: [216, 198, 236], fin: [88, 68, 118], eye: '#ffffff', glow: '#d6a8ff',
+    atk: ['spit', 'spit', 'slam', 'spit'],
+    flavour: 'It makes a sound underwater. Dorran says not to describe it.' },
+
+  { id: 'hookhand', name: 'Hookhand', depth: 3, plan: 'tentacle',
+    hp: 400, len: 318, girth: .36, value: 404, dmg: 2, speed: 116, eyes: 5,
+    body: [72, 92, 84], belly: [166, 190, 174], fin: [48, 64, 58], eye: '#a8ff9e', glow: '#6effc4',
+    atk: ['lunge', 'slam', 'lunge', 'spit'],
+    flavour: 'Four of the arms end in hooks. One of them is holding a hook.' },
+
+  /* ------------------------------ depth 4 ------------------------------ */
+
+  { id: 'hollow', name: 'The Hollow Trawler', depth: 4, plan: 'husk',
+    hp: 620, len: 380, girth: .34, value: 700, dmg: 2, speed: 126, eyes: 4,
+    body: [64, 68, 74], belly: [158, 164, 170], fin: [40, 44, 50], eye: '#9effc4', glow: '#9effc4',
     atk: ['lunge', 'slam', 'spit', 'slam'],
-    flavour: 'There are planks in its belly. Painted ones.' },
+    flavour: 'There are planks in its belly. Painted ones. You know the colour.' },
 
-  { id: 'leviathan', name: 'The Old One', depth: 4, boss: true, hp: 460, len: 470, value: 1100, dmg: 2, speed: 132,
-    body: [38, 44, 78], belly: [128, 140, 186], fin: [24, 28, 54], eye: '#ff4d4d',
+  { id: 'cathedral', name: 'Cathedral Ray', depth: 4, plan: 'ray',
+    hp: 700, len: 440, girth: .28, value: 780, dmg: 2, speed: 134, eyes: 3,
+    body: [46, 56, 92], belly: [140, 152, 200], fin: [30, 38, 66], eye: '#ffe9a8', glow: '#8fa8ff',
     atk: ['lunge', 'slam', 'spit', 'lunge', 'slam'],
-    flavour: 'The sea went flat and quiet, the way a room does.' }
+    flavour: 'It passes over you slowly, the way weather does.' },
+
+  { id: 'penance', name: 'Nine-Eyed Penance', depth: 4, plan: 'maw',
+    hp: 780, len: 360, girth: .46, value: 850, dmg: 3, speed: 128, eyes: 9,
+    body: [88, 48, 62], belly: [198, 150, 160], fin: [58, 30, 42], eye: '#ffd257', glow: '#ff7a5a',
+    atk: ['lunge', 'slam', 'spit', 'slam', 'lunge'],
+    flavour: 'Nine eyes and all of them apologetic. That is somehow worse.' },
+
+  { id: 'choir', name: 'The Drowned Choir', depth: 4, plan: 'bloom',
+    hp: 660, len: 400, girth: .50, value: 820, dmg: 2, speed: 118, eyes: 12,
+    body: [70, 84, 118], belly: [186, 200, 226], fin: [48, 58, 86], eye: '#e8f4ff', glow: '#a8d8ff',
+    atk: ['spit', 'spit', 'slam', 'lunge', 'spit'],
+    flavour: 'Every face in it is roughly the same face, and it is nearly yours.' },
+
+  /* -------------------------------- boss ------------------------------- */
+
+  { id: 'leviathan', name: 'The Old One', depth: 4, boss: true, plan: 'leviathan',
+    hp: 2400, len: 560, girth: .30, value: 2600, dmg: 3, speed: 140, eyes: 7,
+    body: [38, 44, 78], belly: [128, 140, 186], fin: [24, 28, 54], eye: '#ff4d4d', glow: '#ff4d4d',
+    atk: ['lunge', 'slam', 'spit', 'lunge', 'slam'],
+    flavour: 'The sea went flat and quiet, the way a room does when you walk in.' }
 ];
 
 const JUNK = [
