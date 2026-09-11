@@ -64,7 +64,8 @@ const ACTIONS = {
   confirm:  ['Enter', 'Space', 'KeyE'],
   cancel:   ['Escape', 'Backspace'],
   use:      ['KeyQ'],
-  mute:     ['KeyM']
+  mute:     ['KeyM'],
+  music:    ['KeyN']
 };
 const BLOCKED = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Tab']);
 
@@ -111,10 +112,12 @@ const Sfx = {
       } catch (e) { return; }
     }
     if (this.ac.state === 'suspended') this.ac.resume();
+    if (typeof Music !== 'undefined') Music.ensure();
   },
   toggleMute() {
     this.muted = !this.muted;
     if (this.master) this.master.gain.value = this.muted ? 0 : 0.3;
+    if (typeof Music !== 'undefined') Music.setMuted(this.muted);
     return this.muted;
   },
   tone(o) {

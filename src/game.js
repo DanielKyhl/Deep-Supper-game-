@@ -67,6 +67,7 @@ const Game = {
   newGame() {
     Player.reset();
     this.crateOpen = false;
+    this.endingRun = false;
     Particles.clear(); Floaters.clear();
     const o = buildOpening();
     this.state = 'cutscene';
@@ -113,6 +114,7 @@ const Game = {
 
   startEnding() {
     const e = buildEnding();
+    this.endingRun = true;
     this.state = 'cutscene';
     CUT.play(e.steps, {
       finalize: e.finalize,
@@ -122,6 +124,7 @@ const Game = {
           CUT.harbourX = -1400;
           CUT.letterbox = 0;
           CUT.dad.visible = false;
+          this.endingRun = false;
           Player.x = 640;
           Cam.snap(Player.x);
           this.state = 'play';
@@ -144,6 +147,15 @@ const Game = {
   },
   toast(text) { this.toastText = text; this.toastT = 4.2; },
 
+  // pick the score for whatever is happening
+  syncMusic() {
+    let want = 'sea';
+    if (this.state === 'title') want = 'title';
+    else if (this.state === 'battle') want = (Battle.def && Battle.def.boss) ? 'boss' : 'battle';
+    else if (this.state === 'cutscene') want = this.endingRun ? 'ending' : (this.night < .5 ? 'title' : 'sea');
+    if (want !== this._musicWant) { this._musicWant = want; Music.set(want); }
+  },
+
   fadeOut(cb) { this.fade.dir = 1; this.fade.cb = cb; },
 
   /* -------------------------------- frame ------------------------------ */
@@ -151,8 +163,10 @@ const Game = {
   frame(dt) {
     this.t += dt;
 
-    if (Input.tap('mute')) { Sfx.toggleMute(); this.muteFlash = 1.6; }
+    if (Input.tap('mute')) { Sfx.toggleMute(); this.muteFlash = 1.6; this.muteMsg = Sfx.muted ? 'sound off' : 'sound on'; }
+    if (Input.tap('music')) { this.muteFlash = 1.6; this.muteMsg = Music.toggle() ? 'music on' : 'music off'; }
     this.muteFlash = Math.max(0, this.muteFlash - dt);
+    this.syncMusic();
 
     // fade machine
     if (this.fade.dir !== 0) {
@@ -334,7 +348,7 @@ const Game = {
 
     if (this.muteFlash > 0) {
       g.save(); g.globalAlpha = clamp(this.muteFlash, 0, 1);
-      Text.draw(g, Sfx.muted ? 'sound off' : 'sound on', VIEW_W - 24, 28, {
+      Text.draw(g, this.muteMsg || '', VIEW_W - 24, 28, {
         size: 14, align: 'right', color: '#9fb0d0', font: 'Verdana, sans-serif'
       });
       g.restore();
