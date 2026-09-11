@@ -751,7 +751,7 @@ const Art = {
     }
 
     g.save();
-    g.translate(x, y - bob);
+    g.translate(x + (o.lunge || 0) * f, y - bob);
 
     // shadow
     g.fillStyle = 'rgba(0,0,0,.28)';
@@ -858,11 +858,13 @@ const Art = {
       g.fillStyle = '#9aa6b4';
       g.beginPath(); g.arc(9, 4, 4.5, 0, 6.2832); g.fill();
       g.restore();
-    } else if (o.hold === 'sword') {
+    } else if (o.hold === 'weapon') {
       g.save();
       g.translate(0, 16);
-      g.rotate(o.swordAngle === undefined ? -0.5 : o.swordAngle);
-      this.sword(g, o.sword || SWORDS[0]);
+      g.rotate(o.weaponAngle === undefined ? -0.5 : o.weaponAngle);
+      // heavy things are carried in both hands
+      const w = o.weapon || WEAPONS[0];
+      this.weapon(g, w, o.t, o.swingP);
       g.restore();
     }
     g.restore();
@@ -870,25 +872,188 @@ const Art = {
     g.restore();
   },
 
-  sword(g, s) {
-    // drawn from the grip, blade pointing +x
-    g.fillStyle = s.hilt;
-    g.fillRect(-4, -3, 12, 6);
-    g.fillStyle = '#c9a44c';
-    g.fillRect(7, -8, 4, 16);
-    const bl = 40 * (s.reach || 1);
-    g.beginPath();
-    g.moveTo(11, -4.5);
-    g.lineTo(11 + bl - 9, -4.5);
-    g.lineTo(11 + bl, 0);
-    g.lineTo(11 + bl - 9, 4.5);
-    g.lineTo(11, 4.5);
-    g.closePath();
-    g.fillStyle = s.blade; g.fill();
-    g.fillStyle = 'rgba(255,255,255,.55)';
-    g.fillRect(12, -3, bl - 11, 1.6);
-    g.fillStyle = 'rgba(0,0,0,.2)';
-    g.fillRect(12, 2, bl - 11, 1.4);
+  // every weapon is drawn from the grip with the business end pointing +x
+  weapon(g, w, t, swingP) {
+    if (!w) return;
+    const L = 46 * (w.reach || 1);
+    switch (w.kind) {
+
+      case 'net': {
+        g.fillStyle = w.grip;
+        g.fillRect(-6, -2.6, L * .62, 5.2);
+        g.fillStyle = 'rgba(0,0,0,.22)';
+        g.fillRect(-6, .8, L * .62, 1.6);
+        const hx = L * .62, R = 15;
+        // the netting bag, dragged behind the hoop by the swing
+        const drag = (swingP || 0) * 8;
+        g.strokeStyle = 'rgba(228,222,198,.75)'; g.lineWidth = 1.1;
+        for (let i = 0; i < 5; i++) {
+          g.beginPath();
+          g.moveTo(hx + Math.cos(i / 4 * Math.PI - Math.PI / 2) * R,
+                   Math.sin(i / 4 * Math.PI - Math.PI / 2) * R);
+          g.quadraticCurveTo(hx + 12 - drag, i * 2 - 4, hx + 22 - drag, -1 + i);
+          g.stroke();
+        }
+        for (let i = 1; i < 4; i++) {
+          g.beginPath();
+          g.ellipse(hx + i * 6 - drag * (i / 4), 0, 2 + i, R - i * 3.4, 0, -1.4, 1.4);
+          g.stroke();
+        }
+        // hoop
+        g.strokeStyle = w.metal; g.lineWidth = 3.4;
+        g.beginPath(); g.ellipse(hx, 0, 6, R, 0, 0, 6.2832); g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1.2;
+        g.beginPath(); g.ellipse(hx, 0, 6, R, 0, -2.6, -.4); g.stroke();
+        break;
+      }
+
+      case 'gaff': {
+        g.fillStyle = w.grip;
+        g.fillRect(-6, -2.8, L * .78, 5.6);
+        g.fillStyle = 'rgba(255,255,255,.14)';
+        g.fillRect(-6, -2.8, L * .78, 1.6);
+        // whipping at the throat
+        g.fillStyle = w.accent;
+        for (let i = 0; i < 3; i++) g.fillRect(L * .5 + i * 5, -3.4, 2.6, 6.8);
+        g.strokeStyle = w.metal; g.lineWidth = 5; g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(L * .76, 0);
+        g.quadraticCurveTo(L * 1.02, -2, L * .98, 15);
+        g.quadraticCurveTo(L * .94, 25, L * .78, 21);
+        g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.6;
+        g.beginPath();
+        g.moveTo(L * .76, -2);
+        g.quadraticCurveTo(L * 1.0, -3, L * .96, 13);
+        g.stroke();
+        g.lineCap = 'butt';
+        break;
+      }
+
+      case 'cleaver': {
+        g.fillStyle = w.grip;
+        roundRect(g, -8, -4, 18, 8, 3); g.fill();
+        g.fillStyle = w.accent;
+        g.fillRect(9, -6, 4, 12);
+        const bw = L * .78, bh = 24;
+        g.beginPath();
+        g.moveTo(13, -7);
+        g.lineTo(13 + bw * .82, -bh * .62);
+        g.quadraticCurveTo(13 + bw, -bh * .3, 13 + bw, bh * .2);
+        g.lineTo(13 + bw * .5, bh * .5);
+        g.lineTo(13, 7);
+        g.closePath();
+        g.fillStyle = w.metal; g.fill();
+        g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = 1.4; g.stroke();
+        // rust and a chipped edge
+        g.fillStyle = 'rgba(150,90,60,.35)';
+        g.beginPath(); g.ellipse(13 + bw * .45, -2, bw * .2, 6, .3, 0, 6.2832); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.5)';
+        g.beginPath();
+        g.moveTo(15, 6); g.lineTo(13 + bw * .5, bh * .46); g.lineTo(13 + bw * .5, bh * .3);
+        g.lineTo(15, 3); g.closePath(); g.fill();
+        break;
+      }
+
+      case 'harpoon': {
+        g.fillStyle = w.grip;
+        g.fillRect(-14, -2.4, L * .86, 4.8);
+        g.fillStyle = 'rgba(255,255,255,.12)';
+        g.fillRect(-14, -2.4, L * .86, 1.4);
+        // lanyard trailing from the butt
+        g.strokeStyle = 'rgba(200,178,122,.7)'; g.lineWidth = 1.4;
+        g.beginPath();
+        g.moveTo(-14, 0);
+        g.quadraticCurveTo(-26, 8 + Math.sin((t || 0) * 6) * 3, -34, 4);
+        g.stroke();
+        g.fillStyle = w.accent;
+        g.fillRect(L * .66, -3.6, 5, 7.2);
+        // head
+        const hx2 = L * .84;
+        g.beginPath();
+        g.moveTo(hx2, -4.4);
+        g.lineTo(L * 1.12, 0);
+        g.lineTo(hx2, 4.4);
+        g.closePath();
+        g.fillStyle = w.metal; g.fill();
+        // barbs
+        g.beginPath();
+        g.moveTo(hx2 + 2, -3.6); g.lineTo(hx2 - 9, -12); g.lineTo(hx2 + 5, -2);
+        g.moveTo(hx2 + 2, 3.6); g.lineTo(hx2 - 9, 12); g.lineTo(hx2 + 5, 2);
+        g.fill();
+        g.fillStyle = 'rgba(255,255,255,.45)';
+        g.beginPath();
+        g.moveTo(hx2, -3); g.lineTo(L * 1.08, 0); g.lineTo(hx2, -1); g.closePath(); g.fill();
+        break;
+      }
+
+      case 'chain': {
+        // links follow a lazy curve that straightens as the swing peaks
+        const p = swingP === undefined ? .4 : swingP;
+        const n = 11;
+        g.strokeStyle = w.metal; g.lineWidth = 4;
+        for (let i = 0; i < n; i++) {
+          const f = i / (n - 1);
+          const x = f * L * 1.05;
+          const y = Math.sin(f * 2.6 + (t || 0) * 3) * (1 - p) * 14 + f * p * 4;
+          g.save();
+          g.translate(x, y);
+          g.rotate(f * .4 * (1 - p));
+          g.strokeStyle = i % 2 ? w.metal : w.accent;
+          g.lineWidth = 3.2;
+          g.beginPath(); g.ellipse(0, 0, 4.4, 3, 0, 0, 6.2832); g.stroke();
+          g.restore();
+        }
+        // the hook on the end, riding the last link
+        const ex = L * 1.05;
+        const ey = Math.sin(2.6 + (t || 0) * 3) * (1 - p) * 14 + p * 4;
+        g.save();
+        g.translate(ex, ey);
+        g.strokeStyle = w.metal; g.lineWidth = 5; g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.quadraticCurveTo(14, 2, 12, 14);
+        g.quadraticCurveTo(10, 22, 0, 18);
+        g.stroke();
+        g.lineCap = 'butt';
+        g.restore();
+        g.fillStyle = w.grip;
+        g.fillRect(-7, -4, 10, 8);
+        break;
+      }
+
+      case 'tooth':
+      default: {
+        // a curved ivory blade, still rooted in a lump of jaw
+        g.fillStyle = w.grip;
+        roundRect(g, -7, -4.5, 17, 9, 3); g.fill();
+        g.fillStyle = w.accent;
+        g.fillRect(9, -8, 5, 16);
+        g.beginPath(); g.arc(11.5, -8, 2.6, 0, 6.2832); g.fill();
+        g.beginPath(); g.arc(11.5, 8, 2.6, 0, 6.2832); g.fill();
+        const bl = L * 1.06;
+        g.beginPath();
+        g.moveTo(13, -5.5);
+        g.quadraticCurveTo(13 + bl * .55, -13, 13 + bl, -3);
+        g.quadraticCurveTo(13 + bl * .6, 2, 13, 5.5);
+        g.closePath();
+        const tg = g.createLinearGradient(13, -10, 13 + bl, 6);
+        tg.addColorStop(0, w.metal);
+        tg.addColorStop(.7, '#e6dcc4');
+        tg.addColorStop(1, '#b9a88e');
+        g.fillStyle = tg; g.fill();
+        g.strokeStyle = 'rgba(90,70,60,.45)'; g.lineWidth = 1.2; g.stroke();
+        // serrations along the inner edge
+        g.fillStyle = 'rgba(255,255,255,.6)';
+        for (let i = 0; i < 7; i++) {
+          const f = .15 + i * .11;
+          g.beginPath();
+          g.arc(13 + bl * f, lerp(-6, -2, f) - 1, 1.8, 0, 6.2832);
+          g.fill();
+        }
+        break;
+      }
+    }
   },
 
   dad(g, x, y, o) {

@@ -14,15 +14,42 @@ const RODS = [
     desc: 'The line hums on its own. Something down there answers.' }
 ];
 
-const SWORDS = [
-  { id: 'cutlass',   name: 'Rusty Cutlass',        price: 0,   dmg: 7,  reach: 1.00, blade: '#b9c2cc', hilt: '#6b4a2a',
-    desc: 'Found in a crate. Mostly rust, partly sword.' },
-  { id: 'saber',     name: "Sailor's Saber",       price: 120, dmg: 13, reach: 1.06, blade: '#dfe7f2', hilt: '#8d6a35',
-    desc: 'Balanced, sharp, and only slightly haunted.' },
-  { id: 'harpoon',   name: 'Harpoon Blade',        price: 300, dmg: 21, reach: 1.16, blade: '#a7e2e8', hilt: '#3f5b6b',
-    desc: 'Barbed. The fish hate it. That is rather the point.' },
-  { id: 'whalebone', name: 'Whalebone Greatsword', price: 700, dmg: 34, reach: 1.28, blade: '#f2ead6', hilt: '#4a3b52',
-    desc: 'Carved from something that lost a fight out here.' }
+/* Weapons. `style` drives both the animation and the hitbox:
+     swing  — wide arc, generous vertical coverage
+     chop   — slow overhead, huge damage, small window
+     thrust — long and narrow, fast, poor against tall targets
+   `kind` is purely how Art draws it.                                      */
+
+const WEAPONS = [
+  { id: 'dipnet', name: 'Dip Net', kind: 'net', style: 'swing', price: 0,
+    dmg: 8, reach: 1.05, speed: 1.0, knock: 0.6,
+    metal: '#9aa6b4', grip: '#8a6a3c', accent: '#d9d2b8',
+    desc: 'For scooping herring. You are not scooping herring.' },
+
+  { id: 'gaff', name: 'Gaff Hook', kind: 'gaff', style: 'swing', price: 120,
+    dmg: 14, reach: 1.22, speed: 1.05, knock: 0.9,
+    metal: '#b7bec8', grip: '#6b4a2a', accent: '#8e6a3a',
+    desc: 'A hook on a stick. Honest work, honest tool.' },
+
+  { id: 'cleaver', name: 'Gutting Cleaver', kind: 'cleaver', style: 'chop', price: 280,
+    dmg: 26, reach: 0.98, speed: 0.78, knock: 1.5,
+    metal: '#d3dae4', grip: '#4a3b2a', accent: '#8e2c3a',
+    desc: 'Meant for taking heads off things that already stopped moving.' },
+
+  { id: 'harpoon', name: 'Whaling Harpoon', kind: 'harpoon', style: 'thrust', price: 520,
+    dmg: 33, reach: 1.48, speed: 1.22, knock: 0.7,
+    metal: '#a7c6d8', grip: '#3f5b6b', accent: '#c9b27a',
+    desc: 'Barbed, so it only travels one direction through a thing.' },
+
+  { id: 'chain', name: 'Anchor Chain', kind: 'chain', style: 'swing', price: 860,
+    dmg: 44, reach: 1.40, speed: 0.72, knock: 2.0,
+    metal: '#8d949e', grip: '#5a5f6b', accent: '#3f434d',
+    desc: 'Six feet of ground tackle. No edge at all. Doesn’t need one.' },
+
+  { id: 'tooth', name: "Leviathan's Tooth", kind: 'tooth', style: 'swing', price: 1500,
+    dmg: 62, reach: 1.20, speed: 1.10, knock: 1.4,
+    metal: '#f2ead6', grip: '#4a3b52', accent: '#a88ad0',
+    desc: 'Pulled from a jaw by a boy who should not have survived doing it.' }
 ];
 
 const GOODS = [

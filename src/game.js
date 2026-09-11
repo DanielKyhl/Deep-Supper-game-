@@ -10,7 +10,7 @@ const Player = {
   animT: 0,
   hp: 5, maxHp: 5,
   coins: 0,
-  rod: 0, sword: -1,
+  rod: 0, weapon: -1,
   bandages: 0, lockets: 0, lantern: false, luck: false,
   catches: [],
   kills: {}, totalKills: 0, sold: 0, casts: 0,
@@ -22,7 +22,7 @@ const Player = {
   reset() {
     this.x = 640; this.y = DECK_Y; this.vy = 0; this.face = 1;
     this.hp = 5; this.maxHp = 5; this.coins = 0;
-    this.rod = 0; this.sword = -1;
+    this.rod = 0; this.weapon = -1;
     this.bandages = 0; this.lockets = 0; this.lantern = false; this.luck = false;
     this.catches.length = 0; this.kills = {}; this.totalKills = 0; this.sold = 0; this.casts = 0;
     this.beatBoss = false;
@@ -79,10 +79,10 @@ const Game = {
     Cam.locked = false;
     CUT.letterbox = 0;
     Dialogue.hide();
-    if (Player.sword < 0 && !this._toldStart) {
+    if (Player.weapon < 0 && !this._toldStart) {
       this._toldStart = true;
       this.say(['You', 'Alright. Rod, bait, boat, boy.'],
-               ['You', "Dad always says: nothing sharp, nothing caught. There'll be something in the crate by the cabin."]);
+               ['You', "Dad always says: never put a line in the water without something in your other hand. There'll be gear in the crate by the cabin."]);
     }
   },
 
@@ -217,7 +217,7 @@ const Game = {
   },
 
   spotLabel(s) {
-    if (s.id === 'crate') return Player.sword < 0 ? 'Open the crate' : null;
+    if (s.id === 'crate') return Player.weapon < 0 ? 'Open the crate' : null;
     if (s.id === 'stall') return 'Talk to Dorran';
     if (s.id === 'fish')  return 'Cast your line';
     return null;
@@ -225,23 +225,23 @@ const Game = {
 
   useSpot(s) {
     if (s.id === 'crate') {
-      if (Player.sword >= 0) return;
-      Player.sword = 0;
+      if (Player.weapon >= 0) return;
+      Player.weapon = 0;
       this.crateOpen = true;
       Sfx.buy();
       Particles.burst(392 - Cam.x, DECK_Y - 50, 20, {
         color: '#f0cf8a', vy: rand(-240, -60), g: 520, size: rand(2, 5), life: .9, fixed: true
       });
       this.say(['You', 'The old crate. Rope, oilskins, a tin of something furred over—'],
-               ['You', '...and this.'],
-               ['You', "A cutlass. Rusted half to nothing. Dad never said why it's on a fishing boat."],
-               ['You', "I don't think I want to know tonight."]);
+               ['You', '...and the dip net. Handle splintered, hoop bent, smells like 1908.'],
+               ['You', "It's for scooping herring out of a bucket. It is not for anything else."],
+               ['You', "Still. Better in my hands than not."]);
       return;
     }
     if (s.id === 'stall') { Shop.open(); return; }
     if (s.id === 'fish') {
-      if (Player.sword < 0) {
-        this.say(['You', "Nothing sharp aboard, nothing goes in the water. That's Dad's rule."],
+      if (Player.weapon < 0) {
+        this.say(['You', "Empty hands, empty boat. That's Dad's rule and he's never once explained it."],
                  ['You', 'There was a crate back by the cabin.']);
         return;
       }
@@ -488,10 +488,10 @@ const Game = {
       o.rodBend = Fishing.rodBend();
       o.frontArm = -0.55 + (Fishing.phase === 'reel' ? Math.sin(Fishing.t * 14) * .08 : 0);
       o.backArm = 0.5;
-    } else if (P.sword >= 0) {
-      o.hold = 'sword';
-      o.sword = SWORDS[P.sword];
-      o.swordAngle = -1.15 + Math.sin(P.animT * 2) * .04;
+    } else if (P.weapon >= 0) {
+      o.hold = 'weapon';
+      o.weapon = WEAPONS[P.weapon];
+      o.weaponAngle = -1.15 + Math.sin(P.animT * 2) * .04;
       o.frontArm = 0.35;
     }
     Art.boy(g, sx, P.y, o);
@@ -560,12 +560,12 @@ const Game = {
 
     // gear, top right
     const rodName = RODS[Player.rod].name;
-    const swName = Player.sword >= 0 ? SWORDS[Player.sword].name : 'unarmed';
+    const swName = Player.weapon >= 0 ? WEAPONS[Player.weapon].name : 'unarmed';
     Text.draw(g, rodName, VIEW_W - 24, 34, {
       size: 14, align: 'right', color: '#b9c4dd', font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3
     });
     Text.draw(g, swName, VIEW_W - 24, 54, {
-      size: 14, align: 'right', color: Player.sword >= 0 ? '#d8cdb4' : '#8a8a96',
+      size: 14, align: 'right', color: Player.weapon >= 0 ? '#d8cdb4' : '#8a8a96',
       font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3
     });
 
@@ -585,18 +585,18 @@ const Game = {
         size: 13, color: '#9fd8b0', font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3
       });
     }
-    const swName = Player.sword >= 0 ? SWORDS[Player.sword].name : 'bare hands';
+    const swName = Player.weapon >= 0 ? WEAPONS[Player.weapon].name : 'bare hands';
     Text.draw(g, swName, VIEW_W - 24, 34, {
       size: 14, align: 'right', color: '#d8cdb4', font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3
     });
   },
 
   objective() {
-    if (Player.sword < 0) return 'Find something sharp on deck';
+    if (Player.weapon < 0) return 'Find some gear in the crate by the cabin';
     if (Player.catches.length) return 'Sell your catch to Dorran at the stall';
     if (Player.totalKills === 0) return 'Cast a line at the bow';
     if (Player.beatBoss) return 'The sea is quiet again. For now.';
-    if (Player.rod < 3) return 'Deeper line reaches deeper things';
+    if (Player.rod < RODS.length - 1) return 'Deeper line reaches deeper things';
     return 'Something is still down there';
   },
 

@@ -163,7 +163,7 @@ const Battle = {
         P.vy = -640; Sfx.whoosh();
         Particles.burst(P.x, DECK_Y, 5, { color: 'rgba(220,230,244,.7)', vy: -40, g: 400, size: 3, life: .35 });
       }
-      if (Input.tap('attack') && P.sword >= 0) this._swing(0);
+      if (Input.tap('attack') && P.weapon >= 0) this._swing(0);
       if (Input.tap('roll') && onGround && P.rollCd <= 0) {
         P.rollT = .34; P.rollCd = .62; P.invuln = Math.max(P.invuln, .30);
         Sfx.whoosh();
@@ -194,24 +194,27 @@ const Battle = {
 
   _swing(step) {
     const P = Player;
+    const w = WEAPONS[Math.max(0, P.weapon)];
     P.combo = step;
-    P.attackDur = step === 2 ? .46 : .32;
+    const base = w.style === 'chop' ? .44 : (w.style === 'thrust' ? .26 : .32);
+    P.attackDur = (step === 2 ? base * 1.4 : base) / (w.speed || 1);
     P.attackT = P.attackDur;
     P.attackDone = false;
     P.comboBuffer = false;
     P.bState = 'attack';
     Sfx.swing();
+    if (w.style === 'chop') Sfx.tone({ f: 150, f2: 90, dur: .18, type: 'triangle', vol: .12 });
   },
 
   _playerHitbox() {
     const P = Player;
-    const sw = SWORDS[Math.max(0, P.sword)];
-    const reach = 64 * sw.reach;
-    return {
-      x: P.face > 0 ? P.x + 6 : P.x - 6 - reach,
-      y: P.y - 62 + (P.combo === 1 ? -8 : 0),
-      w: reach, h: P.combo === 2 ? 66 : 52
-    };
+    const w = WEAPONS[Math.max(0, P.weapon)];
+    const reach = 64 * w.reach;
+    let y, h;
+    if (w.style === 'thrust') { y = P.y - 54; h = 34; }             // narrow, level
+    else if (w.style === 'chop') { y = P.y - 96; h = 96; }           // tall, overhead
+    else { y = P.y - 62 + (P.combo === 1 ? -10 : 0); h = P.combo === 2 ? 74 : 58; }
+    return { x: P.face > 0 ? P.x + 6 : P.x - 6 - reach, y, w: reach, h };
   },
 
   _monsterHurtbox() {
@@ -226,10 +229,11 @@ const Battle = {
     if (!overlaps(hb, this._monsterHurtbox())) return;
 
     Player.attackDone = true;
-    const sw = SWORDS[Math.max(0, Player.sword)];
+    const sw = WEAPONS[Math.max(0, Player.weapon)];
     const crit = chance(.14);
     let dmg = Math.round(sw.dmg * rand(.88, 1.12) * (crit ? 1.75 : 1) * (Player.combo === 2 ? 1.35 : 1));
     if (m.state === 'recover') dmg = Math.round(dmg * 1.35);
+    m.x += Player.face * 6 * (sw.knock || 1);
     m.hp -= dmg;
     m.flash = 1;
     m.hits++;
@@ -581,55 +585,80 @@ const Battle = {
     g.save();
     if (blink) g.globalAlpha = .4;
 
+    const w = WEAPONS[Math.max(0, P.weapon)];
     const o = {
       face: P.face, t: P.animT, state: P.bState === 'attack' ? 'idle' : P.bState,
       air: -P.air, rollT: P.rollT > 0 ? (.34 - P.rollT) : 0,
-      hold: P.sword >= 0 ? 'sword' : null, sword: SWORDS[Math.max(0, P.sword)]
+      hold: P.weapon >= 0 ? 'weapon' : null, weapon: w
     };
 
     if (P.bState === 'attack') {
       const total = P.attackDur, e = (total - P.attackT) / total;
-      if (P.combo === 1) {
-        o.swordAngle = lerp(1.2, -1.9, easeOut(e));
+      o.swingP = e;
+      if (w.style === 'thrust') {
+        // wind back, then drive it straight forward
+        const k = e < .3 ? -.5 * (1 - e / .3) : 0;
+        o.weaponAngle = -.15 + k;
+        o.frontArm = -.05 + k * 1.4;
+        o.lunge = e > .3 ? ease(clamp((e - .3) / .25, 0, 1)) * 14 : 0;
+      } else if (w.style === 'chop') {
+        const k = easeOut(clamp(e / .62, 0, 1));
+        o.weaponAngle = lerp(-2.7, 1.35, k);
+        o.frontArm = lerp(-1.9, 1.0, k);
+      } else if (P.combo === 1) {
+        o.weaponAngle = lerp(1.2, -1.9, easeOut(e));
         o.frontArm = lerp(.7, -1.2, easeOut(e));
       } else if (P.combo === 2) {
-        o.swordAngle = lerp(-2.2, 3.4, ease(e));
+        o.weaponAngle = lerp(-2.2, 3.4, ease(e));
         o.frontArm = lerp(-.9, 1.4, ease(e));
       } else {
-        o.swordAngle = lerp(-2.3, 1.0, easeOut(e));
+        o.weaponAngle = lerp(-2.3, 1.0, easeOut(e));
         o.frontArm = lerp(-1.3, .8, easeOut(e));
       }
     } else if (P.bState === 'hurt') {
-      o.frontArm = -1.4; o.swordAngle = -1.9;
+      o.frontArm = -1.4; o.weaponAngle = -1.9;
     }
 
     Art.boy(g, sx, P.y, o);
 
-    // slash arc
-    if (P.bState === 'attack' && P.sword >= 0) {
+    // the trail the weapon leaves
+    if (P.bState === 'attack' && P.weapon >= 0) {
       const total = P.attackDur, e = (total - P.attackT) / total;
-      if (e > .16 && e < .72) {
-        const a = clamp(1 - (e - .16) / .56, 0, 1);
-        const sw = SWORDS[Math.max(0, P.sword)];
-        const R = 64 * sw.reach;
+      if (e > .14 && e < .76) {
+        const a = clamp(1 - (e - .14) / .6, 0, 1);
+        const R = 64 * w.reach;
         g.save();
         g.translate(sx + P.face * 8, P.y - 34);
         g.scale(P.face, 1);
-        g.globalAlpha = a * .8;
-        g.strokeStyle = sw.blade;
-        g.lineWidth = 7 * a + 2;
+        g.strokeStyle = w.metal;
         g.lineCap = 'round';
-        const base = P.combo === 1 ? 1.1 : -2.2;
-        const span = P.combo === 1 ? -2.8 : 3.1;
-        const mid = base + span * ease(clamp((e - .16) / .4, 0, 1));
-        g.beginPath();
-        g.arc(0, 16, R, mid - .75, mid + .75);
-        g.stroke();
-        g.globalAlpha = a * .35;
-        g.lineWidth = 16 * a;
-        g.beginPath();
-        g.arc(0, 16, R * .82, mid - .6, mid + .6);
-        g.stroke();
+
+        if (w.style === 'thrust') {
+          // a spear of motion blur rather than an arc
+          g.globalAlpha = a * .55;
+          g.lineWidth = 5 * a + 1;
+          g.beginPath();
+          g.moveTo(10, 12); g.lineTo(R * 1.15, 10);
+          g.stroke();
+          g.globalAlpha = a * .22;
+          g.lineWidth = 14 * a;
+          g.beginPath();
+          g.moveTo(16, 12); g.lineTo(R * 1.02, 10);
+          g.stroke();
+        } else {
+          const chop = w.style === 'chop';
+          const base = chop ? -2.5 : (P.combo === 1 ? 1.1 : -2.2);
+          const span = chop ? 3.7 : (P.combo === 1 ? -2.8 : 3.1);
+          const mid = base + span * ease(clamp((e - .14) / .44, 0, 1));
+          const wide = chop ? .55 : .75;
+          g.globalAlpha = a * .8;
+          g.lineWidth = (chop ? 10 : 7) * a + 2;
+          g.beginPath(); g.arc(0, 16, R, mid - wide, mid + wide); g.stroke();
+          g.globalAlpha = a * .32;
+          g.lineWidth = (chop ? 22 : 16) * a;
+          g.beginPath(); g.arc(0, 16, R * .82, mid - wide * .8, mid + wide * .8); g.stroke();
+        }
+        g.lineCap = 'butt';
         g.restore();
       }
     }

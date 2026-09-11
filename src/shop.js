@@ -46,11 +46,11 @@ const Shop = {
         });
       });
       r.push({ kind: 'head', name: 'ARMS' });
-      SWORDS.forEach((s, i) => {
+      WEAPONS.forEach((s, i) => {
         r.push({
-          kind: 'sword', idx: i, name: s.name, sub: s.desc, price: s.price,
-          owned: i <= Player.sword, locked: i > Player.sword + 1,
-          stat: 'damage ' + s.dmg
+          kind: 'weapon', idx: i, name: s.name, sub: s.desc, price: s.price,
+          owned: i <= Player.weapon, locked: i > Player.weapon + 1,
+          stat: 'damage ' + s.dmg + '  ·  ' + s.style
         });
       });
       return r;
@@ -145,8 +145,8 @@ const Shop = {
     if (r.kind === 'rod') {
       Player.rod = Math.max(Player.rod, r.idx);
       this.say('Deeper line. Deeper things. Your choice, lad.');
-    } else if (r.kind === 'sword') {
-      Player.sword = Math.max(Player.sword, r.idx);
+    } else if (r.kind === 'weapon') {
+      Player.weapon = Math.max(Player.weapon, r.idx);
       this.say(choice(DORRAN_BUY));
     } else {
       const gd = r.def;
@@ -262,7 +262,7 @@ const Shop = {
           size: 21, color: '#f0cf8a', weight: 'bold', align: 'right', font: 'Verdana, sans-serif'
         });
       } else if (r.owned) {
-        Text.draw(g, r.kind === 'rod' && r.idx === Player.rod ? 'IN USE' : (r.kind === 'sword' && r.idx === Player.sword ? 'IN USE' : 'OWNED'),
+        Text.draw(g, r.kind === 'rod' && r.idx === Player.rod ? 'IN USE' : (r.kind === 'weapon' && r.idx === Player.weapon ? 'IN USE' : 'OWNED'),
           rx, y + 30, { size: 13, color: '#6f9e84', weight: 'bold', align: 'right', font: 'Verdana, sans-serif' });
       } else if (r.locked) {
         Text.draw(g, '—', rx, y + 30, { size: 18, color: '#4e566d', align: 'right' });
