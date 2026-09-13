@@ -1928,12 +1928,14 @@ const Art = {
     const len = m.len, h = len * (d.girth || .27);
     const seed = m.seed || 1;
 
-    // deck shadow, in screen space so it stays flat
-    g.save();
-    resetTransform(g);
-    g.fillStyle = 'rgba(0,0,0,.32)';
-    g.beginPath(); g.ellipse(m.x, DECK_Y + 2, len * .36, 11, 0, 0, 6.2832); g.fill();
-    g.restore();
+    // deck shadow, in screen space so it stays flat — not for things underwater
+    if (!m.noShadow) {
+      g.save();
+      resetTransform(g);
+      g.fillStyle = 'rgba(0,0,0,.32)';
+      g.beginPath(); g.ellipse(m.x, DECK_Y + 2, len * .36, 11, 0, 0, 6.2832); g.fill();
+      g.restore();
+    }
 
     g.save();
     g.translate(snap(m.x), snap(m.y));

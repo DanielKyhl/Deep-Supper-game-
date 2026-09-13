@@ -9,14 +9,15 @@ const FISH_X = 1700;   // where the boy stands to fish (world x)
 const ROD_DEPTH = [280, 520, 820, 1220];
 
 const Fishing = {
-  phase: 'cast',   // cast | sink | deep | bite | reel | pull | junk | fail | intro*
+  phase: 'cast',   // cast | sink | deep | bite | reel | ambush | pull | junk | fail
   t: 0,
   hook: { x: 0, depth: 0, vy: 0, tug: 0 },
   targetDepth: 280,
   waitFor: 2,
   target: null,
   msg: '',
-  intro: false, introStage: 0,
+  intro: false,          // this cast is the scripted first catch
+  eaten: false, warned: false, ambushFrom: -1, yankFrom: 0,
   shapes: [], watcher: { x: 480, depth: 0, a: 0, want: 0 },
   // reel minigame
   fy: .5, fvy: 0, fTarget: .5, fTimer: 0, fSpeed: .3,
@@ -30,7 +31,8 @@ const Fishing = {
     this.msg = '';
     this.target = null;
     this.intro = (Player.totalKills === 0 && !Player.introDone);
-    this.introStage = 0;
+    this.eaten = false;
+    this.warned = false;
     Player.state = 'idle';
     Player.face = 1;
     Player.x = FISH_X;
@@ -39,7 +41,8 @@ const Fishing = {
     this.hook.depth = -80;
     this.hook.vy = 0;
     this.hook.tug = 0;
-    this.targetDepth = this.intro ? 210 : ROD_DEPTH[Player.rod] * rand(.86, 1);
+    // the first cast goes a little deeper, so the ambush has room to happen in the dark
+    this.targetDepth = this.intro ? 300 : ROD_DEPTH[Player.rod] * rand(.86, 1);
     Game.viewY = 0;
 
     // silhouettes drifting at depth, more of them the deeper you can reach
@@ -115,6 +118,7 @@ const Fishing = {
       case 'deep':   this._deep(dt, rod); break;
       case 'bite':   this._bite(dt); break;
       case 'reel':   this._reel(dt, rod); break;
+      case 'ambush': this._ambush(dt); break;
       case 'pull':   this._pull(dt); break;
       case 'junk':   this._junk(dt); break;
       case 'fail':   this._fail(dt); break;
@@ -233,11 +237,14 @@ const Fishing = {
     this.t = 0;
     const rod = RODS[Player.rod];
     const m = this.target;
-    this.barFrac = (this.intro ? 190 : rod.bar) / 300;
+    const small = m === MINNOW;
+    this.barFrac = (small ? 190 : rod.bar) / 300;
     this.by = .6; this.bvy = 0;
     this.fy = .5; this.fvy = 0; this.fTarget = .5; this.fTimer = 0;
-    this.fSpeed = this.intro ? .12 : (0.26 + m.depth * 0.085 + (m.boss ? 0.18 : 0));
-    this.prog = this.intro ? .55 : .34;
+    this.fSpeed = small ? .12 : (0.26 + m.depth * 0.085 + (m.boss ? 0.18 : 0));
+    // the scripted first monster is a touch gentler: it is also the tutorial
+    if (!small && this.intro) this.fSpeed *= .85;
+    this.prog = small ? .15 : .34;
     this.tension = 0;
     this.startDepth = this.hook.depth;
     Sfx.reel();
@@ -267,12 +274,13 @@ const Fishing = {
     if (this.by > hi) { this.by = hi; this.bvy = Math.min(0, this.bvy) * .35; }
 
     const inBar = Math.abs(this.fy - this.by) <= half + 1e-6;
+    const small = m === MINNOW;
     if (inBar) {
-      this.prog += dt * (this.intro ? .5 : 0.30) * rod.reel;
+      this.prog += dt * (small ? .5 : 0.30) * rod.reel;
       this.tension = Math.max(0, this.tension - dt * 1.2);
       if (chance(dt * 12)) Sfx.reel();
     } else {
-      this.prog -= dt * (this.intro ? .06 : (0.19 + m.depth * 0.012));
+      this.prog -= dt * (small ? .06 : (0.19 + m.depth * 0.012));
       this.tension = Math.min(1, this.tension + dt * .55);
       this.shake = this.tension * 3;
     }
@@ -288,10 +296,13 @@ const Fishing = {
       });
     }
 
+    // halfway up with the little fish, the sea takes an interest
+    if (small && this.intro && this.prog >= .45) { this._startAmbush(); return; }
+
     if (this.prog >= 1) {
-      this.phase = 'pull'; this.t = 0; this.introStage = 0;
+      this.phase = 'pull'; this.t = 0;
       Sfx.splash();
-      if (!this.intro) { Sfx.roar(); Cam.kick(9); }
+      Sfx.roar(); Cam.kick(9);
       Particles.burst(this.hook.x, WATER_Y, 40, {
         color: '#d8eef8', vx: rand(-220, 220), vy: rand(-460, -160), g: 900,
         size: rand(3, 8), life: rand(.6, 1.2), fixed: true
@@ -305,50 +316,70 @@ const Fishing = {
     }
   },
 
+  /* --------------------------- the ambush ----------------------------
+     The first catch. A perfectly ordinary little fish is on the line and
+     halfway up when something comes out of the dark, takes it, hook and
+     all, and dives. Then you have to haul that up instead.              */
+
+  _startAmbush() {
+    this.phase = 'ambush';
+    this.t = 0;
+    this.eaten = false;
+    this.warned = false;
+    // always out of the open water on the left: the rod is on the right of the frame
+    this.ambushFrom = -1;
+    this.msg = 'A fish. An actual, normal, edible fish.';
+  },
+
+  _ambush(dt) {
+    const t = this.t;
+    if (!this.eaten) {
+      // the line goes still; the little fish keeps struggling on it
+      this.hook.tug = 4 + Math.sin(t * 14) * 3;
+      if (t > 1.1 && !this.warned) {
+        this.warned = true;
+        this.msg = '';
+        Sfx.tone({ f: 44, f2: 30, dur: 1.8, type: 'sine', vol: .26 });
+        Cam.kick(2);
+      }
+      if (t > 2.3) {
+        this.eaten = true;
+        this.yankFrom = this.hook.depth;
+        this.target = MONSTERS[0];
+        this.msg = 'Something else has the line!';
+        Sfx.bite(); Sfx.thud(); Sfx.roar();
+        Cam.kick(12);
+        const hy = this.hookY();
+        Particles.burst(this.hook.x, hy, 26, {
+          color: 'rgba(206,232,244,.85)', vx: rand(-160, 160), vy: rand(-160, 60), g: -20,
+          size: rand(2, 5), life: rand(.5, 1.1), water: true
+        });
+        Particles.burst(this.hook.x, hy, 10, {
+          color: '#7a2030', vx: rand(-90, 90), vy: rand(-70, 70), g: 0, size: rand(2, 4), life: .9, water: true
+        });
+      }
+      return;
+    }
+    // it dives with the hook in its mouth
+    const p = clamp((t - 2.3) / .5, 0, 1);
+    this.hook.depth = lerp(this.yankFrom, this.yankFrom + 150, easeOut(p));
+    this.hook.tug = 10 + Math.sin(t * 30) * 8;
+    if (t > 3.8) {
+      this.msg = '';
+      this._beginReel();
+    }
+  },
+
   /* --------------------------- the haul up ---------------------------- */
 
   _pull(dt) {
     // the view comes back up to the deck
     this.hook.depth = Math.max(-70, this.hook.depth - 240 * dt);
-
-    if (!this.intro) {
-      if (this.t > 1.9) {
-        Cam.locked = false;
-        Game.viewY = 0;
-        Game.startBattle(this.target);
-      }
-      return;
-    }
-
-    /* The first catch: a perfectly ordinary little fish, and then the sea
-       has an opinion about it. */
-    const s = this.introStage;
-    if (s === 0 && this.t > 1.4) {
-      this.introStage = 1;
-      this.msg = 'A fish. An actual, normal, edible fish.';
-    } else if (s === 1 && this.t > 3.4) {
-      this.introStage = 2;
-      this.msg = 'Supper. That was easy.';
-    } else if (s === 2 && this.t > 5.0) {
-      this.introStage = 3;
-      this.msg = '';
-      Sfx.tone({ f: 40, f2: 28, dur: 2.4, type: 'sine', vol: .26 });
-      Cam.kick(3);
-    } else if (s === 3 && this.t > 6.6) {
-      this.introStage = 4;
-      Sfx.roar(); Sfx.splash();
-      Cam.kick(16);
-      Particles.burst(this.hook.x, WATER_Y, 70, {
-        color: chance(.5) ? '#d8eef8' : '#9fd4e4',
-        vx: rand(-340, 340), vy: rand(-620, -200), g: 900,
-        size: rand(3, 10), life: rand(.7, 1.4), fixed: true
-      });
-      this.msg = '';
-    } else if (s === 4 && this.t > 8.2) {
-      Player.introDone = true;
+    if (this.t > 1.9) {
+      if (this.intro) Player.introDone = true;
       Cam.locked = false;
       Game.viewY = 0;
-      Game.startBattle(MONSTERS[0]);
+      Game.startBattle(this.target);
     }
   },
 
@@ -358,12 +389,14 @@ const Fishing = {
     if (this.phase === 'cast') return lerp(-2.1, -0.35, clamp(this.t / .8, 0, 1));
     if (this.phase === 'reel') return -0.30 + Math.sin(this.t * 16) * .06 - this.prog * .1;
     if (this.phase === 'pull') return -0.9 - Math.min(1.2, this.t * .25);
+    if (this.phase === 'ambush') return this.eaten ? -0.1 + Math.sin(this.t * 30) * .08 : -0.34;
     if (this.phase === 'bite') return -0.42 + Math.sin(this.t * 26) * .05;
     return -0.36 + Math.sin(this.t * 1.8) * .03;
   },
   rodBend() {
     if (this.phase === 'reel') return 16 + this.tension * 12;
     if (this.phase === 'pull') return 30;
+    if (this.phase === 'ambush') return this.eaten ? 34 : 10;
     if (this.phase === 'bite') return 12;
     if (this.phase === 'sink' || this.phase === 'deep') return 5;
     return 0;
@@ -421,26 +454,20 @@ const Fishing = {
       g.globalAlpha = 1;
     }
 
-    if (this.phase === 'pull' && this.intro && this.introStage >= 4) {
-      this._drawEruption(g, hx);
-      g.restore();
-      return;
-    }
-
     // the hook, its bait, and whatever is presently attached to it
     g.save();
     g.translate(hx, hy);
 
-    if (this.phase === 'pull' || (this.intro && this.phase === 'reel')) {
-      // a small ordinary fish on the line
-      if (this.intro) {
-        g.save();
-        g.rotate(Math.sin(this.t * 6) * .3 - .4);
-        Art.fishIcon(g, 0, 12, 1.7, [140, 156, 120], [222, 226, 198]);
-        g.restore();
-      }
+    // a small ordinary fish on the line, for as long as it lasts
+    const minnowOn = this.target === MINNOW &&
+      (this.phase === 'reel' || this.phase === 'bite' || (this.phase === 'ambush' && !this.eaten));
+    if (minnowOn) {
+      g.save();
+      g.rotate(Math.sin(this.t * (this.phase === 'ambush' ? 14 : 6)) * .3 - .4);
+      Art.fishIcon(g, 0, 12, 1.7, MINNOW.body, MINNOW.belly);
+      g.restore();
     }
-    if (!this.intro && this.phase === 'reel') {
+    if (this.target !== MINNOW && this.phase === 'reel') {
       // a suggestion of the thing you have hooked, hauled up out of the black
       const d = this.target;
       const scale = clamp(.25 + this.prog * .8, .25, 1);
@@ -452,7 +479,7 @@ const Fishing = {
       try {
         Art.monster(g, {
           x: 0, y: 0, face: -1, rot: 0, len: d.len, def: d, flash: 0,
-          gape: .3 + Math.sin(this.t * 5) * .2, seed: 11, thrashAmt: 2.2
+          gape: .3 + Math.sin(this.t * 5) * .2, seed: 11, thrashAmt: 2.2, noShadow: true
         }, this.t);
       } catch (e) {}
       g.restore();
@@ -486,7 +513,7 @@ const Fishing = {
       });
       g.restore();
       // something big rising under the hook
-      if (!this.intro) {
+      if (this.target !== MINNOW) {
         g.save();
         g.globalAlpha = clamp(this.t * 1.2, 0, .55);
         g.fillStyle = '#01050d';
@@ -496,32 +523,33 @@ const Fishing = {
         g.restore();
       }
     }
+    if (this.phase === 'ambush') this._drawAmbusher(g, hx, hy);
     g.restore();
   },
 
-  // the moment the game stops being about fishing
-  _drawEruption(g, hx) {
-    const p = clamp((this.t - 6.6) / 1.6, 0, 1);
-    const y = lerp(WATER_Y + 220, WATER_Y - 230, easeOut(p));
-    g.save();
-    g.translate(hx - 40, y);
-    g.rotate(-1.15 + p * .5);
+  // the Gnashfin coming out of the dark for the little fish, then holding the line
+  _drawAmbusher(g, hx, hy) {
     const d = MONSTERS[0];
+    const L = d.len * .85;
+    const dir = this.ambushFrom;          // -1: arrives from the left
+    let off, gape;
+    if (!this.eaten) {
+      const p = clamp((this.t - 1.1) / 1.2, 0, 1);
+      off = lerp(dir * 560, 0, ease(p));
+      gape = lerp(.2, .95, p);
+    } else {
+      off = Math.sin(this.t * 24) * 6;
+      gape = .12;
+    }
+    g.save();
     try {
       Art.monster(g, {
-        x: 0, y: 0, face: -1, rot: 0, len: d.len * 1.15, def: d, flash: p < .2 ? 1 - p * 5 : 0,
-        gape: .95, seed: 5, thrashAmt: 3
+        // placed so its snout sits on the hook, body trailing back the way it came
+        x: hx + off + dir * L * .46, y: hy + 6, face: -dir, rot: 0, len: L, def: d,
+        flash: this.eaten && this.t - 2.3 < .15 ? 1 : 0,
+        gape, seed: 5, thrashAmt: this.eaten ? 3 : 1.4, noShadow: true
       }, this.t);
     } catch (e) {}
-    g.restore();
-    // the water it brought with it
-    g.save();
-    g.globalAlpha = 1 - p * .7;
-    g.fillStyle = 'rgba(190,224,240,.5)';
-    g.beginPath();
-    g.moveTo(hx - 130, WATER_Y + 60);
-    g.quadraticCurveTo(hx, WATER_Y - 120 * p, hx + 130, WATER_Y + 60);
-    g.closePath(); g.fill();
     g.restore();
   },
 
@@ -536,8 +564,8 @@ const Fishing = {
     else if (this.phase === 'bite') this._tip(g, 'SOMETHING TOOK IT — press [E]!', '#ffe066');
     else if (this.phase === 'fail') this._tip(g, this.msg, '#e28a8a');
     else if (this.phase === 'junk') this._tip(g, 'You reel up ' + this.target.name + '.', '#b8c4dc');
-    else if (this.phase === 'pull' && this.msg) this._tip(g, this.msg, '#e8e3d6');
-    else if (this.phase === 'pull' && !this.intro) this._tip(g, 'It is coming up…', '#ff9a9a');
+    else if (this.phase === 'ambush' && this.msg) this._tip(g, this.msg, this.eaten ? '#ff9a9a' : '#e8e3d6');
+    else if (this.phase === 'pull') this._tip(g, 'It is coming up…', '#ff9a9a');
 
     if (this.phase !== 'reel') return;
 
@@ -546,7 +574,7 @@ const Fishing = {
     const sh = (Math.random() * 2 - 1) * this.shake;
 
     panel(g, gx - 22 + sh, gy - 44, gw + 104, gh + 78, { alpha: .92 });
-    Text.draw(g, (this.intro ? 'A SMALL FISH' : this.target.name.toUpperCase()),
+    Text.draw(g, (this.target === MINNOW ? 'A SMALL FISH' : this.target.name.toUpperCase()),
       gx + gw / 2 + 30 + sh, gy - 16, {
         size: 15, align: 'center', color: '#f0cf8a', weight: 'bold', font: 'Verdana, sans-serif'
       });
@@ -570,8 +598,7 @@ const Fishing = {
     g.strokeStyle = inBar ? 'rgba(150,240,178,.9)' : 'rgba(150,190,224,.55)';
     g.lineWidth = 3; g.stroke();
     Art.fishIcon(g, gx + gw / 2 + sh, gy + this.fy * gh, 1.25,
-      this.intro ? [140, 156, 120] : this.target.body,
-      this.intro ? [222, 226, 198] : this.target.belly);
+      this.target.body, this.target.belly);
     g.restore();
 
     g.strokeStyle = '#c8a45c'; g.lineWidth = 3;
