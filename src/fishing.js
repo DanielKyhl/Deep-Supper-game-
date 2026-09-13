@@ -386,7 +386,7 @@ const Fishing = {
     // a pool of lantern-light travelling down with the bait, so the eye has
     // somewhere to go in all that black
     if (this.hook.depth > 30) {
-      Art._glowBlob(g, hx, hy, 190, 'rgba(150,205,230,.5)', .22);
+      Art._glowBlob(g, hx, hy, 150, 'rgba(150,205,230,.5)', .2);
     }
 
     // the line itself: taut and bright above water, dimmer as it goes down

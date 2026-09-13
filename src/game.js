@@ -57,6 +57,7 @@ const Game = {
     const loop = now => {
       let dt = (now - last) / 1000;
       last = now;
+      watchFrames(dt);
       if (dt > 1 / 20) dt = 1 / 20;
       this.frame(dt);
       requestAnimationFrame(loop);
@@ -363,11 +364,7 @@ const Game = {
     if (this.hurtFlash > 0) {
       const a = this.hurtFlash;
       g.save();
-      const rg = g.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 150, VIEW_W / 2, VIEW_H / 2, 560);
-      rg.addColorStop(0, 'rgba(180,20,30,0)');
-      rg.addColorStop(1, 'rgba(180,20,30,' + (a * .55) + ')');
-      g.fillStyle = rg;
-      g.fillRect(0, 0, VIEW_W, VIEW_H);
+      stepVignette(g, 'rgb(180,20,30)', a * .9, true);
       g.restore();
     }
 
@@ -457,14 +454,6 @@ const Game = {
     Art.nightTint(g, night * .5);
     Art.vignette(g, night);
 
-    // lantern warmth over everything at night
-    if (night > .3) {
-      g.save();
-      g.globalCompositeOperation = 'overlay';
-      g.fillStyle = 'rgba(255,180,100,' + (0.05 * night) + ')';
-      g.fillRect(0, 0, VIEW_W, VIEW_H);
-      g.restore();
-    }
   },
 
   // a silhouette longer than the boat, sliding by just under the surface
@@ -507,11 +496,7 @@ const Game = {
       g.fillStyle = '#ff4d4d';
       g.beginPath(); g.arc(x + 330, y - 20, 7, 0, 6.2832); g.fill();
       g.globalCompositeOperation = 'lighter';
-      const rg = g.createRadialGradient(x + 330, y - 20, 2, x + 330, y - 20, 60);
-      rg.addColorStop(0, 'rgba(255,60,60,.5)');
-      rg.addColorStop(1, 'rgba(255,60,60,0)');
-      g.fillStyle = rg;
-      g.beginPath(); g.arc(x + 330, y - 20, 60, 0, 6.2832); g.fill();
+      stepGlow(g, x + 330, y - 20, 60, 'rgb(255,60,60)', .5, { steps: 3 });
     }
     g.restore();
   },

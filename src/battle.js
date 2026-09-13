@@ -598,11 +598,7 @@ const Battle = {
     if (this.rage && this.phase === 'fight') {
       g.save();
       g.globalCompositeOperation = 'lighter';
-      const rg = g.createRadialGradient(drawM.x, m.y, 10, drawM.x, m.y, this.len * .7);
-      rg.addColorStop(0, 'rgba(255,60,60,.18)');
-      rg.addColorStop(1, 'rgba(255,60,60,0)');
-      g.fillStyle = rg;
-      g.beginPath(); g.arc(drawM.x, m.y, this.len * .7, 0, 6.2832); g.fill();
+      stepGlow(g, drawM.x, m.y, this.len * .7, 'rgb(255,60,60)', .18, { steps: 3 });
       g.restore();
     }
     Art.monster(g, drawM, this.t);

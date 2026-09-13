@@ -19,36 +19,97 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
 /* ----------------------- the pixel-art pipeline --------------------------
-   The whole game is drawn into a small offscreen buffer and blown up with
-   nearest-neighbour filtering. Game code keeps working in 960x540
-   coordinates throughout: the buffer carries a permanent 1/PIX base
-   transform, so nothing else has to know the resolution changed.
-   PIX is the only number to touch if you want chunkier or finer pixels
-   (must divide 960 and 540 evenly: 2 -> 480x270, 3 -> 320x180).          */
+   Game code works in 960x540 coordinates throughout. A frame goes through
+   three canvases:
 
-const PIX = 3;
-const PW = VIEW_W / PIX;   // 320
-const PH = VIEW_H / PIX;   // 180
+   1. hires   everything is drawn here, at SS x the game resolution. Canvas
+              antialiases every edge it draws, but here each antialiased
+              band is a sliver a quarter of a final pixel wide.
+   2. buffer  the pixel grid (PW x PH). hires is point-sampled down into it
+              with smoothing off: one sample from the middle of each pixel,
+              which lands inside a shape rather than on its blurred edge.
+              That is what makes the edges hard instead of mushy.
+   3. canvas  the visible one, sized in device pixels to a whole-number
+              multiple of the buffer where the window allows, so every
+              pixel comes out the same size.
+
+   PIX is the size of one pixel in game units (2 -> 480x270).              */
+
+const PIX = 2;
+const PW = VIEW_W / PIX;   // 480
+const PH = VIEW_H / PIX;   // 270
+
+// supersampling. 2 leaves blended pixels on about a quarter of edges, 1 on
+// about half; 2 costs roughly three times the fill work, so it steps down
+// on its own if the machine starts dropping frames (see watchFrames).
+let SS = 2;
+
+const hires = document.createElement('canvas');
+const bctx = hires.getContext('2d');
+function setSupersample(n) {
+  SS = n;
+  hires.width = VIEW_W * SS;
+  hires.height = VIEW_H * SS;
+  bctx.imageSmoothingEnabled = false;   // resizing a canvas resets its state
+}
+setSupersample(SS);
+
+/* Called with each raw frame delta. If more than a third of the last ~90
+   visible frames ran long, the fill work is too much for this machine:
+   drop to 1x supersampling once and stay there.                           */
+const _frameLog = [];
+function watchFrames(rawDt) {
+  if (SS === 1 || document.visibilityState !== 'visible') return;
+  if (rawDt > .25) return;                 // a tab switch, not a slow frame
+  _frameLog.push(rawDt > .022 ? 1 : 0);
+  if (_frameLog.length < 90) return;
+  const slow = _frameLog.reduce((a, b) => a + b, 0);
+  _frameLog.length = 0;
+  if (slow > 30) setSupersample(1);
+}
 
 const buffer = document.createElement('canvas');
 buffer.width = PW;
 buffer.height = PH;
-const bctx = buffer.getContext('2d');
-bctx.imageSmoothingEnabled = false;
-ctx.imageSmoothingEnabled = false;
+const pctx = buffer.getContext('2d');
+pctx.imageSmoothingEnabled = false;
 
-// replaces setTransform(1,0,0,1,0,0) — back to plain 960-space, not identity
-function resetTransform(g) { g.setTransform(1 / PIX, 0, 0, 1 / PIX, 0, 0); }
+// replaces setTransform(1,0,0,1,0,0) — back to plain game space, not identity
+function resetTransform(g) { g.setTransform(SS, 0, 0, SS, 0, 0); }
 
-// snap a 960-space coordinate onto the buffer's pixel grid
+// snap a game-space coordinate onto the pixel grid
 function snap(v) { return Math.round(v / PIX) * PIX; }
 
-// blow the buffer up onto the visible canvas
+// hires -> pixel grid -> screen, nearest-neighbour both ways
 function present() {
+  pctx.imageSmoothingEnabled = false;
+  pctx.drawImage(hires, 0, 0, hires.width, hires.height, 0, 0, PW, PH);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(buffer, 0, 0, PW, PH, 0, 0, VIEW_W, VIEW_H);
+  ctx.drawImage(buffer, 0, 0, PW, PH, 0, 0, canvas.width, canvas.height);
 }
+
+/* Size the visible canvas in real device pixels. A whole-number scale gives
+   every pixel identical size; a fractional one makes some columns wider
+   than others, which reads as dirt. Use the whole number unless it would
+   leave the game much smaller than the window.                            */
+function fitCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const availW = Math.max(160, window.innerWidth) * dpr;
+  const availH = Math.max(90, window.innerHeight - 44) * dpr;
+  const fit = Math.min(availW / PW, availH / PH);
+  let scale = Math.floor(fit);
+  if (scale < 1 || scale / fit < .7) scale = fit;
+  const w = Math.round(PW * scale), h = Math.round(PH * scale);
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  canvas.style.width = (w / dpr) + 'px';
+  canvas.style.height = (h / dpr) + 'px';
+}
+addEventListener('resize', fitCanvas);
+fitCanvas();
 
 /* ---------------------------------- math -------------------------------- */
 
@@ -271,13 +332,12 @@ const Particles = {
       g.save();
       g.globalAlpha = a;
       g.fillStyle = p.color;
-      const px = p.fixed ? p.x : p.x - camX;
-      if (p.shape === 'circle') {
-        g.beginPath(); g.arc(px, p.y, p.size * a, 0, 6.2832); g.fill();
-      } else {
-        g.translate(px, p.y); g.rotate(p.rot);
-        g.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * (p.shape === 'streak' ? 2.4 : 1));
-      }
+      const cx = p.fixed ? p.x : p.x - camX;
+      // particles are whole-pixel squares on the grid: a rotated two-pixel
+      // square is just noise, and anything under a pixel would flicker
+      let s = p.shape === 'circle' ? p.size * 2 * Math.max(.4, a) : p.size;
+      s = Math.max(PIX, Math.round(s / PIX) * PIX);
+      g.fillRect(snap(cx - s / 2), snap(p.y - s / 2), s, p.shape === 'streak' ? s * 2 : s);
       g.restore();
     }
   }
@@ -320,7 +380,11 @@ const Floaters = {
 const Text = {
   // 960-space pixel size of one font pixel, for a requested font height
   scaleFor(size) {
-    return clamp(Math.round((size || 18) / 22), 1, 4) * PIX;
+    // one font pixel is one world pixel for all ordinary text, so letters
+    // share the world's pixel density; only headings go bigger
+    const s = size || 18;
+    const units = s <= 24 ? 1 : s <= 40 ? 2 : s <= 56 ? 3 : s <= 70 ? 4 : 5;
+    return units * PIX;
   },
 
   draw(g, str, x, y, o) {
@@ -343,17 +407,18 @@ const Text = {
     if (o.outline) {
       g.beginPath();
       if (px <= PIX) {
-        // At one buffer pixel per font pixel a full outline closes up the
-        // counters of 'a', 'e', '0' and friends. A drop shadow keeps small
-        // text legible against the world and still lifts it off.
-        Font.path(g, str, dx + px, dy + px, px);
+        // Small text: one solid pixel of shadow straight below. A full
+        // outline closes up the counters of 'a', 'e' and '0' at this size,
+        // and a diagonal shadow doubles every stroke.
+        Font.path(g, str, dx, dy + px, px);
       } else {
         Font.path(g, str, dx - px, dy, px);
         Font.path(g, str, dx + px, dy, px);
         Font.path(g, str, dx, dy - px, px);
         Font.path(g, str, dx, dy + px, px);
       }
-      g.fillStyle = o.outline;
+      // opaque, so it is a crisp shape and not a translucent smudge
+      g.fillStyle = String(o.outline).replace(/rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/, 'rgb($1,$2,$3)');
       g.fill();
     }
     Font.draw(g, str, dx, dy, px, o.color || '#fff');

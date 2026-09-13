@@ -43,7 +43,7 @@ const BAYER4 = [
   [3, 11, 1, 9],
   [15, 7, 13, 5]
 ];
-const DITHER_STEP = 26;          // colour quantisation, in 0-255 units
+const DITHER_STEP = 18;          // colour quantisation, in 0-255 units
 const _ditherCache = new Map();
 
 // stops: [[pos, [r,g,b]], ...] with pos in 0..1 down the strip
@@ -95,6 +95,45 @@ function ditherFill(g, key, y960, h960, stops) {
 // quantise `night` so the cache isn't rebuilt every single frame
 function nightKey(n) { return Math.round(clamp(n, 0, 1) * 32); }
 
+/* A halo as a few hard-edged rings instead of a smooth radial falloff. A
+   smooth gradient is exactly the smear that makes pixel art look blurry;
+   stepped light is how pixel art has always drawn it. Multiplies into
+   whatever globalAlpha is already set, so fades still work.               */
+function stepGlow(g, x, y, r, col, a, o) {
+  o = o || {};
+  const steps = o.steps || 3;
+  const sq = o.squash || 1;
+  g.save();
+  if (o.op) g.globalCompositeOperation = o.op;
+  g.globalAlpha = g.globalAlpha * clamp(a, 0, 1) / steps;
+  g.fillStyle = col;
+  for (let i = 0; i < steps; i++) {
+    const k = 1 - i / steps;
+    g.beginPath();
+    g.ellipse(x, y, r * k, r * k * sq, 0, 0, 6.2832);
+    g.fill();
+  }
+  g.restore();
+}
+
+/* Darken the frame in two hard bands. The ellipses are big enough that
+   only the corners fall outside them, so no band edge cuts across the
+   middle of the sky. `tight` pulls them in, for the hurt flash, which
+   has to be seen.                                                         */
+function stepVignette(g, col, a, tight) {
+  const bands = tight ? [[400, 240], [500, 300]] : [[520, 320], [600, 370]];
+  g.save();
+  g.fillStyle = col;
+  g.globalAlpha = g.globalAlpha * clamp(a, 0, 1) * .45;
+  for (const [rx, ry] of bands) {
+    g.beginPath();
+    g.rect(-20, -20, VIEW_W + 40, VIEW_H + 40);
+    g.ellipse(VIEW_W / 2, VIEW_H / 2, rx, ry, 0, 0, 6.2832);
+    g.fill('evenodd');
+  }
+  g.restore();
+}
+
 const Art = {
   stars: [], clouds: [], gulls: [],
 
@@ -130,11 +169,13 @@ const Art = {
         const tw = 0.55 + 0.45 * Math.sin(t * st.sp + st.ph);
         g.globalAlpha = sa * tw * .95;
         g.fillStyle = st.c;
-        g.fillRect(st.x, st.y, st.s, st.s);
+        // one pixel each, on the grid; the bright ones get a small cross
+        const sx = snap(st.x), sy = snap(st.y);
+        g.fillRect(sx, sy, PIX, PIX);
         if (st.s > 1.5) {
-          g.globalAlpha = sa * tw * .3;
-          g.fillRect(st.x - 1.5, st.y + st.s / 2 - .5, st.s + 3, 1);
-          g.fillRect(st.x + st.s / 2 - .5, st.y - 1.5, 1, st.s + 3);
+          g.globalAlpha = sa * tw * .45;
+          g.fillRect(sx - PIX, sy, PIX * 3, PIX);
+          g.fillRect(sx, sy - PIX, PIX, PIX * 3);
         }
       }
       g.globalAlpha = 1;
@@ -146,11 +187,7 @@ const Art = {
       const a = clamp(1 - (night - 0.55) / 0.3, 0, 1);
       g.globalAlpha = a;
       const sunC = mix([255, 244, 190], [255, 128, 72], clamp(night / .72, 0, 1));
-      const rg = g.createRadialGradient(742, sunY, 4, 742, sunY, 84);
-      rg.addColorStop(0, css(sunC, .95));
-      rg.addColorStop(.35, css(sunC, .3));
-      rg.addColorStop(1, css(sunC, 0));
-      g.fillStyle = rg; g.beginPath(); g.arc(742, sunY, 84, 0, 6.2832); g.fill();
+      stepGlow(g, 742, sunY, 84, css(sunC), .55, { steps: 3 });
       g.fillStyle = css(sunC);
       g.beginPath(); g.arc(742, sunY, 26, 0, 6.2832); g.fill();
       g.globalAlpha = 1;
@@ -160,11 +197,7 @@ const Art = {
       const moonY = lerp(HORIZON_Y - 20, 86, clamp((night - .45) / .5, 0, 1));
       this.moonX = 196; this.moonY = moonY; this.moonA = a;
       g.globalAlpha = a;
-      const rg = g.createRadialGradient(196, moonY, 6, 196, moonY, 96);
-      rg.addColorStop(0, 'rgba(226,238,255,.42)');
-      rg.addColorStop(.4, 'rgba(196,214,255,.12)');
-      rg.addColorStop(1, 'rgba(196,214,255,0)');
-      g.fillStyle = rg; g.beginPath(); g.arc(196, moonY, 96, 0, 6.2832); g.fill();
+      stepGlow(g, 196, moonY, 96, 'rgb(206,222,255)', .3, { steps: 3 });
       g.fillStyle = '#eef3ff';
       g.beginPath(); g.arc(196, moonY, 22, 0, 6.2832); g.fill();
       g.fillStyle = 'rgba(178,192,222,.5)';
@@ -347,7 +380,8 @@ const Art = {
       const s = .8 + (i % 4) * .5;
       g.globalAlpha = .10 + (i % 5) * .04;
       g.fillStyle = '#cfe4f0';
-      g.beginPath(); g.arc(x, y, s, 0, 6.2832); g.fill();
+      const sz = s > 1.6 ? PIX * 2 : PIX;
+      g.fillRect(snap(x), snap(y), sz, sz);
     }
     g.restore();
 
@@ -356,6 +390,7 @@ const Art = {
     for (let i = 1; i <= 26; i++) {
       const y = top + i * 200;
       if (y < vis0 || y > vis1) continue;
+      if (y - viewY < 70) continue;   // keep clear of the gear readout
       g.fillStyle = 'rgba(170,210,232,.55)';
       g.fillRect(VIEW_W - 132, y, 18, 3);
       Text.draw(g, (i * 4) + ' fm', VIEW_W - 18, y + 8, {
@@ -409,15 +444,7 @@ const Art = {
       for (let i = 0; i < 3; i++) {
         const ex = w.x - 90 + i * 92, ey = y - 20 + (i === 1 ? -14 : 0);
         const r = (i === 1 ? 16 : 13) * blink;
-        g.save();
-        g.globalCompositeOperation = 'lighter';
-        const rg = g.createRadialGradient(ex, ey, 1, ex, ey, 130);
-        rg.addColorStop(0, 'rgba(255,40,40,.55)');
-        rg.addColorStop(.35, 'rgba(180,20,20,.18)');
-        rg.addColorStop(1, 'rgba(120,0,0,0)');
-        g.fillStyle = rg;
-        g.beginPath(); g.arc(ex, ey, 130, 0, 6.2832); g.fill();
-        g.restore();
+        stepGlow(g, ex, ey, 62, 'rgb(220,30,30)', .5, { steps: 3, op: 'lighter' });
         g.fillStyle = '#ff3a3a';
         g.beginPath(); g.ellipse(ex, ey, r * .8, r, 0, 0, 6.2832); g.fill();
         g.fillStyle = '#2a0004';
@@ -524,14 +551,12 @@ const Art = {
   /* -------------------------------- boat ------------------------------- */
 
   beginBoat(g, t) {
-    const ang = Math.sin(t * 0.62) * 0.0105 + Math.sin(t * 0.29) * 0.005;
-    const bob = Math.sin(t * 0.9) * 3.4 + Math.sin(t * 1.7) * 1.1;
+    // the boat bobs in whole pixels and no longer rolls: rotating a 1900px
+    // hull re-steps every edge on it each frame, which reads as shimmer
+    const bob = snap(Math.sin(t * 0.9) * 3.4 + Math.sin(t * 1.7) * 1.1);
     g.save();
-    g.translate(VIEW_W / 2, DECK_Y + 80);
-    g.rotate(ang);
-    g.translate(-VIEW_W / 2, -(DECK_Y + 80));
     g.translate(0, bob);
-    return { ang, bob };
+    return { ang: 0, bob };
   },
   endBoat(g) { g.restore(); },
 
@@ -638,11 +663,7 @@ const Art = {
     if (x < -200 || x > VIEW_W + 200) return;
     g.save();
     g.globalCompositeOperation = 'lighter';
-    const rg = g.createRadialGradient(x, DECK_Y - 6, 4, x, DECK_Y - 6, 150);
-    rg.addColorStop(0, 'rgba(255,186,104,' + (.16 * night) + ')');
-    rg.addColorStop(1, 'rgba(255,170,90,0)');
-    g.fillStyle = rg;
-    g.beginPath(); g.ellipse(x, DECK_Y - 4, 150, 40, 0, 0, 6.2832); g.fill();
+    stepGlow(g, x, DECK_Y - 4, 110, 'rgb(255,180,100)', .12 * night, { steps: 2, squash: 36 / 110 });
     g.restore();
   },
 
@@ -670,11 +691,7 @@ const Art = {
       if (night > .2) {
         g.save();
         g.globalCompositeOperation = 'lighter';
-        const rg = g.createRadialGradient(bx, by + 10, 1, bx, by + 10, 34);
-        rg.addColorStop(0, css(hexRgb(col), .55 * night * flick));
-        rg.addColorStop(1, 'rgba(0,0,0,0)');
-        g.fillStyle = rg;
-        g.beginPath(); g.arc(bx, by + 10, 34, 0, 6.2832); g.fill();
+        stepGlow(g, bx, by + 10, 13, col, .38 * night * flick, { steps: 2 });
         g.restore();
       }
       g.fillStyle = night > .2 ? col : '#e8e2d0';
@@ -1013,9 +1030,8 @@ const Art = {
     g.strokeRect(x + 28, y - h + 22, 46, 34);
     if (night > .4) {
       g.save(); g.globalCompositeOperation = 'lighter';
-      const rg = g.createRadialGradient(x + 51, y - h + 39, 2, x + 51, y - h + 39, 90);
-      rg.addColorStop(0, 'rgba(255,190,110,.30)'); rg.addColorStop(1, 'rgba(255,190,110,0)');
-      g.fillStyle = rg; g.fillRect(x - 40, y - h - 40, 260, 220); g.restore();
+      stepGlow(g, x + 51, y - h + 39, 64, 'rgb(255,190,110)', .22, { steps: 2 });
+      g.restore();
     }
     // the wheel, just visible through the glass
     g.save();
@@ -1185,13 +1201,8 @@ const Art = {
     g.beginPath(); g.moveTo(x, y + 3 * s); g.lineTo(x, y + 22 * s); g.stroke();
     if (night > .2) {
       g.globalCompositeOperation = 'lighter';
-      const R = 150 * s * flick;
-      const rg = g.createRadialGradient(x, y + 12 * s, 4, x, y + 12 * s, R);
-      rg.addColorStop(0, 'rgba(255,190,104,' + (.32 * night) + ')');
-      rg.addColorStop(.45, 'rgba(255,170,90,' + (.10 * night) + ')');
-      rg.addColorStop(1, 'rgba(255,160,80,0)');
-      g.fillStyle = rg;
-      g.beginPath(); g.arc(x, y + 12 * s, R, 0, 6.2832); g.fill();
+      // flicker the brightness, not the radius, or the rings crawl
+      stepGlow(g, x, y + 12 * s, 84 * s, 'rgb(255,180,100)', .26 * night * flick, { steps: 3 });
     }
     g.restore();
   },
@@ -1856,11 +1867,8 @@ const Art = {
     }
     if (o.glow) {
       g.globalCompositeOperation = 'lighter';
-      const rg = g.createRadialGradient(0, 0, 1, 0, 0, r * 4.2);
-      rg.addColorStop(0, o.glow); rg.addColorStop(1, 'rgba(0,0,0,0)');
-      g.globalAlpha = .38 * blink;
-      g.fillStyle = rg;
-      g.beginPath(); g.arc(0, 0, r * 4.2, 0, 6.2832); g.fill();
+      // a tight halo: big overlapping ones wash a many-eyed thing out entirely
+      stepGlow(g, 0, 0, r * 2.1, o.glow, .3 * blink, { steps: 2 });
     }
     g.restore();
   },
@@ -1883,11 +1891,7 @@ const Art = {
   _glowBlob(g, x, y, r, col, a) {
     g.save();
     g.globalCompositeOperation = 'lighter';
-    const rg = g.createRadialGradient(x, y, 1, x, y, r);
-    rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)');
-    g.globalAlpha = a === undefined ? .5 : a;
-    g.fillStyle = rg;
-    g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.fill();
+    stepGlow(g, x, y, r * .65, col, a === undefined ? .5 : a, { steps: 3 });
     g.restore();
   },
 
@@ -2900,11 +2904,8 @@ const Art = {
   /* ------------------------------- effects ----------------------------- */
 
   vignette(g, night) {
-    const rg = g.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 200, VIEW_W / 2, VIEW_H / 2, 640);
-    rg.addColorStop(0, 'rgba(0,0,0,0)');
-    rg.addColorStop(1, 'rgba(2,4,12,' + (0.35 + night * 0.3) + ')');
-    g.fillStyle = rg;
-    g.fillRect(0, 0, VIEW_W, VIEW_H);
+    // only at night: hard band edges over a bright daytime sky read as a lens fault
+    stepVignette(g, 'rgb(2,4,12)', night * .5);
   },
 
   nightTint(g, night) {
