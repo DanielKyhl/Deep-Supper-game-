@@ -1378,50 +1378,62 @@ const Art = {
     g.fillStyle = '#2a2a33';
     g.fillRect(0 + legA * .6, -4, 13, 5);
 
-    // torso / coat
+    // torso / coat — shaded on the back, buttons on the front
     g.fillStyle = coat;
-    roundRect(g, -10, -35, 20, 20, 3); g.fill();
+    roundRect(g, -10, -36, 20, 22, 3); g.fill();
     g.fillStyle = coatD;
-    g.fillRect(-10, -21, 20, 5);
-    g.fillRect(4, -35, 6, 20);
+    g.fillRect(-10, -22, 20, 6);
+    g.fillRect(-10, -36, 6, 22);
     g.fillStyle = '#6b4a2a';
-    g.fillRect(-10, -25, 20, 3);
+    g.fillRect(-10, -26, 20, 2);
     g.fillStyle = '#c9a44c';
-    g.fillRect(-1, -25, 3, 3);
+    g.fillRect(4, -34, 2, 2);
+    g.fillRect(4, -30, 2, 2);
 
-    // scarf
+    // scarf, with its loose end trailing behind and streaming when he runs
     g.fillStyle = '#b4494b';
-    g.fillRect(-9, -39, 18, 5);
+    g.fillRect(-10, -40, 20, 6);
     g.fillStyle = '#8f3739';
-    g.fillRect(2, -39, 5, 9 + Math.sin(t * 5) * 2);
+    if (st === 'walk' || st === 'jump') {
+      g.fillRect(-16, -38 + Math.round(Math.sin(t * 9)), 8, 4);
+      g.fillRect(-20, -36 + Math.round(Math.sin(t * 9 + 1)), 4, 4);
+    } else {
+      g.fillRect(-10, -36, 4, 8 + (Math.sin(t * 5) > 0 ? 2 : 0));
+    }
 
     // head — rides on its own little tilt so the walk has some bounce
     g.save();
     g.translate(0, -38); g.rotate(headT); g.translate(0, 38);
     g.fillStyle = skin;
     roundRect(g, -8, -52, 16, 14, 3); g.fill();
+    // nose, one pixel proud of the face: the single strongest facing cue
+    g.fillRect(8, -48, 2, 4);
     g.fillStyle = skinD;
-    g.fillRect(-8, -42, 16, 2);
-    // ear
-    g.fillStyle = skinD; g.fillRect(-9, -47, 2, 4);
-    // hair
+    g.fillRect(-8, -40, 16, 2);
+    // hair covers the whole back half of the head, down to the nape
     g.fillStyle = '#6b4326';
-    g.fillRect(-8, -53, 16, 5);
-    g.fillRect(-9, -50, 3, 5);
-    // eye + brow
+    g.fillRect(-8, -52, 16, 4);
+    g.fillRect(-8, -48, 8, 8);
+    // ear, just in front of the hair
+    g.fillStyle = skinD; g.fillRect(0, -46, 2, 4);
+    // eye towards the front, with a lighter pixel so it reads as an eye
     g.fillStyle = '#2a2028';
-    g.fillRect(2, -47, 3, 4);
-    g.fillRect(1, -49, 5, 1.5);
-    // mouth
-    g.fillStyle = skinD; g.fillRect(3, -41, 4, 1.5);
-    // sou'wester hat
+    g.fillRect(4, -48, 2, 4);
+    g.fillStyle = 'rgba(255,255,255,.55)';
+    g.fillRect(4, -48, 2, 2);
+    // cheek and mouth
+    g.fillStyle = 'rgba(214,112,92,.45)'; g.fillRect(2, -44, 2, 2);
+    g.fillStyle = skinD; g.fillRect(4, -42, 4, 2);
+    // sou'wester: the brim runs long down the back of the neck
     g.fillStyle = '#e0aa3c';
-    g.fillRect(-13, -54, 26, 4);
-    roundRect(g, -9, -62, 18, 9, 3); g.fill();
+    g.fillRect(-14, -54, 26, 4);
+    g.fillRect(-14, -50, 6, 6);
+    roundRect(g, -8, -62, 16, 9, 3); g.fill();
     g.fillStyle = '#c8963a';
-    g.fillRect(-13, -51, 26, 2);
+    g.fillRect(-14, -50, 26, 2);
+    g.fillRect(-14, -46, 6, 2);
     g.fillStyle = 'rgba(255,255,255,.18)';
-    g.fillRect(-8, -61, 14, 2);
+    g.fillRect(-6, -60, 12, 2);
     g.restore();   // end head tilt
 
     // front arm (+ held item)
