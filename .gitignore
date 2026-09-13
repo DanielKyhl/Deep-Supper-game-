@@ -9,3 +9,5 @@ Desktop.ini
 
 # local Claude Code settings (shared config is committed)
 .claude/settings.local.json
+node_modules/
+dist/
