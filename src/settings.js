@@ -195,16 +195,18 @@ const Settings = {
     if (typeof code !== 'string' || RESERVED_KEYS.indexOf(code) >= 0) return false;
     const b = this.data.bindings;
     const old = b[action][0];
+    let gaveAway = false;
     for (const other of REBINDABLE) {
       if (other === action) continue;
       const i = b[other].indexOf(code);
       if (i >= 0) {
-        if (old && b[other].indexOf(old) < 0) b[other][i] = old;
+        if (old && old !== code && b[other].indexOf(old) < 0) { b[other][i] = old; gaveAway = true; }
         else b[other].splice(i, 1);
         if (!b[other].length) b[other] = DEFAULT_BINDINGS[other].filter(k => k !== code).slice(0, 1);
       }
     }
-    const rest = b[action].filter(k => k !== code);
+    // the old primary went to the other action, so it can't stay here too
+    const rest = b[action].filter(k => k !== code && !(gaveAway && k === old));
     b[action] = [code].concat(rest).slice(0, 2);
     this.apply();
     this.save();
