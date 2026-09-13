@@ -4,7 +4,7 @@ A 2D sidescroller. You are a small boy on a fishing boat. Your father tells you 
 catch supper and then leaves. It gets dark. The fish are not fish.
 
 **To play: double-click `index.html`.** No install, no build step, no dependencies —
-plain HTML and JavaScript. Every pixel is drawn at runtime on a canvas and every note
+plain HTML and JavaScript, rendered as crisp 480x270 pixel art. Every pixel is drawn at runtime on a canvas and every note
 of music is synthesised from oscillators. There are no asset files of any kind.
 
 ## The loop
@@ -65,7 +65,8 @@ harp, lead, pad, bell, drums and a drone.
 
 ```
 index.html        page + canvas
-src/core.js       math, input, WebAudio sfx, particles, floating text, camera
+src/font.js       the 5x7 bitmap font
+src/core.js       pixel pipeline, math, input, WebAudio sfx, particles, text, camera
 src/music.js      the procedural score
 src/data.js       rods, weapons, goods, monsters, catch tables
 src/art.js        all drawing: sky, sea, water column, boat, people, monsters
