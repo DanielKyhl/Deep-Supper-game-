@@ -36,6 +36,14 @@ async function launch(profile) {
     : { args: [ROOT], cwd: ROOT, env, timeout: 30000 });
   const page = await app.firstWindow();
   await page.waitForFunction(() => typeof Game !== 'undefined' && Game.state === 'menu', null, { timeout: 20000 });
+  // the window only shows after its first paint, and until then no frames run:
+  // keys pressed before that would pile up into a single frame's input
+  await app.evaluate(async ({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows()[0];
+    for (let i = 0; i < 200 && !w.isVisible(); i++) await new Promise(r => setTimeout(r, 50));
+  });
+  const t0 = await page.evaluate(() => Game.t);
+  await page.waitForFunction(t0 => Game.t > t0 + .1, t0, { timeout: 10000 });
   return { app, page };
 }
 
@@ -62,18 +70,25 @@ async function hold(page, key, ms) {
 
 // move the menu cursor to an item by id and press ENTER
 async function choose(page, id) {
-  const n = await page.evaluate(id => Menu.items(Menu.top()).length, id);
-  for (let i = 0; i < n * 2; i++) {
-    const on = await page.evaluate(id => {
+  const cursor = () => page.evaluate(id => {
+    const items = Menu.items(Menu.top());
+    const sel = Menu.sel[Menu.top()];
+    const i = sel === undefined ? Menu.firstSelectable(items) : sel;
+    const it = items[i];
+    return { i, on: !!it && (it.id === id || it.key === id || it.action === id), n: items.length };
+  }, id);
+  let c = await cursor();
+  for (let k = 0; k < c.n * 2 && !c.on; k++) {
+    await page.keyboard.press('ArrowDown');
+    // one press, one step: wait for the frame that moves the cursor
+    await page.waitForFunction(prev => {
       const items = Menu.items(Menu.top());
       const sel = Menu.sel[Menu.top()];
-      const it = items[sel === undefined ? Menu.firstSelectable(items) : sel];
-      return !!it && (it.id === id || it.key === id || it.action === id);
-    }, id);
-    if (on) break;
-    await page.keyboard.press('ArrowDown');
-    await page.waitForTimeout(60);
+      return (sel === undefined ? Menu.firstSelectable(items) : sel) !== prev;
+    }, c.i, { timeout: 3000, polling: 16 });
+    c = await cursor();
   }
+  if (!c.on) throw new Error('menu item ' + id + ' not found on ' + await page.evaluate(() => Menu.top()));
   await page.keyboard.press('Enter');
   // some choices (Quit) close the whole app, page included
   await page.waitForTimeout(80).catch(() => {});
