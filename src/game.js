@@ -38,7 +38,9 @@ const SPOTS = [
 ];
 
 const Game = {
-  state: 'title', viewY: 0,
+  state: 'menu', viewY: 0,
+  pausedFrom: 'play',
+  fps: 60,
   t: 0, night: 1, crateOpen: false,
   fade: { a: 0, dir: 0, cb: null },
   msgs: [], msgWho: '',
@@ -49,26 +51,43 @@ const Game = {
   /* ------------------------------ lifecycle ---------------------------- */
 
   init() {
+    Settings.load();
     Art.init();
     CUT.harbourX = 300;
     this.night = 0.5;
     Cam.snap(700);
+    Menu.openMain();
+    // closing the window mid-voyage should never lose the voyage
+    addEventListener('beforeunload', () => {
+      if (this.state !== 'menu' && this.state !== 'cutscene') this.autosave();
+    });
     let last = performance.now();
     const loop = now => {
       let dt = (now - last) / 1000;
+      const raw = dt;
       last = now;
       watchFrames(dt);
       if (dt > 1 / 20) dt = 1 / 20;
-      this.frame(dt);
+      this.frame(dt, raw);
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
+  },
+
+  // from the menu: fade out, then the opening cutscene
+  beginVoyage() {
+    Sfx.select();
+    this.fadeOut(() => this.newGame());
   },
 
   newGame() {
     Player.reset();
     this.crateOpen = false;
     this.endingRun = false;
+    this._toldStart = false;
+    this.viewY = 0;
+    this.msgs = [];
+    Dialogue.hide();
     Particles.clear(); Floaters.clear();
     const o = buildOpening();
     this.state = 'cutscene';
@@ -85,6 +104,73 @@ const Game = {
       this.say(['You', 'Alright. Rod, bait, boat, boy.'],
                ['You', "Dad always says: never put a line in the water without something in your other hand. There'll be gear in the crate by the cabin."]);
     }
+    this.autosave();
+  },
+
+  /* ------------------------------ saving -------------------------------- */
+
+  autosave() {
+    return SaveGame.save();
+  },
+
+  continueGame() {
+    const d = SaveGame.read();
+    if (!d) return false;
+    Sfx.select();
+    this.fadeOut(() => {
+      SaveGame.restore(d);
+      Player.hp = Player.maxHp;
+      this.endingRun = false;
+      this._toldStart = true;
+      this.night = 1;
+      this.viewY = 0;
+      this.msgs = [];
+      CUT.stop();
+      CUT.harbourX = -1400; CUT.dad.visible = false; CUT.letterbox = 0;
+      CUT.allowShadows = 1; CUT.wake = 1; CUT.bigShadow = 0; CUT.titleCard = null;
+      Particles.clear(); Floaters.clear(); Dialogue.hide();
+      Cam.locked = false;
+      Cam.snap(Player.x);
+      this.state = 'play';
+      this.toast('Back aboard the Margaret.');
+    });
+    return true;
+  },
+
+  pause() {
+    if (this.state === 'pause' || this.state === 'menu') return;
+    this.pausedFrom = this.state;
+    this.state = 'pause';
+    Menu.openPause();
+    Sfx.select();
+  },
+
+  resume() {
+    if (this.state !== 'pause') return;
+    this.state = this.pausedFrom || 'play';
+    Sfx.select();
+  },
+
+  quitToTitle() {
+    this.autosave();
+    this.fadeOut(() => {
+      CUT.stop();
+      Dialogue.hide();
+      this.msgs = [];
+      this.viewY = 0;
+      this.endingRun = false;
+      Cam.locked = false;
+      Particles.clear(); Floaters.clear();
+      this.night = .88;
+      CUT.harbourX = 300;
+      this.state = 'menu';
+      Menu.openMain();
+    });
+  },
+
+  quitApp() {
+    if (this.state !== 'menu' && this.state !== 'cutscene') this.autosave();
+    if (window.native && window.native.quit) window.native.quit();
   },
 
   startBattle(def) {
@@ -102,15 +188,18 @@ const Game = {
       this.state = 'play';
       this.say(['You', 'You come to flat on your back, staring at more stars than you remember.'],
                ['You', 'Whatever it was, it took the hook and your dignity with it.']);
+      this.autosave();
       return;
     }
     if (Battle.def.id === 'leviathan' && !Player.beatBoss) {
       Player.beatBoss = true;
+      this.autosave();
       this.startEnding();
       return;
     }
     this.state = 'play';
     if (reward) this.toast('Hauled aboard: ' + reward.name + ' (' + reward.weight + ' lb)');
+    this.autosave();
   },
 
   startEnding() {
@@ -130,6 +219,7 @@ const Game = {
           Cam.snap(Player.x);
           this.state = 'play';
           this.toast('You sail out again. It is never quite the same water twice.');
+          this.autosave();
         });
       }
     });
@@ -151,9 +241,11 @@ const Game = {
   // pick the score for whatever is happening
   syncMusic() {
     let want = 'sea';
-    if (this.state === 'title') want = 'title';
-    else if (this.state === 'battle') want = (Battle.def && Battle.def.boss) ? 'boss' : 'battle';
-    else if (this.state === 'cutscene') want = this.endingRun ? 'ending' : (this.night < .5 ? 'title' : 'sea');
+    // pausing keeps whatever was playing
+    const st = this.state === 'pause' ? this.pausedFrom : this.state;
+    if (st === 'menu') want = 'title';
+    else if (st === 'battle') want = (Battle.def && Battle.def.boss) ? 'boss' : 'battle';
+    else if (st === 'cutscene') want = this.endingRun ? 'ending' : (this.night < .5 ? 'title' : 'sea');
     if (want !== this._musicWant) { this._musicWant = want; Music.set(want); }
   },
 
@@ -161,11 +253,21 @@ const Game = {
 
   /* -------------------------------- frame ------------------------------ */
 
-  frame(dt) {
-    this.t += dt;
+  flashMsg(text) { this.muteMsg = text; this.muteFlash = 1.6; },
 
-    if (Input.tap('mute')) { Sfx.toggleMute(); this.muteFlash = 1.6; this.muteMsg = Sfx.muted ? 'sound off' : 'sound on'; }
-    if (Input.tap('music')) { this.muteFlash = 1.6; this.muteMsg = Music.toggle() ? 'music on' : 'music off'; }
+  frame(dt, rawDt) {
+    this.t += dt;
+    if (rawDt > 0) this.fps += (1 / rawDt - this.fps) * .08;
+
+    if (Input.tap('mute')) {
+      Settings.set('muted', !Settings.data.muted);
+      this.flashMsg(Settings.data.muted ? 'sound off' : 'sound on');
+    }
+    if (Input.tap('music')) {
+      Settings.set('musicOff', !Settings.data.musicOff);
+      this.flashMsg(Settings.data.musicOff ? 'music off' : 'music on');
+    }
+    if (Input.tap('fullscreen')) Settings.set('fullscreen', !Settings.data.fullscreen);
     this.muteFlash = Math.max(0, this.muteFlash - dt);
     this.hurtFlash = Math.max(0, (this.hurtFlash || 0) - dt * 2.2);
     this.syncMusic();
@@ -180,13 +282,13 @@ const Game = {
     }
 
     switch (this.state) {
-      case 'title':    this.updateTitle(dt); break;
+      case 'menu':     this.updateMenu(dt); break;
       case 'cutscene': CUT.update(dt); break;
       case 'play':     this.updatePlay(dt); break;
-      case 'fish':     Fishing.update(dt); break;
-      case 'battle':   Battle.update(dt); break;
+      case 'fish':     if (Input.tap('cancel')) this.pause(); else Fishing.update(dt); break;
+      case 'battle':   if (Input.tap('cancel')) this.pause(); else Battle.update(dt); break;
       case 'shop':     Shop.update(dt); break;
-      case 'pause':    this.updatePause(dt); break;
+      case 'pause':    Menu.update(dt); break;
     }
 
     Cam.update(dt);
@@ -200,10 +302,10 @@ const Game = {
 
   /* -------------------------------- title ------------------------------ */
 
-  updateTitle(dt) {
+  updateMenu(dt) {
     this.night = 0.88;
     Cam.x = 560 + Math.sin(this.t * .12) * 60;
-    if (Input.tap('confirm')) { Sfx.select(); this.fadeOut(() => this.newGame()); }
+    Menu.update(dt);
   },
 
   /* --------------------------------- play ------------------------------ */
@@ -238,6 +340,7 @@ const Game = {
                ['You', '...and the dip net. Handle splintered, hoop bent, smells like 1908.'],
                ['You', "It's for scooping herring out of a bucket. It is not for anything else."],
                ['You', "Still. Better in my hands than not."]);
+      this.autosave();
       return;
     }
     if (s.id === 'stall') { Shop.open(); return; }
@@ -267,7 +370,7 @@ const Game = {
       return;
     }
 
-    if (Input.tap('cancel')) { this.state = 'pause'; Sfx.select(); return; }
+    if (Input.tap('cancel')) { this.pause(); return; }
 
     let mv = 0;
     if (Input.held('left')) mv--;
@@ -295,7 +398,7 @@ const Game = {
       if (P.bandages > 0 && P.hp < P.maxHp) {
         P.bandages--; P.hp = Math.min(P.maxHp, P.hp + 2);
         Sfx.heal();
-        Floaters.add(P.x, DECK_Y - 70, '+2', { color: '#8ce0a4', size: 22 });
+        if (Prefs.damageNumbers) Floaters.add(P.x, DECK_Y - 70, '+2', { color: '#8ce0a4', size: 22 });
         Particles.burst(P.x, DECK_Y - 40, 12, { color: '#a8f0c0', vy: -90, g: 120, size: 3, life: .8 });
       } else if (P.hp >= P.maxHp) {
         this.toast('Nothing to bind. You are whole enough.');
@@ -309,11 +412,6 @@ const Game = {
 
     const spot = this.nearestSpot();
     if (spot && (Input.tap('interact'))) this.useSpot(spot);
-  },
-
-  updatePause(dt) {
-    if (Input.tap('cancel') || Input.tap('confirm')) { this.state = 'play'; Sfx.select(); }
-    if (Input.tap('attack')) { /* no-op, avoid accidental */ }
   },
 
   /* -------------------------------- drawing ---------------------------- */
@@ -330,13 +428,13 @@ const Game = {
 
     // ---- overlays (no shake) ----
     switch (this.state) {
-      case 'title':    this.drawTitle(g); break;
+      case 'menu':     Menu.draw(g); break;
       case 'cutscene': CUT.drawOverlay(g); break;
       case 'play':     this.drawHUD(g); Dialogue.draw(g); break;
       case 'fish':     if (Fishing.phase !== 'reel') this.drawHUD(g); Fishing.drawUI(g); break;
       case 'battle':   this.drawBattleHUD(g); Battle.drawUI(g); break;
       case 'shop':     Shop.draw(g); break;
-      case 'pause':    this.drawHUD(g); this.drawPause(g); break;
+      case 'pause':    this.drawHUD(g); Menu.draw(g); break;
     }
 
     Floaters.draw(g, Cam.x);
@@ -358,6 +456,12 @@ const Game = {
         size: 14, align: 'right', color: '#9fb0d0', font: 'Verdana, sans-serif'
       });
       g.restore();
+    }
+
+    if (Prefs.showFps) {
+      Text.draw(g, Math.round(this.fps) + ' FPS', 14, VIEW_H - 10, {
+        size: 14, color: '#9fe6a0', outline: 'rgba(0,0,0,.8)'
+      });
     }
 
     // a red bloom round the edges when something lands on you
@@ -623,69 +727,6 @@ const Game = {
     if (Player.beatBoss) return 'The sea is quiet again. For now.';
     if (Player.rod < RODS.length - 1) return 'Deeper line reaches deeper things';
     return 'Something is still down there';
-  },
-
-  /* -------------------------------- title ------------------------------ */
-
-  drawTitle(g) {
-    g.fillStyle = 'rgba(4,6,16,.55)';
-    g.fillRect(0, 0, VIEW_W, VIEW_H);
-
-    const y = 150 + Math.sin(this.t * .9) * 3;
-    Text.draw(g, 'DEEP SUPPER', VIEW_W / 2, y, {
-      size: 78, align: 'center', color: '#f2e2bd', weight: 'bold',
-      font: 'Georgia, serif', shadow: 'rgba(0,0,0,.85)', sdx: 4, sdy: 5
-    });
-    g.strokeStyle = 'rgba(200,164,92,.8)'; g.lineWidth = 3;
-    g.beginPath(); g.moveTo(VIEW_W / 2 - 230, y + 22); g.lineTo(VIEW_W / 2 + 230, y + 22); g.stroke();
-    Text.draw(g, 'a small boy, a large sea, and dinner', VIEW_W / 2, y + 54, {
-      size: 22, align: 'center', color: '#a8b4cf', italic: true, font: 'Georgia, serif'
-    });
-
-    const a = .55 + .45 * Math.abs(Math.sin(this.t * 2));
-    Text.draw(g, 'press ENTER to cast off', VIEW_W / 2, 332, {
-      size: 22, align: 'center', color: 'rgba(240,207,138,' + a + ')', weight: 'bold', font: 'Georgia, serif'
-    });
-
-    const W = 640, X = VIEW_W / 2 - W / 2;
-    panel(g, X, 366, W, 108, { alpha: .82 });
-    const rows = [
-      ['A D', 'walk',      'J', 'swing'],
-      ['SPC', 'jump/reel', 'K', 'roll'],
-      ['E',   'interact',  'Q', 'bandage']
-    ];
-    rows.forEach((r, i) => {
-      const cy = 396 + i * 24;
-      Text.draw(g, r[0], X + 30, cy, { size: 15, color: '#f0cf8a' });
-      Text.draw(g, r[1], X + 120, cy, { size: 15, color: '#9aa7c4' });
-      Text.draw(g, r[2], X + 350, cy, { size: 15, color: '#f0cf8a' });
-      Text.draw(g, r[3], X + 410, cy, { size: 15, color: '#9aa7c4' });
-    });
-  },
-
-  drawPause(g) {
-    g.fillStyle = 'rgba(4,6,14,.72)';
-    g.fillRect(0, 0, VIEW_W, VIEW_H);
-    panel(g, VIEW_W / 2 - 230, 150, 460, 250);
-    Text.draw(g, 'PAUSED', VIEW_W / 2, 208, {
-      size: 42, align: 'center', color: '#f2e2bd', weight: 'bold', font: 'Georgia, serif'
-    });
-
-    const stats = [
-      ['Coins in pocket', Player.coins + '§'],
-      ['Things killed', String(Player.totalKills)],
-      ['Things sold', String(Player.sold)],
-      ['Lines cast', String(Player.casts)],
-      ['In the hold', String(Player.catches.length)]
-    ];
-    stats.forEach((s, i) => {
-      const yy = 250 + i * 24;
-      Text.draw(g, s[0], VIEW_W / 2 - 170, yy, { size: 15, color: '#9aa7c4', font: 'Verdana, sans-serif' });
-      Text.draw(g, s[1], VIEW_W / 2 + 170, yy, { size: 15, color: '#e8e3d6', align: 'right', weight: 'bold', font: 'Verdana, sans-serif' });
-    });
-
-    Text.draw(g, '[ESC] back to the deck        [M] ' + (Sfx.muted ? 'sound on' : 'sound off'),
-      VIEW_W / 2, 380, { size: 14, align: 'center', color: 'rgba(160,172,200,.75)', font: 'Verdana, sans-serif' });
   }
 };
 

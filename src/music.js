@@ -125,6 +125,7 @@ const THEMES = {
 
 const Music = {
   out: null, comp: null, on: false, muted: false, enabled: true,
+  level: .56,          // master x music volume, 0..1
   theme: null, themeName: null, pending: null,
   step: 0, nextTime: 0, timer: null, spb: .4,
   droneOsc: null, droneGain: null, fade: 1,
@@ -166,7 +167,7 @@ const Music = {
     this.on = true;
     if (Sfx.ac) this.nextTime = Sfx.ac.currentTime + .06;
     this._setDrone(this.theme.drone);
-    this._ramp(this.enabled && !this.muted ? (this.theme.vol || 1) * .17 : 0, immediate ? .5 : .9);
+    this._ramp(this.targetGain(), immediate ? .5 : .9);
   },
 
   stop() {
@@ -175,9 +176,25 @@ const Music = {
     this._setDrone(null);
   },
 
+  // the gain the score should sit at, given theme, volume and mute state
+  targetGain() {
+    if (this.muted || !this.enabled || !this.on) return 0;
+    return (this.theme ? (this.theme.vol || 1) : 1) * .17 * this.level * 1.8;
+  },
+
   setMuted(m) {
-    this.muted = m;
-    this._ramp((!m && this.enabled && this.on) ? (this.theme ? (this.theme.vol || 1) * .17 : .17) : 0, .3);
+    this.muted = !!m;
+    this._ramp(this.targetGain(), .3);
+  },
+
+  setLevel(v) {
+    this.level = clamp(v, 0, 1);
+    this._ramp(this.targetGain(), .2);
+  },
+
+  setEnabled(on) {
+    this.enabled = !!on;
+    this._ramp(this.targetGain(), .3);
   },
 
   toggle() {

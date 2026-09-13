@@ -19,6 +19,7 @@ const Shop = {
   close() {
     Game.state = 'play';
     Sfx.select();
+    Game.autosave();
   },
   say(s) { this.line = s; this.lineT = 0; },
 
@@ -89,10 +90,10 @@ const Shop = {
     this.flashT = Math.max(0, this.flashT - dt);
 
     if (Input.tap('cancel')) { this.close(); return; }
-    if (Input.tap('left')) { this.tab = (this.tab + 2) % 3; this.sel = this.firstSelectable(); Sfx.select(); }
-    if (Input.tap('right')) { this.tab = (this.tab + 1) % 3; this.sel = this.firstSelectable(); Sfx.select(); }
-    if (Input.tap('up')) this.move(-1);
-    if (Input.tap('down')) this.move(1);
+    if (Input.tap('menuLeft')) { this.tab = (this.tab + 2) % 3; this.sel = this.firstSelectable(); Sfx.select(); }
+    if (Input.tap('menuRight')) { this.tab = (this.tab + 1) % 3; this.sel = this.firstSelectable(); Sfx.select(); }
+    if (Input.tap('menuUp')) this.move(-1);
+    if (Input.tap('menuDown')) this.move(1);
 
     if (Input.tap('confirm') || Input.tap('interact')) this.act();
   },

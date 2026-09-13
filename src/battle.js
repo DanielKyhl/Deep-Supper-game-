@@ -177,7 +177,7 @@ const Battle = {
       if (Input.tap('use') && P.bandages > 0 && P.hp < P.maxHp && P.healT <= 0) {
         P.bandages--; P.hp = Math.min(P.maxHp, P.hp + 2); P.healT = .5;
         Sfx.heal();
-        Floaters.add(P.x, DECK_Y - 70, '+2', { color: '#8ce0a4', size: 22 });
+        if (Prefs.damageNumbers) Floaters.add(P.x, DECK_Y - 70, '+2', { color: '#8ce0a4', size: 22 });
         Particles.burst(P.x, DECK_Y - 40, 12, { color: '#a8f0c0', vy: -90, g: 120, size: 3, life: .8 });
       }
     }
@@ -252,10 +252,10 @@ const Battle = {
     Sfx.hit(); if (crit) Sfx.crit();
 
     const hx = Player.x + Player.face * 60, hy = Player.y - 54;
-    Floaters.add(hx, hy - 14, (crit ? '' : '') + dmg, {
+    if (Prefs.damageNumbers) Floaters.add(hx, hy - 14, String(dmg), {
       color: crit ? '#ffd257' : '#fff', size: crit ? 30 : 22, life: .8
     });
-    if (crit) Floaters.add(hx, hy - 40, 'CRIT', { color: '#ffb347', size: 16, life: .7 });
+    if (crit && Prefs.damageNumbers) Floaters.add(hx, hy - 40, 'CRIT', { color: '#ffb347', size: 16, life: .7 });
 
     Particles.burst(hx, hy, crit ? 16 : 10, {
       color: chance(.5) ? '#ffffff' : '#c4e6f2',
@@ -306,7 +306,7 @@ const Battle = {
     Cam.kick(7);
     this.hitstop = .07;
     Game.hurtFlash = 1;
-    Floaters.add(P.x, P.y - 70, '-' + dmg, { color: '#ff7a7a', size: 24 });
+    if (Prefs.damageNumbers) Floaters.add(P.x, P.y - 70, '-' + dmg, { color: '#ff7a7a', size: 24 });
     Particles.burst(P.x, P.y - 40, 12, { color: '#e2464c', vx: rand(-160, 160), vy: rand(-220, -40), g: 700, size: rand(2, 5), life: .6 });
     if (P.hp <= 0) {
       P.hp = 0;

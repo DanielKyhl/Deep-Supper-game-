@@ -39,6 +39,19 @@ const PIX = 2;
 const PW = VIEW_W / PIX;   // 480
 const PH = VIEW_H / PIX;   // 270
 
+/* Live values the engine reads every frame. Settings.apply writes them;
+   nothing here reads Settings directly, so the engine runs (and tests run)
+   without the settings module present.                                    */
+const Prefs = {
+  shake: 1,              // screen shake multiplier
+  particlesLow: false,   // fewer particles per burst
+  damageNumbers: true,
+  textCps: 42,           // dialogue characters per second
+  showFps: false,
+  scaling: 'sharp',      // 'sharp': whole-number scale where it fits; 'fill'
+  quality: 'auto'        // 'auto' | 'high' | 'low' supersampling
+};
+
 // supersampling. 2 leaves blended pixels on about a quarter of edges, 1 on
 // about half; 2 costs roughly three times the fill work, so it steps down
 // on its own if the machine starts dropping frames (see watchFrames).
@@ -59,6 +72,7 @@ setSupersample(SS);
    drop to 1x supersampling once and stay there.                           */
 const _frameLog = [];
 function watchFrames(rawDt) {
+  if (Prefs.quality !== 'auto') return;
   if (SS === 1 || document.visibilityState !== 'visible') return;
   if (rawDt > .25) return;                 // a tab switch, not a slow frame
   _frameLog.push(rawDt > .022 ? 1 : 0);
@@ -66,6 +80,14 @@ function watchFrames(rawDt) {
   const slow = _frameLog.reduce((a, b) => a + b, 0);
   _frameLog.length = 0;
   if (slow > 30) setSupersample(1);
+}
+
+// 'high' pins 2x, 'low' pins 1x, 'auto' starts at 2x and may step down
+function setQuality(q) {
+  Prefs.quality = q;
+  _frameLog.length = 0;
+  const want = q === 'low' ? 1 : 2;
+  if (SS !== want) setSupersample(want);
 }
 
 const buffer = document.createElement('canvas');
@@ -93,20 +115,25 @@ function present() {
    every pixel identical size; a fractional one makes some columns wider
    than others, which reads as dirt. Use the whole number unless it would
    leave the game much smaller than the window.                            */
-function fitCanvas() {
-  const dpr = window.devicePixelRatio || 1;
-  const availW = Math.max(160, window.innerWidth) * dpr;
-  const availH = Math.max(90, window.innerHeight - 44) * dpr;
+function computeCanvasSize(cssW, cssH, dpr, mode) {
+  const availW = Math.max(160, cssW) * dpr;
+  const availH = Math.max(90, cssH) * dpr;
   const fit = Math.min(availW / PW, availH / PH);
   let scale = Math.floor(fit);
-  if (scale < 1 || scale / fit < .7) scale = fit;
+  if (mode === 'fill' || scale < 1 || scale / fit < .7) scale = fit;
   const w = Math.round(PW * scale), h = Math.round(PH * scale);
-  if (canvas.width !== w || canvas.height !== h) {
-    canvas.width = w;
-    canvas.height = h;
+  return { w, h, cssW: w / dpr, cssH: h / dpr, scale };
+}
+
+function fitCanvas() {
+  const s = computeCanvasSize(window.innerWidth, window.innerHeight,
+    window.devicePixelRatio || 1, Prefs.scaling);
+  if (canvas.width !== s.w || canvas.height !== s.h) {
+    canvas.width = s.w;
+    canvas.height = s.h;
   }
-  canvas.style.width = (w / dpr) + 'px';
-  canvas.style.height = (h / dpr) + 'px';
+  canvas.style.width = s.cssW + 'px';
+  canvas.style.height = s.cssH + 'px';
 }
 addEventListener('resize', fitCanvas);
 fitCanvas();
@@ -147,45 +174,80 @@ function shade(c, amt) {
 
 /* --------------------------------- input -------------------------------- */
 
+/* Gameplay actions come from the player's bindings (see Settings) and are
+   replaced wholesale by Input.setBindings. Menu and system actions are
+   fixed, so a player can never rebind themselves out of the menus.       */
 const ACTIONS = {
-  left:     ['ArrowLeft', 'KeyA'],
-  right:    ['ArrowRight', 'KeyD'],
-  up:       ['ArrowUp', 'KeyW'],
-  down:     ['ArrowDown', 'KeyS'],
-  jump:     ['Space', 'ArrowUp', 'KeyW'],
-  attack:   ['KeyJ', 'KeyX'],
-  roll:     ['KeyK', 'ShiftLeft', 'ShiftRight', 'KeyC'],
-  interact: ['KeyE', 'KeyF'],
-  confirm:  ['Enter', 'Space', 'KeyE'],
-  cancel:   ['Escape', 'Backspace'],
-  use:      ['KeyQ'],
-  mute:     ['KeyM'],
-  music:    ['KeyN']
+  left:      ['KeyA', 'ArrowLeft'],
+  right:     ['KeyD', 'ArrowRight'],
+  jump:      ['Space', 'KeyW'],
+  attack:    ['KeyJ', 'KeyX'],
+  roll:      ['KeyK', 'ShiftLeft'],
+  interact:  ['KeyE', 'KeyF'],
+  use:       ['KeyQ'],
+
+  menuUp:    ['ArrowUp', 'KeyW'],
+  menuDown:  ['ArrowDown', 'KeyS'],
+  menuLeft:  ['ArrowLeft', 'KeyA'],
+  menuRight: ['ArrowRight', 'KeyD'],
+  confirm:   ['Enter', 'Space', 'KeyE'],
+  cancel:    ['Escape', 'Backspace'],
+  mute:      ['KeyM'],
+  music:     ['KeyN'],
+  fullscreen:['F11']
 };
-const BLOCKED = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Tab']);
+const BLOCKED = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Tab', 'F11']);
 
 const Input = (function () {
   const held = new Set();
   const tapped = new Set();
   let anyTapped = false;
+  let capture = null;                   // a pending "press a key" request
+  const mouse = { x: -1, y: -1, moved: false, click: false, inside: false };
+
+  function toGame(e) {
+    const r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    mouse.x = (e.clientX - r.left) / r.width * VIEW_W;
+    mouse.y = (e.clientY - r.top) / r.height * VIEW_H;
+    mouse.inside = mouse.x >= 0 && mouse.y >= 0 && mouse.x <= VIEW_W && mouse.y <= VIEW_H;
+  }
 
   addEventListener('keydown', e => {
     if (BLOCKED.has(e.code)) e.preventDefault();
+    Sfx.unlock();
     if (e.repeat) return;
+    if (capture) {                      // rebinding: this key goes to the menu, nowhere else
+      const cb = capture; capture = null;
+      cb(e.code);
+      return;
+    }
     held.add(e.code);
     tapped.add(e.code);
     anyTapped = true;
-    Sfx.unlock();
   });
   addEventListener('keyup', e => held.delete(e.code));
   addEventListener('blur', () => { held.clear(); });
-  canvas.addEventListener('mousedown', () => Sfx.unlock());
+  canvas.addEventListener('mousemove', e => { toGame(e); mouse.moved = true; });
+  canvas.addEventListener('mousedown', e => {
+    Sfx.unlock();
+    toGame(e);
+    if (e.button === 0) mouse.click = true;
+  });
 
   return {
-    held(a) { const k = ACTIONS[a]; for (let i = 0; i < k.length; i++) if (held.has(k[i])) return true; return false; },
-    tap(a) { const k = ACTIONS[a]; for (let i = 0; i < k.length; i++) if (tapped.has(k[i])) return true; return false; },
+    held(a) { const k = ACTIONS[a]; if (!k) return false; for (let i = 0; i < k.length; i++) if (held.has(k[i])) return true; return false; },
+    tap(a) { const k = ACTIONS[a]; if (!k) return false; for (let i = 0; i < k.length; i++) if (tapped.has(k[i])) return true; return false; },
     anyTap() { return anyTapped; },
-    endFrame() { tapped.clear(); anyTapped = false; }
+    mouse() { return mouse; },
+    capturing() { return capture !== null; },
+    captureNext(cb) { capture = cb; },
+    cancelCapture() { capture = null; },
+    setBindings(b) {
+      for (const a in b) if (Array.isArray(b[a]) && b[a].length) ACTIONS[a] = b[a].slice();
+      held.clear();
+    },
+    endFrame() { tapped.clear(); anyTapped = false; mouse.moved = false; mouse.click = false; }
   };
 })();
 
@@ -193,6 +255,11 @@ const Input = (function () {
 
 const Sfx = {
   ac: null, master: null, muted: false, ready: false,
+  level: .64,          // master x sfx volume, 0..1
+
+  // what the master gain node should be set to right now
+  // scaled so the default volumes (80% x 80%) sound as loud as they always did
+  gainValue() { return this.muted ? 0 : 0.47 * this.level; },
 
   unlock() {
     if (!this.ac) {
@@ -201,7 +268,7 @@ const Sfx = {
         if (!AC) return;
         this.ac = new AC();
         this.master = this.ac.createGain();
-        this.master.gain.value = 0.3;
+        this.master.gain.value = this.gainValue();
         this.master.connect(this.ac.destination);
         this.ready = true;
       } catch (e) { return; }
@@ -209,11 +276,10 @@ const Sfx = {
     if (this.ac.state === 'suspended') this.ac.resume();
     if (typeof Music !== 'undefined') Music.ensure();
   },
-  toggleMute() {
-    this.muted = !this.muted;
-    if (this.master) this.master.gain.value = this.muted ? 0 : 0.3;
-    if (typeof Music !== 'undefined') Music.setMuted(this.muted);
-    return this.muted;
+  setLevels(level, muted) {
+    this.level = clamp(level, 0, 1);
+    this.muted = !!muted;
+    if (this.master) this.master.gain.value = this.gainValue();
   },
   tone(o) {
     if (!this.ready || this.muted) return;
@@ -282,7 +348,7 @@ const Cam = {
   kick(n) { this.shake = Math.max(this.shake, n); },
   update(dt) {
     this.shake = Math.max(0, this.shake - dt * 26);
-    const s = this.shake;
+    const s = this.shake * Prefs.shake;
     // snap to the pixel grid so the view never sits between pixels
     this.x = snap(this.x);
     this.shakeX = snap((Math.random() * 2 - 1) * s);
@@ -312,7 +378,10 @@ const Particles = {
       water: !!o.water        // lives in the water column, drawn under the pan
     });
   },
-  burst(x, y, n, o) { for (let i = 0; i < n; i++) this.add(x, y, o); },
+  burst(x, y, n, o) {
+    if (Prefs.particlesLow) n = Math.ceil(n * .4);
+    for (let i = 0; i < n; i++) this.add(x, y, o);
+  },
   update(dt) {
     for (let i = this.list.length - 1; i >= 0; i--) {
       const p = this.list[i];

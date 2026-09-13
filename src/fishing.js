@@ -91,7 +91,8 @@ const Fishing = {
     this.shake = Math.max(0, this.shake - dt * 3);
     this.hook.x = a.bx;
 
-    if (Input.tap('cancel') && (this.phase === 'deep' || this.phase === 'sink' ||
+    // ESC pauses now; putting the rod down is the interact key while you wait
+    if (Input.tap('interact') && (this.phase === 'deep' || this.phase === 'sink' ||
         this.phase === 'fail' || this.phase === 'junk')) { this.quit(); return; }
 
     // drifting silhouettes
@@ -266,7 +267,8 @@ const Fishing = {
     this.fy = clamp(this.fy + this.fvy * dt * this.fSpeed * 3.2, lo, hi);
     if (this.fy <= lo || this.fy >= hi) this.fvy *= .4;
 
-    const pulling = Input.held('confirm') || Input.held('interact') || Input.held('up');
+    // reel on the jump or interact binding, or the fixed confirm keys
+    const pulling = Input.held('jump') || Input.held('interact') || Input.held('confirm');
     this.bvy += (pulling ? -2.35 : 2.05) * dt;
     this.bvy *= (1 - Math.min(.9, dt * 2.4));
     this.by += this.bvy * dt;
@@ -560,7 +562,7 @@ const Fishing = {
 
     if (this.phase === 'cast') this._tip(g, 'Casting…');
     else if (this.phase === 'sink') this._tip(g, 'Paying out line…   ' + d + ' fathoms', '#9fd4e4');
-    else if (this.phase === 'deep') this._tip(g, 'Holding at ' + d + ' fathoms.   [ESC] reel in', '#9fd4e4');
+    else if (this.phase === 'deep') this._tip(g, 'Holding at ' + d + ' fathoms.   [' + keyLabel(ACTIONS.interact[0]) + '] reel in', '#9fd4e4');
     else if (this.phase === 'bite') this._tip(g, 'SOMETHING TOOK IT — press [E]!', '#ffe066');
     else if (this.phase === 'fail') this._tip(g, this.msg, '#e28a8a');
     else if (this.phase === 'junk') this._tip(g, 'You reel up ' + this.target.name + '.', '#b8c4dc');

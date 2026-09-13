@@ -17,7 +17,7 @@ const Dialogue = {
     this.tick += dt;
     if (!this.done) {
       const prev = Math.floor(this.shown);
-      this.shown += this.cps * dt * (Input.held('confirm') ? 3.2 : 1);
+      this.shown += Prefs.textCps * dt * (Input.held('confirm') ? 3.2 : 1);
       if (Math.floor(this.shown) > prev && Math.floor(this.shown) % 2 === 0) Sfx.text();
       if (this.shown >= this.full.length) { this.shown = this.full.length; this.done = true; this.hold = 0; }
     } else {

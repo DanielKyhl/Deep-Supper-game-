@@ -3,59 +3,45 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Deep Supper — A Fishing Tale</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>Deep Supper</title>
 <style>
   :root { color-scheme: dark; }
   html, body {
     margin: 0; padding: 0; height: 100%;
     background: #07080f;
-    font-family: Georgia, "Times New Roman", serif;
     overflow: hidden;
+    user-select: none;
   }
   #wrap {
     position: fixed; inset: 0;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 10px;
+    display: flex; align-items: center; justify-content: center;
   }
   #game {
     /* size is set from JS in real device pixels (fitCanvas in core.js) */
     display: block;
     background: #0a1226;
-    box-shadow: 0 0 0 1px #2a3352, 0 24px 60px rgba(0,0,0,.7);
     image-rendering: pixelated;
     cursor: default;
   }
-  #hint {
-    color: #6a7699;
-    font: 12px/1.5 Verdana, system-ui, sans-serif;
-    letter-spacing: .04em;
-    text-align: center;
-    padding: 0 10px;
-    user-select: none;
-  }
-  #hint b { color: #99a7cf; font-weight: 600; }
 </style>
 </head>
 <body>
   <div id="wrap">
     <canvas id="game" width="960" height="540"></canvas>
-    <div id="hint">
-      <b>A</b>/<b>D</b> move &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>E</b> interact &nbsp;·&nbsp;
-      <b>J</b> attack &nbsp;·&nbsp; <b>K</b> roll &nbsp;·&nbsp; <b>Q</b> bandage &nbsp;·&nbsp;
-      <b>M</b> mute &nbsp;·&nbsp; <b>N</b> music &nbsp;·&nbsp; <b>Esc</b> back
-    </div>
   </div>
 
   <script src="src/font.js"></script>
   <script src="src/core.js"></script>
   <script src="src/music.js"></script>
   <script src="src/data.js"></script>
+  <script src="src/settings.js"></script>
   <script src="src/art.js"></script>
   <script src="src/cutscene.js"></script>
   <script src="src/fishing.js"></script>
   <script src="src/battle.js"></script>
   <script src="src/shop.js"></script>
+  <script src="src/menu.js"></script>
   <script src="src/game.js"></script>
 </body>
 </html>
