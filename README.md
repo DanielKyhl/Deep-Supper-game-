@@ -3,9 +3,37 @@
 A 2D sidescroller. You are a small boy on a fishing boat. Your father tells you to
 catch supper and then leaves. It gets dark. The fish are not fish.
 
-**To play: double-click `index.html`.** No install, no build step, no dependencies —
-plain HTML and JavaScript, rendered as crisp 480x270 pixel art. Every pixel is drawn at runtime on a canvas and every note
-of music is synthesised from oscillators. There are no asset files of any kind.
+Plain HTML and JavaScript, rendered as crisp 480x270 pixel art and shipped as a Windows
+desktop app. Every pixel is drawn at runtime on a canvas and every note of music is
+synthesised from oscillators. There are no asset files of any kind.
+
+## Playing it
+
+**The app:** run `DeepSupper-1.0.0.exe`. It is a single portable file: no installer, and
+nothing to uninstall. It isn't code-signed, so Windows SmartScreen may ask you to
+confirm the first time ("More info" → "Run anyway").
+
+**From source** (needs [Node.js](https://nodejs.org) 20 or newer):
+
+```bash
+npm install
+```
+
+```bash
+npm start
+```
+
+**Building the .exe:**
+
+```bash
+npm run dist
+```
+
+This writes `dist/DeepSupper-1.0.0.exe`. `npm run dist:folder` builds an unpacked
+`dist/win-unpacked/` instead, which is quicker to rebuild while testing.
+
+The game still runs in a browser too: open `index.html`. Saves and settings then live in
+that browser's local storage, and there is no Quit option.
 
 ## The loop
 
@@ -23,26 +51,51 @@ of music is synthesised from oscillators. There are no asset files of any kind.
 6. **Sell it to Dorran** at the stall amidships, and spend the coin on a deeper rod or
    something heavier to hit things with.
 
-Your first cast is a lie: an ordinary little fish takes the bait and is eaten off your
-line by something that comes most of the way out of the water to do it. Everything
-after that is a monster.
+Your first cast is a lie. An ordinary little fish takes the bait, and you start reeling
+it up. Halfway to the surface, something comes out of the dark underwater, eats it off
+your line and dives with the hook in its mouth. Now you have to haul *that* up, and
+fight it. Everything after that is a monster.
 
 From the Deepline rod onward, something far bigger than anything you can catch rises
 out of the dark below your hook while you wait, looks at you, and goes away again. The
 Abyssal Rod is what finally reaches it.
 
+## Menus, options and saves
+
+The game opens on a title menu: **Continue** (when there is a save), **New voyage**,
+**Options**, **Credits** and **Quit**. `ESC` during play opens the pause menu, which can
+also reach Options, save and return to the title, or save and quit.
+
+| Options screen | What's on it |
+|---|---|
+| Graphics | windowed / fullscreen, sharp whole-number pixel scaling or fill the window, render quality (auto steps down on slow machines), brightness, screen shake, particles, FPS counter |
+| Audio | master, music and effects volume; mute everything; music off; mute when the window is in the background |
+| Controls | rebind every gameplay action; reset controls |
+| Gameplay | text speed (slow to instant), damage numbers |
+
+Everything saves as you change it. The voyage autosaves whenever something worth keeping
+happens: starting out, taking the dip net, leaving Dorran's stall, the end of every
+fight, returning to the title, and closing the window.
+
 ## Controls
+
+These are the defaults. Every gameplay key can be rebound under Options → Controls.
 
 | Key | |
 |---|---|
 | `A` `D` / arrows | walk |
-| `SPACE` | jump · hold to reel · advance dialogue |
-| `E` | interact · set the hook |
+| `SPACE` / `W` | jump · hold to reel |
+| `E` | interact · set the hook · put the rod down |
 | `J` | swing your weapon |
-| `K` | roll (brief invulnerability) |
+| `K` / `L-SHIFT` | roll (brief invulnerability) |
 | `Q` | bandage |
-| `M` | mute everything · `N` music only |
-| `ESC` | pause · leave a menu · hold to skip a cutscene |
+| `ENTER` | advance dialogue · select in menus |
+| `ESC` | pause · back out of a menu · hold to skip a cutscene |
+| `M` · `N` | mute everything · music only |
+| `F11` | fullscreen |
+
+`ESC`, `ENTER`, `M`, `N` and `F11` always keep those jobs, so you can never rebind your
+way out of the menus.
 
 ## What's in it
 
@@ -61,20 +114,59 @@ harp, lead, pad, bell, drums and a drone.
 
 **A three-phase final boss** that changes its attack pool twice on the way down.
 
+## Tests
+
+493 tests: 394 unit (80%), 74 integration (15%) and 25 end-to-end (5%).
+
+```bash
+npm test
+```
+
+runs the unit and integration suites (about 20 seconds, no window opens).
+
+```bash
+npm run test:e2e
+```
+
+launches the real desktop app and plays it with a keyboard (about a minute). Set
+`DEEPSUPPER_EXE` to `dist/win-unpacked/Deep Supper.exe` to run the same tests against a
+packaged build. `npm run test:all` runs everything.
+
+- **Unit** (`tests/unit`) load the real game scripts into a Node `vm` sandbox with a
+  recording canvas, a fake keyboard and mouse, and a fake Web Audio graph, then test one
+  system at a time: the pixel pipeline, input, the font, settings and key binding, save
+  validation, data tables, deck movement, fishing and the reel minigame, the ambush,
+  combat and boss phases, the shop, menus, cutscenes, the icon encoder, and every drawing
+  routine.
+- **Integration** (`tests/integration`) play through whole journeys with real key presses
+  and full rendered frames: the first voyage from the title menu to the first sale,
+  saving and continuing (including damaged saves), options taking effect in play, fishing
+  into fights, the boss and the ending, pausing, and every screen through the renderer.
+- **End-to-end** (`tests/e2e`) drive the Electron app with Playwright: the window and its
+  lockdown, a voyage played with the keyboard, settings and fullscreen surviving a
+  restart, quitting, and the single-instance lock. Each launch gets a throwaway profile,
+  so tests never touch your real saves.
+
 ## Files
 
 ```
-index.html        page + canvas
-src/font.js       the 5x7 bitmap font
-src/core.js       pixel pipeline, math, input, WebAudio sfx, particles, text, camera
-src/music.js      the procedural score
-src/data.js       rods, weapons, goods, monsters, catch tables
-src/art.js        all drawing: sky, sea, water column, boat, people, monsters
-src/cutscene.js   dialogue box, step sequencer, opening + ending
-src/fishing.js    cast → sink → wait → hook → reel
-src/battle.js     player combat, monster AI and attacks, boss phases
-src/shop.js       Dorran's stall (sell / gear / goods)
-src/game.js       state machine, deck exploration, HUD, main loop
+index.html               page + canvas
+src/font.js              the 5x7 bitmap font
+src/core.js              pixel pipeline, math, input, WebAudio sfx, particles, text, camera
+src/music.js             the procedural score
+src/data.js              rods, weapons, goods, monsters, catch tables
+src/settings.js          options and the save file, both validated on load
+src/art.js               all drawing: sky, sea, water column, boat, people, monsters
+src/cutscene.js          dialogue box, step sequencer, opening + ending
+src/fishing.js           cast → sink → wait → hook → reel, and the ambush
+src/battle.js            player combat, monster AI and attacks, boss phases
+src/shop.js              Dorran's stall (sell / gear / goods)
+src/menu.js              title menu, pause menu, every options screen
+src/game.js              state machine, deck exploration, HUD, main loop
+electron/main.js         the desktop window
+electron/preload.js      the page's only bridge to the app: fullscreen and quit
+scripts/make-icon.js     draws build/icon.png (npm run icon)
+tests/                   unit, integration and end-to-end suites, and their helpers
 ```
 
 `.claude/serve.js` + `launch.json` are a tiny local static server used during
