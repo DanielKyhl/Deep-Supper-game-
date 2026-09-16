@@ -839,9 +839,7 @@ const Game = {
     if (scene === 'fish') {
       o.hold = 'rod';
       o.state = 'idle';
-      o.rodAngle = Fishing.rodAngle();
-      o.rodBend = Fishing.rodBend();
-      o.frontArm = -0.55 + (Fishing.phase === 'reel' ? Math.sin(Fishing.t * 14) * .08 : 0);
+      Object.assign(o, Fishing.rodPose());
       o.backArm = 0.5;
     } else if (P.weapon >= 0) {
       o.hold = 'weapon';

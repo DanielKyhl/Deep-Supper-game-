@@ -438,11 +438,19 @@ const Fishing = {
   },
 
   /* line and hook, drawn inside the world transform (water-space) */
+  // how the boy holds the rod right now
+  rodPose() {
+    return {
+      rodAngle: this.rodAngle(), rodBend: this.rodBend(),
+      frontArm: -0.55 + (this.phase === 'reel' ? Math.sin(this.t * 14) * .08 : 0)
+    };
+  },
+
   drawLine(g) {
     const a = this._anchor();
-    const ang = this.rodAngle();
-    const tipX = a.px + 8 + Math.cos(ang) * 78;
-    const tipY = DECK_Y - 32 + 16 + Math.sin(ang) * 78 + 10;
+    const tip = Figures.rodTip(Object.assign({ t: Player.animT, face: Player.face, squash: bodySquash(Player) }, this.rodPose()));
+    const tipX = a.px + tip.x;
+    const tipY = Player.y + tip.y;
     const hx = this.hook.x, hy = this.hookY() + this.hook.tug;
 
     g.save();

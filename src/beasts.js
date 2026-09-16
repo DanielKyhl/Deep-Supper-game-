@@ -94,7 +94,7 @@ const Spr = {
         const u = (dx * c + dy * s) / rx, v = (-dx * s + dy * c) / ry, d = u * u + v * v;
         if (d > 1) continue;
         const ny = dy / tall;
-        let L = .5 - ny * .38 + Math.sqrt(1 - d) * .16;
+        let L = o.lit !== undefined ? o.lit : .5 - ny * .38 + Math.sqrt(1 - d) * .16;
         if (o.tex) L += o.tex(x, y, u, v);
         this.plot(x, y, o.belly && ny > bellyFrom ? o.belly : mat, L);
       }
