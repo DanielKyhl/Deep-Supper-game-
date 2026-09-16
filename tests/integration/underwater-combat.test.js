@@ -109,7 +109,7 @@ describe('fighting underwater, at range', () => {
     assert.equal(D.mouseAim, false);
   });
 
-  test('buy the Stormglass Eel from Dorran, dive, and its lightning jumps through a shoal', () => {
+  test('buy the Eel on a Rope from Dorran, dive, and its lightning jumps through a shoal', () => {
     const h = diver({}, { coins: 5000, diveWeapon: 1 });
     const g = h.g;
     F.openStall(h);

@@ -9,7 +9,7 @@ synthesised from oscillators. There are no asset files of any kind.
 
 ## Playing it
 
-**The app:** run `DeepSupper-1.1.0.exe`. It is a single portable file: no installer, and
+**The app:** run `DeepSupper-1.2.0.exe`. It is a single portable file: no installer, and
 nothing to uninstall. It isn't code-signed, so Windows SmartScreen may ask you to
 confirm the first time ("More info" → "Run anyway").
 
@@ -29,7 +29,7 @@ npm start
 npm run dist
 ```
 
-This writes `dist/DeepSupper-1.1.0.exe`. `npm run dist:folder` builds an unpacked
+This writes `dist/DeepSupper-1.2.0.exe`. `npm run dist:folder` builds an unpacked
 `dist/win-unpacked/` instead, which is quicker to rebuild while testing.
 
 The game still runs in a browser too: open `index.html`. Saves and settings then live in
@@ -79,12 +79,21 @@ runs out of air (it refills at the surface), and every suit buckles past its dep
 going deeper means climbing the ladder at the bow, selling what you killed to Dorran,
 and buying a better suit: four in all, down to the Trench Hardsuit.
 
-Nothing that goes bang works underwater. The five diving weapons each fight differently:
-the **Drowned Harpoon** and **Barnacle Trident** stab wherever you aim, the **Eel on a Rope**
-lashes the nearest few things with lightning, the **Narwhal Tusk** carries you straight
-through whatever is in front of you, and the **Sunken Bell** rings out a ring of sound that
-hits everything in earshot. Blacking out, from injury or lack of air, costs you what you
+Nothing that goes bang works underwater, so every diving weapon is a launcher of some
+other kind, and none of them ever runs out. Aim with the mouse (the pointer becomes a
+crosshair) or with the direction you swim, and hold the button to keep firing. The
+**Drowned Harpoon** flies out on a line, bites, and reels back in before it can fire again;
+the **Barnacle Trident** throws a spread of three prongs; the **Eel on a Rope** spits a ball of
+lightning that jumps to the creatures around whatever it hits; the **Narwhal Tusk** goes
+through everything in a line; and the **Sunken Bell** sends out a widening wave of sound that
+shoves a whole crowd back. Blacking out, from injury or lack of air, costs you what you
 caught on that dive.
+
+It sounds like being underwater, too. Going over the side closes a low-pass filter over
+every sound in the game and starts the rumble of deep water; you hear your own breathing
+and bubbles, a low-air alarm, the suit creaking past its depth, sonar pings and far-off
+calls in the deep, creatures growling as they wind up (only when they are close), and
+each launcher's own shot. Climbing out, drowning, loading or quitting opens it back up.
 
 At the bottom, in front of Lanthorne's gate, Nerys is in trouble, and the Old One turns
 out not to have been the worst thing in the sea.
@@ -123,7 +132,8 @@ These are the defaults. Every gameplay key can be rebound under Options → Cont
 | `SPACE` / `W` | jump · hold to reel · swim up |
 | `S` / ↓ | swim down (↑ swims up too) |
 | `E` | interact · set the hook · put the rod down · dive · climb aboard |
-| `J` | swing your weapon |
+| `J` / left click | swing your weapon on deck · fire underwater (hold to keep firing) |
+| mouse | aim underwater (otherwise you aim the way you swim) |
 | `K` / `L-SHIFT` | roll on deck, dash underwater (brief invulnerability) |
 | `Q` | bandage |
 | `ENTER` | read on through dialogue (so do `E`, `SPACE` and a click) · select in menus |
@@ -136,10 +146,15 @@ way out of the menus.
 
 ## What's in it
 
-**17 monsters** to fish up across four depths, and **18 more** below the surface, drawn from ten body plans — eel, anglerfish,
-tentacled, ray, crustacean, jellyfish bloom, drowned husk, all-mouth, and whatever The
-Old One is. None of them are rigid sprites: each silhouette is rebuilt every frame
-around a spine or a pulse, so they undulate, breathe and blink.
+**17 monsters** to fish up across four depths, and **18 more** below the surface, drawn from
+ten body plans: eel, anglerfish, octopus, manta, crab, jellyfish, drowned skeleton,
+all-mouth, and the fanged serpents that are the Old One and the Mother. They are real
+pixel art, but not sprite sheets. Each creature is rasterised at the game's true pixel size
+from shapes rebuilt around a spine or a pulse, then shaded through a five-tone palette
+(cool purple shadows, warm highlights) with creases, a light ordered dither and a
+one-pixel outline, so they swim, breathe, bite and blink. Like hand-animated sprites they
+change pose 20 times a second, staggered so only a third of them redraw on any frame; in
+between, each one's last pixels are put down again wherever it has swum to.
 
 **Six weapons**, only one of which is a blade you would recognise: a bent dip net, a
 gaff hook, a gutting cleaver, a whaling harpoon, six feet of anchor chain, and a tooth.
@@ -153,7 +168,7 @@ harp, lead, pad, bell, drums and a drone.
 
 ## Tests
 
-651 tests: 520 unit (80%), 97 integration (15%) and 34 end-to-end (5%).
+730 tests: 583 unit (80%), 111 integration (15%) and 36 end-to-end (5%).
 
 ```bash
 npm test
@@ -174,17 +189,20 @@ packaged build. `npm run test:all` runs everything.
   system at a time: the pixel pipeline, input, the font, settings and key binding, save
   validation and save slots, data tables, deck movement, fishing and the reel minigame,
   the ambush, Nerys, combat and boss phases, diving (swimming, air, pressure, every
-  weapon, every creature, the Mother), the shop, menus, cutscenes, the icon encoder, and
-  every drawing routine.
+  launcher, every creature, the Mother), underwater sound, the shop, menus, cutscenes, the
+  icon encoder, the pixel-art creature rasteriser and its animation cache, and every
+  drawing routine.
 - **Integration** (`tests/integration`) play through whole journeys with real key presses
   and full rendered frames: the first voyage from the title menu to the first sale,
   saving and continuing (including damaged saves and save slots), options taking effect in
   play, fishing into fights, Nerys, the Old One and the end of part one, diving from the
-  bow to a deeper suit and back, the Mother and the end of part two, pausing, and every
-  screen through the renderer.
+  bow to a deeper suit and back, fighting at range with mouse and keys, what the sea sounds
+  like however you leave it, creatures animating in a crowd, the Mother and the end of part
+  two, pausing, and every screen through the renderer.
 - **End-to-end** (`tests/e2e`) drive the Electron app with Playwright: the window and its
   lockdown, a voyage played with the keyboard, dialogue that waits, save slots, settings
-  and fullscreen surviving a restart, the test shortcuts, diving and the Mother, quitting,
+  and fullscreen surviving a restart, the test shortcuts, diving with real mouse aiming,
+  creatures on screen, the Mother, quitting,
   and the single-instance lock. Each launch gets a throwaway profile,
   so tests never touch your real saves.
 
@@ -193,12 +211,13 @@ packaged build. `npm run test:all` runs everything.
 ```
 index.html               page + canvas
 src/font.js              the 5x7 bitmap font
-src/core.js              pixel pipeline, math, input, WebAudio sfx, particles, text, camera
+src/core.js              pixel pipeline, math, input, WebAudio sfx and the underwater mix, particles, text, camera
 src/music.js             the procedural score
 src/data.js              rods, weapons, goods, monsters, catch tables
 src/settings.js          options and the save file, both validated on load
-src/art.js               drawing: sky, sea, water column, boat, people, monsters
-src/art-deep.js          drawing for part two: Nerys, the suit, the sea below, the Mother
+src/art.js               drawing: sky, sea, water column, boat, people, weapons, HUD
+src/art-deep.js          drawing for part two: Nerys, the suit, launchers and shots, the sea below
+src/beasts.js            every creature, rasterised as pixel art, and its animation cache
 src/cutscene.js          dialogue box, step sequencer, opening, Nerys, both endings
 src/fishing.js           cast → sink → wait → hook → reel, and the ambush
 src/battle.js            player combat, monster AI and attacks, boss phases
