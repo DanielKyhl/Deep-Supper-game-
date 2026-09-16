@@ -13,12 +13,12 @@ synthesised from oscillators. There are no asset files of any kind.
 Download the game from the
 [Releases page](https://github.com/DanielKyhl/Deep-Supper-game-/releases/latest).
 
-**Windows:** run `DeepSupper-1.4.0.exe`. It is a single portable file: no installer, and
+**Windows:** run `DeepSupper-1.5.0.exe`. It is a single portable file: no installer, and
 nothing to uninstall. It isn't code-signed, so Windows SmartScreen may ask you to
 confirm the first time ("More info" → "Run anyway").
 
-**Mac:** download `DeepSupper-1.4.0-mac-arm64.dmg` for an Apple Silicon Mac (M1 or
-later), or `DeepSupper-1.4.0-mac-x64.dmg` for an Intel Mac (Apple menu → About This Mac shows
+**Mac:** download `DeepSupper-1.5.0-mac-arm64.dmg` for an Apple Silicon Mac (M1 or
+later), or `DeepSupper-1.5.0-mac-x64.dmg` for an Intel Mac (Apple menu → About This Mac shows
 which). Open it and drag Deep Supper into Applications. The game isn't signed by Apple,
 so the first time you open it macOS refuses. Click **Done**, then go to **System Settings →
 Privacy & Security**, scroll down and click **Open Anyway**. After that it opens normally.
@@ -48,7 +48,7 @@ npm start
 npm run dist
 ```
 
-This writes `dist/DeepSupper-1.4.0.exe`. `npm run dist:folder` builds an unpacked
+This writes `dist/DeepSupper-1.5.0.exe`. `npm run dist:folder` builds an unpacked
 `dist/win-unpacked/` instead, which is quicker to rebuild while testing.
 
 **Building for Mac** has to happen on a Mac:
@@ -57,7 +57,7 @@ This writes `dist/DeepSupper-1.4.0.exe`. `npm run dist:folder` builds an unpacke
 npm run dist:mac
 ```
 
-This writes `dist/DeepSupper-1.4.0-mac-arm64.dmg` and `dist/DeepSupper-1.4.0-mac-x64.dmg`.
+This writes `dist/DeepSupper-1.5.0-mac-arm64.dmg` and `dist/DeepSupper-1.5.0-mac-x64.dmg`.
 
 You don't need a Mac for a release, though. GitHub builds both versions
 (`.github/workflows/build.yml`):
@@ -174,6 +174,28 @@ each launcher's own shot. Climbing out, drowning, loading or quitting opens it b
 At the bottom, in front of Lanthorne's gate, Nerys is in trouble, and the Old One turns
 out not to have been the worst thing in the sea.
 
+## The end
+
+Once the Mother is back in her trench and the boy has climbed back aboard, the wheel in
+the wheelhouse offers to **Sail home**. The *Margaret* turns for the harbour through the
+night, something far below says goodbye in the only way it can, and she comes in on the
+morning tide. Dad is waiting. If the boy found a certain pocket watch on the Shelf, Dad
+has something to say about it.
+
+After **THE END** the credits roll. They list the crew, then every creature in the sea by
+name: the ones you met are drawn, with how many you killed, and the ones you missed stay a
+question mark. Last come your voyage's numbers: casts, kills, letters and relics found,
+and whether Excalibur ever came up. Hold `ENTER`, `SPACE` or `E` to roll them faster,
+or hold `ESC` to skip.
+
+Afterwards you're back on deck in the harbour, in daylight, with your save intact. The sea
+is still there to fish and dive, and the wheel will take you home again if you want to
+watch it twice.
+
+When there's more story to tell, the ending can move: it's unlocked by `FINALE.ready` in
+`src/data.js`, currently "the Mother is beaten". Change that one line to put the voyage
+home and the credits after whatever comes next.
+
 ## Menus, options and saves
 
 The game opens on a title menu: **Continue** (when there is a save), **Load game** (when a
@@ -183,8 +205,9 @@ ask before overwriting or throwing away progress), Options, save and return to t
 or save and quit.
 
 **Test shortcuts** jump straight to later parts of the game with the right gear: the Old
-One with every fishing item bought, a fresh diving suit at the bow, or the bottom of the
-sea in the best suit. They replace your Continue save, so use a save slot first if you
+One with every fishing item bought, a fresh diving suit at the bow, the bottom of the
+sea in the best suit, or the wheel with everything beaten, straight into the ending and
+the credits. They replace your Continue save, so use a save slot first if you
 want to keep a voyage.
 
 | Options screen | What's on it |
@@ -255,7 +278,7 @@ and has three skill checks.
 
 ## Tests
 
-837 tests: 671 unit (80%), 127 integration (15%) and 39 end-to-end (5%).
+853 tests: 684 unit (80%), 129 integration (15%) and 40 end-to-end (5%).
 
 ```bash
 npm test
@@ -279,7 +302,7 @@ packaged build. `npm run test:all` runs everything.
   own, the skill checks, diving (swimming, air, pressure, every launcher, every creature,
   the Mother), underwater sound, the shop and everything Dorran says there and on deck,
   narration, the salvage fee, bottles, letters, relics, the journal and Excalibur, a boy
-  who never speaks, menus, cutscenes, the icon encoder, the pixel-art rasteriser and its
+  who never speaks, the voyage home and the credits, menus, cutscenes, the icon encoder, the pixel-art rasteriser and its
   animation caches, the posing rig for people, the layered boat, and every drawing
   routine.
 - **Integration** (`tests/integration`) play through whole journeys with real key presses
@@ -289,13 +312,14 @@ packaged build. `npm run test:all` runs everything.
   bow to a deeper suit and back, fighting at range with mouse and keys, what the sea sounds
   like however you leave it, creatures animating in a crowd, Dorran talking across the deck
   and over the counter while the boy stays silent, answering both bosses' skill checks,
-  finding letters and relics, the Mother and the end of part two, pausing, walking the
+  finding letters and relics, the Mother and the end of part two, sailing home through
+  the credits to a save that remembers it, pausing, walking the
   pixel-art deck, a line tied to the painted rod tip, and every screen through the
   renderer.
 - **End-to-end** (`tests/e2e`) drive the Electron app with Playwright: the window and its
   lockdown (and a Mac's menu), fullscreen however the window gets there, a voyage played with the keyboard, what a frame on deck costs, Dorran calling out from his stall, dialogue that waits, save slots, settings
   and fullscreen surviving a restart, the test shortcuts, diving with real mouse aiming,
-  creatures on screen, the Mother, quitting,
+  creatures on screen, the Mother, the ending, quitting,
   and the single-instance lock. Each launch gets a throwaway profile,
   so tests never touch your real saves.
 
@@ -315,7 +339,7 @@ src/figures.js           the boy, Dad, Dorran, Nerys, suits, weapons and launche
 src/ship.js              the Margaret and everything on her deck, as layered pixel art
 src/lore.js              letters, relics, bottles, Excalibur, and what the journal holds
 src/skill.js             boss skill checks: the closing ring, the key sequence, the hold
-src/cutscene.js          dialogue box, step sequencer, opening, Nerys, both endings
+src/cutscene.js          dialogue box, step sequencer, opening, Nerys, both part endings, the voyage home and the credits
 src/fishing.js           cast → sink → wait → hook → reel, and the ambush
 src/battle.js            player combat, monster AI and attacks, boss phases and skill checks
 src/dive.js              diving: swimming, air and pressure, the creatures below, the Mother
