@@ -98,6 +98,28 @@ describe('drawing the sea below', () => {
     D.reset();
   });
 
+  test('the Mother draws calm and enraged, with Nerys and her sweep in the scene', () => {
+    const def = g.monsterDef('mother');
+    for (const rage of [false, true]) {
+      balanced('mother ' + rage, () => g.Art.monster(bctx, { x: 480, y: 270, face: -1, rot: .1, len: def.len, def, gape: .8, flash: rage ? 1 : 0, seed: 41, thrashAmt: 2, noShadow: true, rage }, 3));
+    }
+    const D = g.Dive;
+    g.Player.suit = 3; g.Player.beatMother = false;
+    D.enterWater();
+    D.mobs.length = 0;
+    Object.assign(D.p, { x: g.CITY_X - 200, y: 3600 });
+    D.startMother();
+    g.CUT.skip();
+    for (const state of ['tele', 'sweep', 'inhale', 'dying']) {
+      Object.assign(D.boss, { state, atk: 'sweep', sweepY: 3600, sweepX: g.CITY_X, dead: state === 'dying', phase: 3, t: .5 });
+      D.girl.visible = true;
+      D._camera(0, true);
+      balanced('mother ' + state, () => g.Art.diveScene(bctx, D, 5));
+    }
+    D.reset();
+    g.CUT.stop();
+  });
+
   test('every creature below draws in the dive, in every state, with rings, ink and lightning about', () => {
     const D = g.Dive;
     g.Player.suit = 3;

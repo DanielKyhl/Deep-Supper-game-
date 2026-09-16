@@ -425,6 +425,100 @@ function buildGirlScene() {
   };
 }
 
+/* ========================== THE MOTHER BELOW ===========================
+   Run inside the dive (Dive.phase 'scene'), so the sea keeps moving under
+   the conversation. D is the Dive object.                                 */
+
+// the fight is on: Nerys hides by the gate, the Mother comes for him
+function motherReady(D) {
+  Object.assign(D.girl, { x: CITY_X - 300, y: DIVE_FLOOR - 80, face: -1 });
+  Object.assign(D.boss, { state: 'idle', t: 0, cool: 1.8, x: CITY_X + 460, y: 3600 });
+  D.camFocus = null;
+}
+
+function motherIntroSteps(D) {
+  const B = D.boss, G = D.girl;
+  return {
+    finalize: () => motherReady(D),
+    steps: [
+      sAct(() => { D.camFocus = { x: CITY_X + 150, y: 3620 }; Sfx.roar(); Cam.kick(10); }),
+      sTween(1.6, p => {
+        G.x = lerp(CITY_X + 320, CITY_X - 60, p); G.y = 3620 + Math.sin(p * 9) * 10; G.face = -1;
+        B.x = lerp(CITY_X + 900, CITY_X + 460, ease(p)); B.gape = .3 + p * .5;
+      }),
+      sSay('Nerys', 'No! Go back up! Not you, not now!'),
+      sSay('You', 'Nerys?'),
+      sAct(() => { Dialogue.hide(); D.camFocus = { x: CITY_X + 360, y: 3600 }; B.gape = .95; Sfx.roar(); Cam.kick(14); }),
+      sWait(1.3),
+      sSay('Nerys', 'She came up out of the trench the night you killed it.'),
+      sSay('Nerys', "The Old One wasn't what was waking down here. It was her child."),
+      sSay('You', '...It was trying to eat me.'),
+      sSay('Nerys', "She doesn't care about that part!"),
+      sHideText(),
+      sAct(() => {
+        D.camFocus = null;
+        D.banner = { text: 'THE MOTHER BELOW', t: 0, dur: 3, color: '#c46bff' };
+        Sfx.roar(); Cam.kick(10);
+      }),
+      sTween(.9, p => { G.x = lerp(CITY_X - 60, CITY_X - 300, p); G.y = lerp(3620, DIVE_FLOOR - 80, p); G.face = -1; }),
+      sAct(() => motherReady(D))
+    ]
+  };
+}
+
+// back for another try, no speeches
+function motherReturnSteps(D) {
+  const B = D.boss, G = D.girl;
+  return {
+    finalize: () => motherReady(D),
+    steps: [
+      sAct(() => {
+        Object.assign(G, { x: CITY_X - 300, y: DIVE_FLOOR - 80, face: -1 });
+        D.banner = { text: 'THE MOTHER BELOW', t: 0, dur: 2.4, color: '#c46bff' };
+        Sfx.roar(); Cam.kick(10);
+      }),
+      sTween(1.2, p => { B.x = lerp(CITY_X + 900, CITY_X + 460, ease(p)); }),
+      sAct(() => motherReady(D))
+    ]
+  };
+}
+
+function motherEndSteps(D) {
+  const B = D.boss, G = D.girl;
+  const finalize = () => {
+    Player.beatMother = true;
+    D.boss = null; D.banner = null; D.camFocus = null;
+    G.visible = false;
+    Game.autosave();
+  };
+  return {
+    finalize,
+    steps: [
+      // she sinks away into the trench
+      sAct(() => { D.camFocus = { x: B.x, y: B.y }; }),
+      sWait(3.0),
+      sAct(() => { D.camFocus = null; Object.assign(G, { visible: true, x0: G.x, y0: G.y }); }),
+      sTween(1.4, p => {
+        G.x = lerp(G.x0, D.p.x + (G.x0 < D.p.x ? -80 : 80), p);
+        G.y = lerp(G.y0, D.p.y, p);
+        G.face = D.p.x > G.x ? 1 : -1;
+      }),
+      sSay('Nerys', "She's going back down. Down past where even we go."),
+      sSay('Nerys', 'A boy off a fishing boat. You actually did it.'),
+      sSay('You', "I've had a lot of practice on her family."),
+      sSay('Nerys', 'Lanthorne will light the outer halls again tonight. Come and see them one day. When you are not bleeding.'),
+      sSay('Nerys', "And tell your father his grandfather's suit came home."),
+      sSay('You', "I still haven't caught supper."),
+      sHideText(),
+      sAct(() => { G.x0 = G.x; G.y0 = G.y; G.face = CITY_X > G.x ? 1 : -1; }),
+      sTween(1.8, p => { G.x = lerp(G.x0, CITY_X, p); G.y = lerp(G.y0, DIVE_FLOOR - 320, p); }),
+      sAct(() => { G.visible = false; }),
+      sTitle('END OF PART TWO', 'Lanthorne is lit again.', 5.0),
+      sAct(() => finalize())
+    ]
+  };
+}
+
 /* ============================= ENDING ================================== */
 
 // what the Old One leaves on the deck: the suit it swallowed and the harpoon stuck in it

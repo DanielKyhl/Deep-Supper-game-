@@ -343,7 +343,21 @@ const DIVE_MONSTERS = [
     hp: 1000, len: 360, girth: .34, value: 1200, dmg: 2, speed: 130, eyes: 4, aggro: 420,
     body: [64, 68, 74], belly: [158, 164, 170], fin: [40, 44, 50], eye: '#9ff0ff', glow: '#9ff0ff',
     atk: ['bite', 'pulse', 'ink', 'charge'],
-    flavour: "One of Lanthorne's own, once. It doesn't remember which side it was on." }
+    flavour: "One of Lanthorne's own, once. It doesn't remember which side it was on." },
+
+  /* ------------------------ hers, and her ------------------------------ */
+
+  { id: 'broodling', name: 'Broodling', zone: 4, plan: 'eel', spawnOnly: true,
+    hp: 70, len: 120, girth: .14, value: 40, dmg: 1, speed: 170, eyes: 2, aggro: 2000,
+    body: [70, 40, 72], belly: [170, 130, 170], fin: [50, 26, 52], eye: '#ff4d7a', glow: '#c46bff',
+    atk: ['bite', 'bite', 'charge'],
+    flavour: 'Newly hatched. Already hungry. Already hers.' },
+
+  { id: 'mother', name: 'The Mother Below', zone: 4, plan: 'mother', boss: true,
+    hp: 5200, len: 860, girth: .2, value: 9000, dmg: 2, speed: 150, eyes: 12, aggro: 5000,
+    body: [52, 34, 60], belly: [170, 130, 170], fin: [36, 22, 44], eye: '#ff4d7a', glow: '#c46bff',
+    atk: ['maw', 'pulse', 'sweep', 'brood', 'inhale'],
+    flavour: 'The Old One was hers.' }
 ];
 
 // every creature the game knows, above and below, for saves and trophies

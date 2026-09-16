@@ -314,6 +314,28 @@ Object.assign(Art, {
     g.restore();
   },
 
+  /* The Mother Below: her child's body, grown enormous, with a crown of long
+     tentacles streaming back from her head. */
+  _plan_mother(g, S, m) {
+    const { len, h, t, seed } = S;
+    for (let i = 0; i < 8; i++) {
+      const side = i % 2 ? 1 : -1;
+      this._limb(g, {
+        x: len * (.3 - i * .025), y: side * h * (.35 + (i % 4) * .12),
+        ang: Math.PI + side * (.35 + i * .06), len: len * (.42 + (i % 3) * .08),
+        w0: h * .16, w1: 2, curl: side * (.5 + (i % 3) * .2), wave: .35, sp: 1.6 + i * .1,
+        t, seed: seed + i * 3, color: css(shade(S.body, -.2 - (i % 2) * .15))
+      });
+    }
+    this._plan_leviathan(g, S, m);
+    // a second, smaller row of eyes that opens when she is angry
+    if (m && m.rage) {
+      for (let i = 0; i < 5; i++) {
+        this._eye(g, len * (.3 - i * .12), h * .45, h * .12, '#ff4d7a', { slit: true, blink: S.blink, glow: '#c46bff' });
+      }
+    }
+  },
+
   /* ------------------------------ below the boat ---------------------------- */
 
   // scenery that never moves, laid out once from a fixed seed (not
@@ -444,6 +466,47 @@ Object.assign(Art, {
         g.fillStyle = '#e2645c'; g.fillRect(snap(m.x - bw / 2), snap(by), snap(bw * m.hp / m.maxHp), 4);
       }
     }
+    // Nerys, when she is here
+    const G = D.girl;
+    if (G.visible) this.girl(g, G.x, G.y, { pose: 'swim', face: G.face, t, rot: Math.sin(t * 2) * .08 });
+
+    // the Mother, her reach, and the current holding him in
+    const B = D.boss;
+    if (B) {
+      const alive = !B.dead;
+      if (alive && B.state !== 'scene') {
+        g.save();
+        g.fillStyle = 'rgba(190,220,240,.35)';
+        for (const ex of [CITY_X - MOTHER_ARENA.w / 2, CITY_X + MOTHER_ARENA.w / 2]) {
+          for (let i = 0; i < 24; i++) {
+            const by = MOTHER_ARENA.top + ((i * 97 + t * 160) % (DIVE_FLOOR - MOTHER_ARENA.top));
+            g.fillRect(snap(ex + Math.sin(i * 3.1 + t * 2) * 10), snap(by), 4, 4);
+          }
+        }
+        g.restore();
+      }
+      if (B.state === 'tele' && B.atk === 'sweep') {
+        g.fillStyle = Math.sin(t * 24) > 0 ? 'rgba(255,90,120,.55)' : 'rgba(255,90,120,.2)';
+        g.fillRect(CITY_X - MOTHER_ARENA.w / 2, snap(B.sweepY) - 3, MOTHER_ARENA.w, 6);
+      }
+      g.save();
+      if (B.dead) g.globalAlpha = clamp(1 - B.t / 3, .15, 1);
+      this.monster(g, { x: B.x, y: B.y, face: B.face, rot: B.rot, len: B.def.len, def: B.def, flash: B.flash, gape: B.gape, seed: B.seed, thrashAmt: B.thrash, noShadow: true, rage: alive && B.phase >= 2 }, t);
+      g.restore();
+      if (B.state === 'sweep') {
+        // one tentacle, the whole width of the arena
+        const mx = B.x - B.face * B.def.len * .2, my = B.y + 40;
+        g.strokeStyle = css(shade(B.def.body, -.1)); g.lineWidth = 22;
+        g.beginPath(); g.moveTo(mx, my);
+        g.quadraticCurveTo((mx + B.sweepX) / 2, Math.max(my, B.sweepY) + 120, B.sweepX, B.sweepY);
+        g.stroke();
+        g.strokeStyle = css(B.def.belly); g.lineWidth = 6;
+        g.beginPath(); g.moveTo(mx, my + 8);
+        g.quadraticCurveTo((mx + B.sweepX) / 2, Math.max(my, B.sweepY) + 128, B.sweepX, B.sweepY + 8);
+        g.stroke();
+      }
+    }
+
     for (const b of D.globs) {
       g.fillStyle = 'rgba(40,20,60,.95)';
       g.beginPath(); g.arc(b.x, b.y, b.r, 0, 6.2832); g.fill();
@@ -485,7 +548,12 @@ Object.assign(Art, {
     // lights that the dark doesn't touch
     g.save();
     g.translate(Cam.shakeX - cx, Cam.shakeY - cy);
-    if (y1 > DIVE_FLOOR - 700) this._cityLights(g, decor, x0, x1, t);
+    // in her last phase, the city puts its lights out
+    if (y1 > DIVE_FLOOR - 700) {
+      g.globalAlpha = B && !B.dead && B.phase >= 3 ? .2 : 1;
+      this._cityLights(g, decor, x0, x1, t);
+      g.globalAlpha = 1;
+    }
     for (const c of decor.pillars) {
       if (!c.glyph || c.x < x0 || c.x > x1 || c.y - c.h > y1 || c.y < y0) continue;
       g.globalAlpha = .35 + Math.sin(t * 1.3 + c.x) * .15;
@@ -528,6 +596,11 @@ Object.assign(Art, {
       g.lineTo(z.x2, z.y2); g.stroke();
     }
     stepGlow(g, p.x + p.face * 26, p.y - 2, 10, 'rgb(255,236,190)', .6 * depth, { steps: 2 });
+    if (G.visible) stepGlow(g, G.x + G.face * 6, G.y + 6, 16, 'rgb(150,240,255)', .6, { steps: 2 });
+    if (B && B.state === 'inhale') {
+      const mo = D._mouth();
+      stepGlow(g, mo.x, mo.y, 90, 'rgb(200,120,255)', .5, { steps: 3 });
+    }
     Particles.draw(g, 0);
     Floaters.draw(g, 0);
     g.restore();
@@ -636,14 +709,14 @@ Object.assign(Art, {
     const F = DIVE_FLOOR;
     for (const tw of decor.towers) {
       if (tw.x + tw.w < x0 || tw.x > x1) continue;
+      const base = g.globalAlpha;
       for (const L of tw.lights) {
         const x = tw.x + L.dx, y = F - tw.h + L.dy;
-        const col = L.cyan ? '#9ff0ff' : '#ffd98a';
-        g.globalAlpha = .75 + Math.sin(t * .7 + L.dx) * .2;
-        g.fillStyle = col;
+        g.globalAlpha = base * (.75 + Math.sin(t * .7 + L.dx) * .2);
+        g.fillStyle = L.cyan ? '#9ff0ff' : '#ffd98a';
         g.fillRect(snap(x), snap(y), 4, 4);
       }
-      g.globalAlpha = 1;
+      g.globalAlpha = base;
     }
     if (CITY_X + 400 > x0 && CITY_X - 400 < x1) {
       for (let i = -3; i <= 3; i++) {

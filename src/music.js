@@ -132,6 +132,21 @@ const THEMES = {
     }
   },
 
+  /* the Mother Below: the trench opening its mouth */
+  abyss: {
+    bpm: 100, bar: 8, vol: 1.0, drone: 'A0',
+    prog: [['A1', 'tri'], ['A1', 'tri'], ['F1', 'five'], ['F1', 'five'],
+           ['D2', 'tri'], ['C2', 'tri'], ['F1', 'five'], ['E1', 'dim']],
+    voice(M, t, step, bar, beat, chord) {
+      if (beat % 2 === 0) M._bass(t, hz(chord[0]), .5, beat === 0 ? .26 : .16, 'sawtooth');
+      if (beat === 0 || beat === 3 || beat === 6) M._drum(t, 'kick');
+      if (beat === 4) M._drum(t, 'tom');
+      if (beat === 0) M._pad(t, M._notes(chord, 12), 2.4, .06);
+      if (beat === 7) M._pluck(t, hz(chord[0], 25), .4, .08, 'square');
+      if (bar % 4 === 3 && beat === 5) M._bell(t, hz('D#4'), 4.0, .05);
+    }
+  },
+
   /* sailing home */
   ending: {
     bpm: 74, bar: 8, vol: .9,

@@ -182,6 +182,23 @@ const Game = {
     });
   },
 
+  // at the bottom in the best suit with the best of everything, just short of her
+  devMother() {
+    Sfx.select();
+    this.fadeOut(() => {
+      Player.reset();
+      this.giveFishingGear();
+      Object.assign(Player, { beatBoss: true, suit: SUITS.length - 1, diveWeapon: DIVE_WEAPONS.length - 1 });
+      Player.x = FISH_X;
+      this.atSea();
+      this.state = 'dive';
+      Dive.start();
+      Dive.enterWater();
+      Object.assign(Dive.p, { x: CITY_X - 1300, y: 3500 });
+      Dive._camera(0, true);
+    });
+  },
+
   // out on the water at night with nothing going on: the state every load starts from
   atSea() {
     this.endingRun = false;
@@ -322,7 +339,7 @@ const Game = {
     const st = this.state === 'pause' ? this.pausedFrom : this.state;
     if (st === 'menu') want = 'title';
     else if (st === 'battle') want = (Battle.def && Battle.def.boss) ? 'boss' : 'battle';
-    else if (st === 'dive') want = Dive.underwater ? 'dive' : 'sea';
+    else if (st === 'dive') want = !Dive.underwater ? 'sea' : !Dive.boss ? 'dive' : Dive.boss.dead ? 'lanthorne' : 'abyss';
     else if (st === 'cutscene') want = this.endingRun ? 'ending' : this.cutKind === 'girl' ? 'lanthorne' : (this.night < .5 ? 'title' : 'sea');
     if (want !== this._musicWant) { this._musicWant = want; Music.set(want); }
   },

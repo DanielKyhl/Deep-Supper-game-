@@ -210,8 +210,26 @@ describe('the Brood below', () => {
     assert.ok(unique(ids), 'no id is shared with the fishing monsters');
   });
 
+  test('one boss below: the Mother, bigger and far tougher than the Old One', () => {
+    const bosses = D.filter(m => m.boss);
+    assert.equal(bosses.length, 1);
+    const M = bosses[0], old = MONSTERS.find(m => m.boss);
+    assert.equal(M.id, 'mother');
+    assert.equal(M.plan, 'mother');
+    assert.ok(M.hp > old.hp * 2, 'hp');
+    assert.ok(M.len > old.len, 'size');
+    assert.deepEqual(plain(M.atk).sort(), ['brood', 'inhale', 'maw', 'pulse', 'sweep']);
+    assert.match(M.flavour, /Old One/);
+  });
+
+  test('her broodlings only ever come out of her', () => {
+    const b = D.find(m => m.id === 'broodling');
+    assert.equal(b.spawnOnly, true);
+    assert.equal(b.zone, 4);
+  });
+
   test('every creature is fully specified, with underwater attacks only', () => {
-    for (const m of D) {
+    for (const m of D.filter(x => !x.boss)) {
       assert.ok(PLANS.includes(m.plan), m.id + ' plan');
       assert.ok(m.hp > 0 && m.len > 0 && m.value > 0 && m.dmg >= 1 && m.speed > 0 && m.aggro > 100, m.id + ' stats');
       assert.ok(m.girth > 0 && m.girth < 1);

@@ -569,6 +569,214 @@ describe('coming back up', () => {
   });
 });
 
+describe('the Mother Below', () => {
+  // at the bottom, geared, with nothing else about
+  function nearGate(gear, opts) {
+    const s = inWater(Object.assign({ suit: 3, diveWeapon: 0, maxHp: 9, hp: 9 }, gear), Object.assign({ empty: true }, opts));
+    Object.assign(s.p, { x: s.g.CITY_X - 1300, y: 3500, air: 999 });
+    return s;
+  }
+  // skip her speech and start the fight
+  function fighting(gear, opts) {
+    const s = nearGate(gear, opts);
+    s.D.startMother();
+    s.g.CUT.skip();
+    s.B = s.D.boss;
+    return s;
+  }
+
+  test('swimming up to the gate at the bottom starts her scene', () => {
+    const s = nearGate();
+    s.h.frame();
+    assert.equal(s.D.boss, null, 'not from out here');
+    s.p.x = s.g.CITY_X - 900;
+    s.h.frame();
+    assert.ok(s.D.boss);
+    assert.equal(s.D.phase, 'scene');
+    assert.equal(s.D.girl.visible, true);
+  });
+
+  test('she does not come for you higher up, or once she is beaten', () => {
+    const s = nearGate();
+    Object.assign(s.p, { x: s.g.CITY_X, y: 2800 });
+    s.h.frame();
+    assert.equal(s.D.boss, null);
+    const t = nearGate({ beatMother: true });
+    t.p.x = t.g.CITY_X;
+    t.h.frames(.5);
+    assert.equal(t.D.boss, null);
+  });
+
+  test('the first time, Nerys explains; after that, it goes straight to the fight', () => {
+    const s = nearGate();
+    s.D.startMother();
+    const lines = [];
+    for (let i = 0; i < 60 * 40 && s.D.phase === 'scene'; i++) {
+      if (s.g.Dialogue.active && s.g.Dialogue.done && s.g.Dialogue.hold > .05 && lines[lines.length - 1] !== s.g.Dialogue.full) { lines.push(s.g.Dialogue.full); s.h.press('Enter'); }
+      s.h.frame();
+    }
+    assert.match(lines.join(' '), /her child/);
+    assert.equal(s.D.phase, 'swim');
+    assert.equal(s.D.boss.state, 'idle');
+    s.D.boss = null;
+    s.D.startMother();
+    let said = false;
+    for (let i = 0; i < 60 * 5 && s.D.phase === 'scene'; i++) { said = said || s.g.Dialogue.active; s.h.frame(); }
+    assert.equal(said, false);
+    assert.equal(s.D.phase, 'swim');
+  });
+
+  test('once it starts, the current holds you in front of the gate', () => {
+    const s = fighting();
+    s.p.x = s.g.CITY_X - 700;
+    s.h.keyDown('KeyA'); s.h.frames(2);
+    assert.ok(s.p.x >= s.g.CITY_X - s.g.MOTHER_ARENA.w / 2);
+  });
+
+  test('she gets worse below two thirds and a third, with a banner each time, and never better', () => {
+    const s = fighting();
+    const B = s.B;
+    assert.deepEqual(plain(s.D.motherPool()).includes('brood'), false);
+    B.hp = B.maxHp * .6; s.D._bossPhase();
+    assert.equal(B.phase, 2);
+    assert.equal(s.D.banner.text, 'SHE IS NOT PLAYING');
+    assert.ok(s.D.motherPool().includes('inhale'));
+    B.hp = B.maxHp * .2; s.D._bossPhase();
+    assert.equal(B.phase, 3);
+    assert.equal(s.D.banner.text, 'LANTHORNE GOES DARK');
+    B.hp = B.maxHp; s.D._bossPhase();
+    assert.equal(B.phase, 3);
+  });
+
+  test('her lunging maw bites', () => {
+    const s = fighting();
+    const B = s.B;
+    Object.assign(B, { state: 'maw', t: 0, face: -1, x: s.p.x + B.def.len * .44, y: s.p.y, dirX: -1, dirY: 0 });
+    s.p.invuln = 0;
+    const hp = s.P.hp;
+    s.D._boss(1 / 60);
+    assert.ok(s.P.hp < hp);
+  });
+
+  test('her sweep scythes one depth: it hits there and misses above it', () => {
+    const hit = offset => {
+      const s = fighting();
+      const B = s.B;
+      Object.assign(B, { state: 'sweep', t: .3, sweepY: s.p.y + offset, sweepDir: 1, sweepX: s.p.x - 20 });
+      s.p.invuln = 0;
+      const hp = s.P.hp;
+      s.D._boss(1 / 60);
+      return hp - s.P.hp;
+    };
+    assert.ok(hit(0) > 0);
+    assert.equal(hit(-120), 0);
+  });
+
+  test('her pulse is one ring, and two once she is desperate', () => {
+    for (const [phase, rings] of [[1, 1], [3, 2]]) {
+      const s = fighting();
+      Object.assign(s.B, { state: 'pulse', t: 0, pulses: 0, phase });
+      for (let i = 0; i < 60; i++) s.D._boss(1 / 60);
+      assert.equal(s.D.rings.filter(r => r.from === 'mob').length, rings, 'phase ' + phase);
+    }
+  });
+
+  test('she spits out broodlings, never more than six at once', () => {
+    const s = fighting();
+    for (let k = 0; k < 4; k++) s.D._brood();
+    const brood = s.D.mobs.filter(m => m.def.id === 'broodling');
+    assert.equal(brood.length, 6);
+    assert.ok(brood.every(m => m.state === 'hunt'));
+  });
+
+  test('she breathes in and drags him toward her mouth', () => {
+    const s = fighting();
+    const B = s.B;
+    Object.assign(B, { state: 'inhale', t: 0, face: -1, x: s.p.x + 700, y: s.p.y });
+    s.p.vx = 0;
+    for (let i = 0; i < 20; i++) s.D._boss(1 / 60);
+    assert.ok(s.p.vx > 50, 'pulled toward her');
+  });
+
+  test('every weapon can hurt her, but nothing moves her much, and the eel cannot stun her', () => {
+    for (const w of [0, 2, 3, 4]) {
+      const s = fighting({ diveWeapon: w });
+      still(s.h);
+      const B = s.B;
+      Object.assign(B, { state: 'rest', t: 0, restDur: 99, x: s.p.x + 330, y: s.p.y, vx: 0, vy: 0 });
+      s.p.face = 1;
+      s.h.tap('KeyJ'); s.h.frames(.7);
+      assert.ok(B.hp < B.maxHp, 'weapon ' + w);
+      assert.notEqual(B.state, 'stun');
+      assert.ok(Math.abs(B.vx) < 80, 'knocked back ' + B.vx);
+    }
+  });
+
+  test('killing her: the young go with her, she sinks, and Nerys closes part two', () => {
+    const s = fighting();
+    s.D._brood();
+    const B = s.B;
+    B.hp = 1;
+    Object.assign(B, { state: 'rest', t: 0, restDur: 99, x: s.p.x + 330, y: s.p.y });
+    s.p.face = 1;
+    s.h.tap('KeyJ'); s.h.frames(.3);
+    assert.equal(B.dead, true);
+    assert.equal(s.D.phase, 'scene');
+    assert.ok(s.D.mobs.filter(m => m.def.spawnOnly).every(m => m.dead));
+    assert.equal(s.P.catches[s.P.catches.length - 1].id, 'mother');
+    assert.equal(s.P.kills.mother, 1);
+    s.h.frame();
+    assert.equal(s.g.Music.themeName, 'lanthorne');
+    let title = null;
+    for (let i = 0; i < 60 * 60 && s.D.phase === 'scene'; i++) {
+      if (s.g.CUT.titleCard) title = s.g.CUT.titleCard.title;
+      if (s.g.Dialogue.active && s.g.Dialogue.done && s.g.Dialogue.hold > .1) s.h.press('Enter');
+      s.h.frame();
+    }
+    assert.equal(title, 'END OF PART TWO');
+    assert.equal(s.P.beatMother, true);
+    assert.equal(s.D.boss, null);
+    assert.equal(s.D.phase, 'swim');
+    assert.equal(JSON.parse(s.h.storage.get('deepsupper.save.v1')).beatMother, true);
+  });
+
+  test('blacking out against her ends the encounter, to be tried again next dive', () => {
+    const s = fighting();
+    s.P.hp = 1; s.p.invuln = 0;
+    s.D.hurtPlayer(1, s.p.x + 10, s.p.y);
+    assert.ok(s.h.until(() => s.g.Game.state === 'play', 3));
+    assert.equal(s.D.boss, null);
+    assert.equal(s.P.beatMother, false);
+  });
+
+  test('music: the abyss while she fights', () => {
+    const s = fighting();
+    s.h.frame();
+    assert.equal(s.g.Music.themeName, 'abyss');
+  });
+
+  test('the test shortcut puts you at the bottom, geared, short of the gate', () => {
+    const { h, g } = loadGame({ draw: false, seed: 2 });
+    g.Game.devMother();
+    assert.ok(h.until(() => g.Dive.underwater && g.Game.fade.dir === 0, 3));
+    assert.equal(g.Player.suit, g.SUITS.length - 1);
+    assert.equal(g.Player.diveWeapon, g.DIVE_WEAPONS.length - 1);
+    assert.equal(g.Dive.boss, null);
+    assert.ok(g.Dive.p.y > 3300);
+  });
+
+  test('her health bar, and the banners, are on the HUD', () => {
+    const s = fighting({}, { draw: true });
+    s.h.sandbox.__text = [];
+    s.h.eval('(() => { const f = Text.draw; Text.draw = function (g, t, ...a) { __text.push(String(t)); return f.call(this, g, t, ...a); }; })()');
+    s.B.hp = s.B.maxHp * .5; s.D._bossPhase();
+    s.h.frame();
+    assert.ok(s.h.sandbox.__text.includes('THE MOTHER BELOW'));
+    assert.ok(s.h.sandbox.__text.includes('PHASE 2'));
+    assert.ok(s.h.sandbox.__text.includes('SHE IS NOT PLAYING'));
+  });
+});
+
 describe('the diving HUD', () => {
   function withText(gear) {
     const s = inWater(gear, { draw: true, empty: true });

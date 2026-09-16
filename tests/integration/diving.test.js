@@ -173,7 +173,7 @@ describe('diving', () => {
     goUnder(h);
     const D = h.g.Dive, rec = h.hires();
     for (const y of [60, 700, 1500, 2600, 3500, 3950]) {
-      Object.assign(D.p, { x: 1400, y });
+      Object.assign(D.p, { x: 700, y });
       D._camera(0, true);
       h.press('KeyJ');
       for (let i = 0; i < 20; i++) {
