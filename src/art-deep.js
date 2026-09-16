@@ -294,28 +294,6 @@ Object.assign(Art, {
     g.restore();
   },
 
-  /* The Mother Below: her child's body, grown enormous, with a crown of long
-     tentacles streaming back from her head. */
-  _plan_mother(g, S, m) {
-    const { len, h, t, seed } = S;
-    for (let i = 0; i < 8; i++) {
-      const side = i % 2 ? 1 : -1;
-      this._limb(g, {
-        x: len * (.3 - i * .025), y: side * h * (.35 + (i % 4) * .12),
-        ang: Math.PI + side * (.35 + i * .06), len: len * (.42 + (i % 3) * .08),
-        w0: h * .16, w1: 2, curl: side * (.5 + (i % 3) * .2), wave: .35, sp: 1.6 + i * .1,
-        t, seed: seed + i * 3, color: css(shade(S.body, -.2 - (i % 2) * .15))
-      });
-    }
-    this._plan_leviathan(g, S, m);
-    // a second, smaller row of eyes that opens when she is angry
-    if (m && m.rage) {
-      for (let i = 0; i < 5; i++) {
-        this._eye(g, len * (.3 - i * .12), h * .45, h * .12, '#ff4d7a', { slit: true, blink: S.blink, glow: '#c46bff' });
-      }
-    }
-  },
-
   /* ------------------------------ below the boat ---------------------------- */
 
   // scenery that never moves, laid out once from a fixed seed (not
