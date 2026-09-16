@@ -13,13 +13,27 @@ describe('Dialogue', () => {
     assert.equal(g.Dialogue.done, false);
   });
 
-  test('holding confirm types faster', () => {
-    const { h, g } = loadGame({ draw: false });
-    g.Prefs.textCps = 40;
+  test('the first press finishes typing the line, the next asks for the next line', () => {
+    const { g } = loadGame({ draw: false });
     g.Dialogue.show('Dad', 'x'.repeat(200));
-    h.keyDown('Enter');
-    g.Dialogue.update(.5);
-    assert.equal(Math.floor(g.Dialogue.shown), 64);
+    g.Dialogue.update(.1);
+    assert.equal(g.Dialogue.press(), false, 'first press only completes the line');
+    assert.equal(g.Dialogue.done, true);
+    assert.equal(g.Dialogue.shown, 200);
+    assert.equal(g.Dialogue.press(), false, 'not on the same frame it completed');
+    g.Dialogue.update(1 / 60);
+    assert.equal(g.Dialogue.press(), true);
+  });
+
+  test('confirm, interact and a mouse click all count as a press', () => {
+    for (const act of [h => h.press('Enter'), h => h.press('Space'), h => h.press('KeyE'), h => h.press('KeyF'), h => h.click(10, 10)]) {
+      const { h, g } = loadGame({ draw: false });
+      act(h);
+      assert.equal(g.Dialogue.pressed(), true);
+    }
+    const { h, g } = loadGame({ draw: false });
+    h.press('KeyJ');
+    assert.equal(g.Dialogue.pressed(), false);
   });
 
   test("'instant' text speed shows the whole line in one frame", () => {
@@ -30,15 +44,12 @@ describe('Dialogue', () => {
     assert.equal(g.Dialogue.done, true);
   });
 
-  test('a finished line counts as read only after it has been held', () => {
+  test('a finished line waits for as long as it takes', () => {
     const { g } = loadGame({ draw: false });
     g.Dialogue.show('You', 'Hm.');
-    g.Dialogue.update(1);
+    for (let i = 0; i < 60 * 30; i++) g.Dialogue.update(1 / 60);
     assert.equal(g.Dialogue.done, true);
-    assert.equal(g.Dialogue.finished(), false);
-    g.Dialogue.update(1.4);
-    assert.equal(g.Dialogue.finished(), true);
-    assert.equal(g.Dialogue.finished(5), false);
+    assert.equal(g.Dialogue.active, true, 'still on screen after thirty seconds');
   });
 
   test('draws nothing when hidden and a name plate when a speaker is set', () => {
@@ -96,15 +107,17 @@ describe('the cutscene sequencer', () => {
     assert.equal(g.CUT.tweens.length, 0);
   });
 
-  test('a spoken line waits to be read, and a tap after that moves on', () => {
+  test('a spoken line waits for a press to finish it and another to move on', () => {
     const { h, g } = loadGame({ draw: false });
-    g.Settings.set('textSpeed', 'instant');
-    g.CUT.play(steps(h, '[sSay("Dad", "Go on."), sWait(99)]'));
-    g.CUT.update(.1); g.CUT.update(.1);
+    g.CUT.play(steps(h, '[sSay("Dad", "Go on, lad, the tide will not wait for you."), sWait(99)]'));
+    for (let i = 0; i < 600; i++) g.CUT.update(1 / 60);
+    assert.equal(g.CUT.i, 0, 'ten seconds later, still waiting');
+    g.Dialogue.shown = 3; g.Dialogue.done = false;
+    h.press('Enter'); g.CUT.update(1 / 60); g.Input.endFrame();
+    assert.equal(g.Dialogue.done, true, 'first press shows the whole line');
     assert.equal(g.CUT.i, 0);
-    g.CUT.update(.2);
-    h.press('Enter');
-    g.CUT.update(.01);
+    g.CUT.update(1 / 60);
+    h.press('Enter'); g.CUT.update(1 / 60); g.Input.endFrame();
     assert.equal(g.CUT.i, 1);
   });
 
@@ -167,13 +180,25 @@ describe('the opening and the ending', () => {
     assert.equal(g.CUT.harbourX, -1400);
   });
 
-  test('the opening needs no input: left alone it plays through to free play', () => {
+  test('the opening only needs reading: pressing through the lines reaches free play', () => {
     const { h, g } = loadGame({ draw: false });
     g.Game.newGame();
     assert.equal(g.Game.state, 'cutscene');
-    h.until(() => g.Game.state === 'play', 150, 1 / 20);
+    for (let i = 0; i < 4000 && g.Game.state === 'cutscene'; i++) {
+      if (g.Dialogue.active && i % 10 === 0) h.press('Enter');
+      h.frame(1 / 20);
+    }
     assert.equal(g.Game.state, 'play');
     assert.equal(g.Game.night, 1);
+  });
+
+  test('left alone, the opening stops on its first line rather than rushing past it', () => {
+    const { h, g } = loadGame({ draw: false });
+    g.Game.newGame();
+    h.frames(60, 1 / 20);
+    assert.equal(g.Game.state, 'cutscene');
+    assert.equal(g.Dialogue.active, true);
+    assert.match(g.Dialogue.full, /There you are/);
   });
 
   test('the ending brings Dad back to the harbour at dawn', () => {

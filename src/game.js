@@ -365,8 +365,7 @@ const Game = {
     if (Dialogue.active) {
       Dialogue.update(dt);
       P.state = 'idle';
-      if (Dialogue.done && (Input.tap('confirm') || Input.tap('interact')) && Dialogue.hold > .1) this._nextMsg();
-      else if (Dialogue.finished(3.6)) this._nextMsg();
+      if (Dialogue.pressed() && Dialogue.press()) this._nextMsg();
       return;
     }
 

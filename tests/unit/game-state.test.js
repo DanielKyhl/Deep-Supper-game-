@@ -42,11 +42,17 @@ describe('messages and toasts', () => {
     assert.equal(g.Dialogue.full, 'Second.');
   });
 
-  test('unread lines still move on by themselves', () => {
+  test('lines on deck wait to be read, then a press finishes one and the next moves on', () => {
     const { h, g } = loadGame({ draw: false });
     h.startVoyage();
-    g.Game.say(['You', 'Hm.'], ['You', 'Hmm.']);
-    h.frames(5);
+    g.Game.say(['You', 'A line long enough that it takes a good while to type out.'], ['You', 'Hmm.']);
+    h.frame();
+    h.tap('KeyE');
+    assert.equal(g.Dialogue.done, true);
+    assert.match(g.Dialogue.full, /A line long/);
+    h.frames(10);
+    assert.match(g.Dialogue.full, /A line long/, 'still there ten seconds later');
+    h.tap('KeyE');
     assert.equal(g.Dialogue.full, 'Hmm.');
   });
 

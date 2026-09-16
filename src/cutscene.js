@@ -17,17 +17,34 @@ const Dialogue = {
     this.tick += dt;
     if (!this.done) {
       const prev = Math.floor(this.shown);
-      this.shown += Prefs.textCps * dt * (Input.held('confirm') ? 3.2 : 1);
+      this.shown += Prefs.textCps * dt;
       if (Math.floor(this.shown) > prev && Math.floor(this.shown) % 2 === 0) Sfx.text();
-      if (this.shown >= this.full.length) { this.shown = this.full.length; this.done = true; this.hold = 0; }
+      if (this.shown >= this.full.length) this.complete();
     } else {
       this.hold += dt;
     }
   },
 
-  // true when the line has been read long enough / skipped
-  finished(minHold) {
-    return this.done && this.hold >= (minHold === undefined ? 1.35 : minHold);
+  // show the rest of the line at once
+  complete() {
+    if (!this.active || this.done) return;
+    this.shown = this.full.length;
+    this.done = true;
+    this.hold = 0;
+  },
+
+  /* Lines never move on by themselves: some people read slower than others.
+     The first press finishes typing the line, the next one moves on. Returns
+     true when this press asks for the next line. */
+  press() {
+    if (!this.active) return false;
+    if (!this.done) { this.complete(); return false; }
+    return this.hold > 0;      // not the same frame the line finished on
+  },
+
+  // the keys (or click) that read on
+  pressed() {
+    return Input.tap('confirm') || Input.tap('interact') || Input.mouse().click;
   },
 
   draw(g) {
@@ -210,15 +227,11 @@ function sWait(d) {
 function sAct(fn) {
   return { enter: fn, update() { return true; } };
 }
-function sSay(who, text, minHold) {
+function sSay(who, text) {
   return {
     enter() { Dialogue.show(who, text); },
-    update(dt, c) {
-      if (Dialogue.finished(minHold)) { return true; }
-      // a tap advances once the line is fully typed
-      if (Dialogue.done && Input.tap('confirm') && Dialogue.hold > .15) return true;
-      return false;
-    }
+    // waits for the reader: one press finishes the line, the next moves on
+    update() { return Dialogue.pressed() && Dialogue.press(); }
   };
 }
 function sHideText() {

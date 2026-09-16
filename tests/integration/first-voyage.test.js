@@ -18,10 +18,15 @@ describe('the first voyage', () => {
     assert.equal(h.g.Music.themeName, 'title');
   });
 
-  test('left alone, the opening plays through into free play at night', () => {
+  test('reading through every line of the opening ends in free play at night', () => {
     const h = loadGame({ seed: 1, draw: false });
     F.newVoyageFromMenu(h);
-    h.until(() => h.g.Game.state === 'play', 150, 1 / 20);
+    let lines = 0;
+    for (let i = 0; i < 60 * 240 && h.g.Game.state === 'cutscene'; i++) {
+      if (h.g.Dialogue.active && h.g.Dialogue.done && h.g.Dialogue.hold > .3) { h.tap('Enter'); lines++; }
+      else h.frame();
+    }
+    assert.ok(lines > 15, 'read ' + lines + ' lines');
     assert.equal(h.g.Game.state, 'play');
     assert.equal(h.g.Game.night, 1);
     assert.equal(h.g.CUT.dad.visible, false);
