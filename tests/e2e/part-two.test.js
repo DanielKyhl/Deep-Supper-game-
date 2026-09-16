@@ -98,6 +98,57 @@ describe('test shortcuts, diving and the Mother in the app', () => {
     assert.ok(y1 - y0 > 150, 'swam down ' + (y1 - y0));
   });
 
+  test('a real mouse aims and fires: hold the button and it keeps firing, with a crosshair for a pointer', async () => {
+    await page.evaluate(() => { Dive.mobs.length = 0; Object.assign(Dive.p, { x: 1500, y: 600, vx: 0, vy: 0, air: 1e9 }); Dive._camera(0, true); });
+    await page.waitForTimeout(200);
+    // a point below and to the left of him, in page pixels
+    const at = await page.evaluate(() => {
+      const r = canvas.getBoundingClientRect();
+      const gx = Dive.p.x - Dive.cam.x - 200, gy = Dive.p.y - Dive.cam.y + 150;
+      return { x: r.left + gx / VIEW_W * r.width, y: r.top + gy / VIEW_H * r.height };
+    });
+    await page.mouse.move(at.x, at.y);
+    await page.evaluate(() => { window.__fired = 0; const f = Dive.fire; Dive.fire = function () { __fired++; return f.apply(this, arguments); }; });
+    await page.mouse.down();
+    await page.waitForTimeout(1500);
+    const s = await page.evaluate(() => ({ fired: __fired, aim: Dive.p.aim, mouseAim: Dive.mouseAim, cursor: canvas.style.cursor }));
+    await page.mouse.up();
+    assert.ok(s.fired >= 2, 'fired ' + s.fired + ' times');
+    assert.ok(s.aim > Math.PI / 2 && s.aim < Math.PI, 'aimed down-left: ' + s.aim);
+    assert.equal(s.mouseAim, true);
+    assert.equal(s.cursor, 'none');
+  });
+
+  test('a creature swims into view as pixel art, drawn from its cache between animation steps', async () => {
+    const sample = () => page.evaluate(() => {
+      const c = document.createElement('canvas');
+      c.width = canvas.width; c.height = canvas.height;
+      const x = c.getContext('2d');
+      x.drawImage(canvas, 0, 0);
+      const px = Math.round((Dive.p.x + 300 - Dive.cam.x) / VIEW_W * c.width), py = Math.round((Dive.p.y - Dive.cam.y) / VIEW_H * c.height);
+      return Array.from(x.getImageData(px, py, 1, 1).data);
+    });
+    await page.evaluate(() => { Dive.mobs.length = 0; Object.assign(Dive.p, { x: 1500, y: 600, vx: 0, vy: 0, air: 1e9, invuln: 1e9 }); Dive._camera(0, true); });
+    await page.waitForTimeout(300);
+    const water = await sample();
+    await page.evaluate(() => {
+      const m = Dive.makeMob(monsterDef('reefgnasher'), Dive.p.x + 300, Dive.p.y, 1);
+      Object.assign(m, { state: 'stun', stun: 999, face: -1 });
+      window.__counts = { draw: 0, raster: 0 };
+      const d = Beast.draw, b = Spr.begin;
+      Beast.draw = function () { __counts.draw++; return d.apply(this, arguments); };
+      Spr.begin = function () { __counts.raster++; return b.apply(this, arguments); };
+    });
+    await page.waitForTimeout(1000);
+    const s = await page.evaluate(() => ({ counts: __counts, held: [...Beast._held.keys()].some(k => k.startsWith('reefgnasher/')) }));
+    const fish = await sample();
+    assert.ok(s.held, 'its pixels are kept between steps');
+    assert.ok(s.counts.draw > 20, 'drawn ' + s.counts.draw + ' times');
+    assert.ok(s.counts.raster < s.counts.draw * .75, 'rasterised ' + s.counts.raster + ' of ' + s.counts.draw);
+    const diff = Math.abs(fish[0] - water[0]) + Math.abs(fish[1] - water[1]) + Math.abs(fish[2] - water[2]);
+    assert.ok(diff > 40, 'the creature is on screen: ' + water + ' -> ' + fish);
+  });
+
   test('E at the ladder climbs back aboard', async () => {
     await page.evaluate(() => { Object.assign(Dive.p, { x: DIVE_LADDER_X, y: 40, vx: 0, vy: 0 }); });
     await page.waitForTimeout(200);
