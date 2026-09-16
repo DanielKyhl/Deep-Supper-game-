@@ -31,6 +31,20 @@ describe('opening the stall', () => {
     assert.doesNotMatch(S.line, /met someone/, 'he only says it once');
   });
 
+  test('an empty hold says so, with no price on the row', () => {
+    const h = loadGame({ draw: true, seed: 4 });
+    h.startVoyage();
+    const g = h.g;
+    g.Shop.open();
+    g.Shop.tab = 0;
+    const drawn = [];
+    const draw = g.Text.draw;
+    g.Text.draw = function (ctx, s) { drawn.push(String(s)); return draw.apply(this, arguments); };
+    try { g.Shop.draw(h.eval('bctx')); } finally { g.Text.draw = draw; }
+    assert.ok(drawn.includes('Nothing to sell'));
+    assert.ok(!drawn.some(s => /undefined|NaN/.test(s)), drawn.filter(s => /§/.test(s)).join(', '));
+  });
+
   test('opens on GEAR when the hold is empty', () => {
     assert.equal(atStall().S.tab, 1);
   });

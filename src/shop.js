@@ -299,7 +299,7 @@ const Shop = {
           rx, y + 34, { size: 13, color: '#6f9e84', weight: 'bold', align: 'right', font: 'Verdana, sans-serif' });
       } else if (r.locked) {
         Text.draw(g, '—', rx, y + 34, { size: 18, color: '#4e566d', align: 'right' });
-      } else {
+      } else if (r.kind !== 'none') {
         const afford = Player.coins >= r.price;
         Text.draw(g, r.price + '§', rx, y + 34, {
           size: 21, color: afford ? '#f0cf8a' : '#a05a5a', weight: 'bold', align: 'right', font: 'Verdana, sans-serif'
