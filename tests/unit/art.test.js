@@ -120,6 +120,25 @@ describe('drawing characters and monsters', () => {
     }
   });
 
+  test('the diving suit draws on every tier, standing and swimming, with every weapon', () => {
+    for (const suit of g.SUITS) {
+      for (const face of [1, -1]) {
+        balanced('standing ' + suit.id, () => g.Art.diverStanding(bctx, 400, g.DECK_Y, { face, suit, t: 1, state: 'walk', rot: .2 }));
+        for (const weapon of g.DIVE_WEAPONS) {
+          balanced('swimming ' + suit.id + ' ' + weapon.id, () => g.Art.diver(bctx, 300, 200, { face, suit, weapon, t: 1.3, kick: .8, aim: -.7, tilt: .2, attackP: .4, thrust: 6, alpha: .5 }));
+        }
+      }
+    }
+  });
+
+  test('every underwater weapon draws idle and mid-attack', () => {
+    for (const w of g.DIVE_WEAPONS) for (const p of [0, .3, .9]) balanced(w.id + ' ' + p, () => g.Art.diveWeapon(bctx, w, 2, p));
+  });
+
+  test("the Old One's leavings draw on the deck", () => {
+    balanced('drops', () => g.Art.drops(bctx, 500, g.DECK_Y, 3));
+  });
+
   test('Dad and Dorran draw', () => {
     balanced('dad', () => g.Art.dad(bctx, 300, g.DECK_Y, { face: -1, t: 1, state: 'walk' }));
     balanced('dorran', () => g.Art.dorran(bctx, 700, g.DECK_Y, { t: 1 }));

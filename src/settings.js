@@ -255,7 +255,10 @@ const SAVE_FIELDS = {
   luck:       { type: 'bool' },
   beatBoss:   { type: 'bool' },
   introDone:  { type: 'bool' },
-  girlMet:    { type: 'bool' }
+  girlMet:    { type: 'bool' },
+  suit:       { type: 'int', min: -1, max: SUITS.length - 1 },
+  diveWeapon: { type: 'int', min: -1, max: DIVE_WEAPONS.length - 1 },
+  beatMother: { type: 'bool' }
 };
 
 const SaveGame = {
@@ -295,6 +298,10 @@ const SaveGame = {
     if (d.maxHp < 5) d.maxHp = 5;
     d.hp = clamp(d.hp, 1, d.maxHp);
     d.crateOpen = raw.crateOpen === true || d.weapon >= 0;
+    // beating the Old One always leaves you its diving suit and harpoon,
+    // including in saves from before there was anything to leave
+    if (d.beatBoss && d.suit < 0) d.suit = 0;
+    if (d.suit >= 0 && d.diveWeapon < 0) d.diveWeapon = 0;
     d.x = (typeof raw.x === 'number' && isFinite(raw.x)) ? clamp(raw.x, WALK_L, WALK_R) : 640;
     d.kills = {};
     if (raw.kills && typeof raw.kills === 'object') {
@@ -342,7 +349,8 @@ const SaveGame = {
   // "Deepline Rod · 340§" — what a save holds, in a few words
   describe(d) {
     if (!d) return '— empty —';
-    return RODS[d.rod].name + ' · ' + d.coins + '§';
+    const gear = d.suit >= 0 ? SUITS[d.suit].name : RODS[d.rod].name;
+    return gear + ' · ' + d.coins + '§';
   },
 
   // "16 Sep 19:04"

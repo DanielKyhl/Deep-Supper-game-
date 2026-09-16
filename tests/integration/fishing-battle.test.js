@@ -230,21 +230,47 @@ describe('the Old One', () => {
     assert.ok(h.sandbox.__phases.indexOf('2!') < h.sandbox.__phases.indexOf('3!'));
   });
 
-  test('beating it plays the ending, then you sail out again with it on record', () => {
+  test('beating it drops a diving suit and a harpoon, ends part one, and you sail out to dive', () => {
     const h = bossFight(3);
     assert.equal(F.fightBot(h, 200), true);
     assert.equal(h.g.Game.state, 'cutscene');
     assert.equal(h.g.Game.endingRun, true);
     h.frame();
     assert.equal(h.g.Music.themeName, 'ending');
+    assert.equal(h.g.CUT.drops.visible, true, 'the suit and harpoon lie on the deck');
     assert.equal(JSON.parse(h.storage.get('deepsupper.save.v1')).beatBoss, true);
     h.keyDown('Escape');
     h.until(() => h.g.Game.state === 'play', 10);
     h.keyUp('Escape');
     assert.equal(h.g.Game.state, 'play');
     assert.match(h.g.Game.toastText, /sail out again/);
+    assert.equal(h.g.Player.suit, 0);
+    assert.equal(h.g.Player.diveWeapon, 0);
+    assert.equal(h.g.CUT.drops.visible, false);
     assert.equal(h.g.Player.catches.find(c => c.id === 'leviathan').id, 'leviathan', 'its carcass is in the hold to sell');
     h.g.Player.catches.length = 0;
-    assert.match(h.g.Game.objective(), /quiet/);
+    assert.match(h.g.Game.objective(), /Dive at the bow/);
+    const save = JSON.parse(h.storage.get('deepsupper.save.v1'));
+    assert.equal(save.suit, 0);
+    assert.equal(save.diveWeapon, 0);
+  });
+
+  test('read in full, the ending has Dad recognise the suit, and ends part one', () => {
+    const h = bossFight(3);
+    h.g.Game.startEnding();
+    const lines = [];
+    let title = null;
+    for (let i = 0; i < 60 * 200 && h.g.Game.state === 'cutscene'; i++) {
+      if (h.g.CUT.titleCard) title = h.g.CUT.titleCard.title;
+      if (h.g.Dialogue.active && h.g.Dialogue.done && h.g.Dialogue.hold > .2) { lines.push(h.g.Dialogue.full); h.tap('Enter'); }
+      else h.frame();
+    }
+    const all = lines.join(' ');
+    assert.match(all, /diving suit/);
+    assert.match(all, /great-grandad/);
+    assert.match(all, /Don't you dare/);
+    assert.equal(title, 'END OF PART ONE');
+    h.until(() => h.g.Game.state === 'play', 3);
+    assert.equal(h.g.Player.suit, 0);
   });
 });

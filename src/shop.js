@@ -41,6 +41,26 @@ const Shop = {
       if (!r.length) r.push({ kind: 'none', name: 'Nothing to sell', sub: 'Catch something first. Anything.' });
       return r;
     }
+    if (this.tab === 1 && Player.suit >= 0) {
+      // after the Old One: suits and things to fight with underwater
+      const r = [{ kind: 'head', name: 'SUITS' }];
+      SUITS.forEach((s, i) => {
+        r.push({
+          kind: 'suit', idx: i, name: s.name, sub: s.desc, price: s.price,
+          owned: i <= Player.suit, locked: i > Player.suit + 1,
+          stat: 'depth ' + Math.round(s.depth / 50) + ' fm  ·  air ' + s.air + 's'
+        });
+      });
+      r.push({ kind: 'head', name: 'ARMS' });
+      DIVE_WEAPONS.forEach((w, i) => {
+        r.push({
+          kind: 'diveweapon', idx: i, name: w.name, sub: w.desc, price: w.price,
+          owned: i <= Player.diveWeapon, locked: i > Player.diveWeapon + 1,
+          stat: 'damage ' + w.dmg + '  ·  ' + w.style
+        });
+      });
+      return r;
+    }
     if (this.tab === 1) {
       const r = [{ kind: 'head', name: 'RODS' }];
       RODS.forEach((rod, i) => {
@@ -152,6 +172,12 @@ const Shop = {
       this.say('Deeper line. Deeper things. Your choice, lad.');
     } else if (r.kind === 'weapon') {
       Player.weapon = Math.max(Player.weapon, r.idx);
+      this.say(choice(DORRAN_BUY));
+    } else if (r.kind === 'suit') {
+      Player.suit = Math.max(Player.suit, r.idx);
+      this.say("Deeper's colder. Don't come crying to me about the cold.");
+    } else if (r.kind === 'diveweapon') {
+      Player.diveWeapon = Math.max(Player.diveWeapon, r.idx);
       this.say(choice(DORRAN_BUY));
     } else {
       const gd = r.def;
@@ -267,7 +293,9 @@ const Shop = {
           size: 21, color: '#f0cf8a', weight: 'bold', align: 'right', font: 'Verdana, sans-serif'
         });
       } else if (r.owned) {
-        Text.draw(g, r.kind === 'rod' && r.idx === Player.rod ? 'IN USE' : (r.kind === 'weapon' && r.idx === Player.weapon ? 'IN USE' : 'OWNED'),
+        const inUse = (r.kind === 'rod' && r.idx === Player.rod) || (r.kind === 'weapon' && r.idx === Player.weapon) ||
+          (r.kind === 'suit' && r.idx === Player.suit) || (r.kind === 'diveweapon' && r.idx === Player.diveWeapon);
+        Text.draw(g, inUse ? 'IN USE' : 'OWNED',
           rx, y + 34, { size: 13, color: '#6f9e84', weight: 'bold', align: 'right', font: 'Verdana, sans-serif' });
       } else if (r.locked) {
         Text.draw(g, '—', rx, y + 34, { size: 18, color: '#4e566d', align: 'right' });

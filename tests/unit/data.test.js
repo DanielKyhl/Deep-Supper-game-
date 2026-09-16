@@ -65,6 +65,63 @@ describe('weapons', () => {
   });
 });
 
+describe('diving suits', () => {
+  const SUITS = g.SUITS;
+
+  test('four suits, the first free, each going deeper with more air', () => {
+    assert.equal(SUITS.length, 4);
+    assert.equal(SUITS[0].price, 0);
+    assert.ok(unique(SUITS.map(s => s.id)));
+    for (let i = 1; i < SUITS.length; i++) {
+      for (const k of ['price', 'depth', 'air', 'speed', 'lamp']) assert.ok(SUITS[i][k] > SUITS[i - 1][k], SUITS[i].id + ' ' + k);
+    }
+  });
+
+  test('suit colours are usable', () => {
+    for (const s of SUITS) {
+      assert.match(s.brass, /^#[0-9a-f]{6}$/i);
+      assert.match(s.rubber, /^#[0-9a-f]{6}$/i);
+      assert.ok(s.desc.length > 10);
+    }
+  });
+});
+
+describe('diving weapons', () => {
+  const W = g.DIVE_WEAPONS;
+
+  test('the starter is the harpoon the Old One dropped', () => {
+    assert.equal(W[0].id, 'harpoon');
+    assert.equal(W[0].price, 0);
+    assert.match(W[0].desc, /Old One/);
+  });
+
+  test('nothing that goes bang: no guns underwater', () => {
+    for (const w of W) assert.doesNotMatch(w.name + ' ' + w.desc, /gun|pistol|rifle|musket|cannon|bullet|powder/i, w.id);
+  });
+
+  test('every weapon draws differently, and there are four ways to fight', () => {
+    assert.ok(unique(W.map(w => w.kind)));
+    assert.deepEqual([...new Set(W.map(w => w.style))].sort(), ['lance', 'ring', 'thrust', 'zap']);
+  });
+
+  test('each upgrade costs more and hits harder', () => {
+    for (let i = 1; i < W.length; i++) {
+      assert.ok(W[i].price > W[i - 1].price, W[i].id);
+      assert.ok(W[i].dmg > W[i - 1].dmg, W[i].id);
+    }
+  });
+
+  test('weapon stats are usable', () => {
+    for (const w of W) {
+      assert.ok(w.reach > 0 && w.cd > 0 && w.knock > 0, w.id);
+      if (w.style === 'thrust') assert.ok(w.width > 0);
+      if (w.style === 'zap') assert.ok(w.chain >= 1);
+      if (w.style === 'lance') assert.ok(w.dash > 0);
+      for (const c of [w.metal, w.grip, w.accent]) assert.match(c, /^#[0-9a-f]{6}$/i);
+    }
+  });
+});
+
 describe('goods', () => {
   test('each good has a known type, a price and a stock limit', () => {
     assert.deepEqual(plain(GOODS.map(x => x.type)).sort(),['consume', 'lantern', 'luck', 'maxhp']);

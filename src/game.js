@@ -15,6 +15,7 @@ const Player = {
   catches: [],
   kills: {}, totalKills: 0, sold: 0, casts: 0,
   beatBoss: false,
+  suit: -1, diveWeapon: -1, beatMother: false,   // the second half: diving
   // battle scratch
   attackT: 0, attackDur: .32, attackDone: false, combo: 0, comboBuffer: false,
   rollT: 0, rollCd: 0, invuln: 0, knock: 0, healT: 0,
@@ -26,6 +27,7 @@ const Player = {
     this.bandages = 0; this.lockets = 0; this.lantern = false; this.luck = false;
     this.catches.length = 0; this.kills = {}; this.totalKills = 0; this.sold = 0; this.casts = 0;
     this.beatBoss = false;
+    this.suit = -1; this.diveWeapon = -1; this.beatMother = false;
     this.attackT = 0; this.rollT = 0; this.invuln = 0; this.knock = 0;
     this.state = 'idle'; this.bState = 'idle';
   }
@@ -174,7 +176,7 @@ const Game = {
     this.viewY = 0;
     this.msgs = [];
     CUT.stop();
-    CUT.harbourX = -1400; CUT.dad.visible = false; CUT.girl.visible = false; CUT.letterbox = 0;
+    CUT.harbourX = -1400; CUT.dad.visible = false; CUT.girl.visible = false; CUT.drops.visible = false; CUT.letterbox = 0;
     this.cutKind = null;
     CUT.allowShadows = 1; CUT.wake = 1; CUT.bigShadow = 0; CUT.titleCard = null;
     Particles.clear(); Floaters.clear(); Dialogue.hide();
@@ -277,7 +279,7 @@ const Game = {
           Player.x = 640;
           Cam.snap(Player.x);
           this.state = 'play';
-          this.toast('You sail out again. It is never quite the same water twice.');
+          this.toast('You sail out again. The suit fits, near enough.');
           this.autosave();
         });
       }
@@ -560,6 +562,7 @@ const Game = {
     Art.boatBack(g, Cam.x, t, night, { crateOpen: this.crateOpen });
 
     // actors on deck
+    if (CUT.drops.visible) Art.drops(g, CUT.drops.x - Cam.x, DECK_Y, this.t);
     if (CUT.girl.visible) {
       Art.girl(g, CUT.girl.x - Cam.x, CUT.girl.y, { face: CUT.girl.face, t: this.t, pose: CUT.girl.pose, rot: CUT.girl.rot });
     }
@@ -749,13 +752,16 @@ const Game = {
     }
 
     // gear, top right
-    const rodName = RODS[Player.rod].name;
-    const swName = Player.weapon >= 0 ? WEAPONS[Player.weapon].name : 'unarmed';
+    // after the Old One, the gear that matters is what you dive in
+    const diving = Player.suit >= 0;
+    const rodName = diving ? SUITS[Player.suit].name : RODS[Player.rod].name;
+    const swName = diving ? DIVE_WEAPONS[Math.max(0, Player.diveWeapon)].name
+      : Player.weapon >= 0 ? WEAPONS[Player.weapon].name : 'unarmed';
     Text.draw(g, rodName, VIEW_W - 24, 34, {
       size: 14, align: 'right', color: '#b9c4dd', font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3
     });
     Text.draw(g, swName, VIEW_W - 24, 54, {
-      size: 14, align: 'right', color: Player.weapon >= 0 ? '#d8cdb4' : '#8a8a96',
+      size: 14, align: 'right', color: diving || Player.weapon >= 0 ? '#d8cdb4' : '#8a8a96',
       font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3
     });
 
@@ -785,6 +791,11 @@ const Game = {
     if (Player.weapon < 0) return 'Find some gear in the crate by the cabin';
     if (Player.catches.length) return 'Sell your catch to Dorran at the stall';
     if (Player.totalKills === 0) return 'Cast a line at the bow';
+    if (Player.beatMother) return 'Lanthorne is lit again. The sea is yours.';
+    if (Player.suit >= 0) {
+      if (Player.suit < SUITS.length - 1) return 'Dive at the bow. A better suit goes deeper.';
+      return 'Dive to the bottom. Lanthorne is down there.';
+    }
     if (Player.beatBoss) return 'The sea is quiet again. For now.';
     if (Player.rod < RODS.length - 1) return 'Deeper line reaches deeper things';
     return 'Something is still down there';

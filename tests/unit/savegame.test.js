@@ -96,6 +96,23 @@ describe('SaveGame.sanitize', () => {
     assert.equal(c.value, 0);
   });
 
+  test('saves from before diving existed get the suit the Old One left', () => {
+    const d = sane({ version: 1, beatBoss: true, coins: 3 });
+    assert.equal(d.suit, 0);
+    assert.equal(d.diveWeapon, 0);
+    const early = sane({ version: 1, beatBoss: false });
+    assert.equal(early.suit, -1);
+    assert.equal(early.diveWeapon, -1);
+  });
+
+  test('diving gear is clamped to what exists, and owning a suit means owning a harpoon', () => {
+    const d = sane(valid({ beatBoss: true, suit: 40, diveWeapon: 99, beatMother: 'yes' }));
+    assert.equal(d.suit, g.SUITS.length - 1);
+    assert.equal(d.diveWeapon, g.DIVE_WEAPONS.length - 1);
+    assert.equal(d.beatMother, false);
+    assert.equal(sane(valid({ beatBoss: true, suit: 2, diveWeapon: -1 })).diveWeapon, 0);
+  });
+
   test('the hold is capped so a huge file cannot bloat the game', () => {
     const many = Array.from({ length: 500 }, () => ({ id: 'gnashfin', weight: 10, value: 10 }));
     assert.equal(sane(valid({ catches: many })).catches.length, 200);
@@ -143,6 +160,9 @@ describe('SaveGame: manual slots', () => {
     Object.assign(g.Player, { rod: 2, coins: 340 });
     g.SaveGame.saveSlot(1);
     assert.equal(g.SaveGame.describe(g.SaveGame.readSlot(1)), 'Deepline Rod · 340§');
+    Object.assign(g.Player, { beatBoss: true, suit: 1, diveWeapon: 0 });
+    g.SaveGame.saveSlot(2);
+    assert.equal(g.SaveGame.describe(g.SaveGame.readSlot(2)), 'Brass Helmet Rig · 340§', 'divers are described by their suit');
   });
 
   test('stamp gives a short day, month and time', () => {
@@ -226,7 +246,7 @@ describe('SaveGame: snapshot, save, read, restore', () => {
 
   test('a snapshot survives a full save, read and restore unchanged', () => {
     const { g } = loadGame({ draw: false, seed: 2 });
-    Object.assign(g.Player, { coins: 640, hp: 4, maxHp: 7, rod: 3, weapon: 4, bandages: 5, lockets: 2, totalKills: 12, sold: 11, casts: 30, lantern: true, luck: true, beatBoss: true, introDone: true, x: 1200 });
+    Object.assign(g.Player, { coins: 640, hp: 4, maxHp: 7, rod: 3, weapon: 4, bandages: 5, lockets: 2, totalKills: 12, sold: 11, casts: 30, lantern: true, luck: true, beatBoss: true, introDone: true, girlMet: true, suit: 2, diveWeapon: 1, beatMother: true, x: 1200 });
     g.Player.catches.push(g.makeTrophy(g.MONSTERS[5]), g.makeTrophy(g.MONSTERS[16]));
     g.Player.kills = { choir: 1, leviathan: 1 };
     g.Game.crateOpen = true;               // it must be: there is a weapon

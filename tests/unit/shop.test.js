@@ -161,6 +161,39 @@ describe('the gear tab', () => {
   });
 });
 
+describe('the gear tab after the Old One', () => {
+  const diver = extra => atStall(P => Object.assign(P, { beatBoss: true, suit: 0, diveWeapon: 0 }, extra));
+
+  test('sells suits and underwater arms instead of rods and fishing weapons', () => {
+    const { S } = diver();
+    const rows = S.rows();
+    assert.deepEqual(plain(rows.filter(r => r.kind === 'head').map(r => r.name)), ['SUITS', 'ARMS']);
+    assert.equal(rows.filter(r => r.kind === 'suit').length, 4);
+    assert.equal(rows.filter(r => r.kind === 'diveweapon').length, 5);
+    assert.ok(!rows.some(r => r.kind === 'rod' || r.kind === 'weapon'));
+    assert.match(rows.find(r => r.kind === 'suit' && r.idx === 1).stat, /depth 39 fm/);
+  });
+
+  test('buying the next suit and the next weapon', () => {
+    const { S, P } = diver({ coins: 2000 });
+    selectRow(S, r => r.kind === 'suit' && r.idx === 1);
+    S.act();
+    assert.equal(P.suit, 1);
+    selectRow(S, r => r.kind === 'diveweapon' && r.idx === 1);
+    S.act();
+    assert.equal(P.diveWeapon, 1);
+    assert.equal(P.coins, 2000 - 900 - 1100);
+  });
+
+  test('suits still have to be bought in order', () => {
+    const { S, P } = diver({ coins: 99999 });
+    selectRow(S, r => r.kind === 'suit' && r.idx === 3);
+    S.act();
+    assert.equal(P.suit, 0);
+    assert.match(S.line, /One step/);
+  });
+});
+
 describe('the goods tab', () => {
   test('bandages stack up to five', () => {
     const { S, P } = atStall(P => { P.coins = 1000; });

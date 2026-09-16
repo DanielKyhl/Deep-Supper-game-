@@ -52,6 +52,54 @@ const WEAPONS = [
     desc: 'Pulled from a jaw by a boy who should not have survived doing it.' }
 ];
 
+/* ------------------------------ below the surface -------------------------
+   Diving suits, for after the Old One. `depth` is how far down (in pixels
+   of water, fifty to a fathom) the suit holds before it starts to buckle,
+   `air` is seconds in the tank, and `lamp` widens the helmet light.        */
+
+const SUITS = [
+  { id: 'drowned', name: 'Drowned Diving Suit', price: 0, depth: 950, air: 70, speed: 1.00, lamp: 1.00,
+    brass: '#a8844a', rubber: '#4a4f45',
+    desc: "Your great-grandfather's. Patched. Mostly watertight." },
+  { id: 'brass', name: 'Brass Helmet Rig', price: 900, depth: 1950, air: 95, speed: 1.08, lamp: 1.15,
+    brass: '#d0a650', rubber: '#3f4a52',
+    desc: 'A proper hard hat and a bigger tank. Dorran swears it has never leaked.' },
+  { id: 'riveted', name: 'Riveted Pressure Suit', price: 2400, depth: 3050, air: 120, speed: 1.16, lamp: 1.30,
+    brass: '#9aa3ad', rubber: '#34383f',
+    desc: 'Iron plates over rubber. You clank. The deep does not care.' },
+  { id: 'trench', name: 'Trench Hardsuit', price: 5200, depth: 4200, air: 150, speed: 1.24, lamp: 1.50,
+    brass: '#5d8aa0', rubber: '#1f2a33',
+    desc: 'Built for the very bottom. Nobody has ever needed to go further.' }
+];
+
+/* Weapons that work underwater, where nothing that goes bang does.
+     thrust  a straight stab wherever you aim
+     zap     lashes the nearest things around you with lightning
+     lance   you and it go straight through whatever is in front of you
+     ring    a sound you can see, spreading out through everything nearby   */
+const DIVE_WEAPONS = [
+  { id: 'harpoon', name: 'Drowned Harpoon', kind: 'dharpoon', style: 'thrust', price: 0,
+    dmg: 30, reach: 120, width: 22, cd: .5, knock: 180,
+    metal: '#9fb8c4', grip: '#5b4a3a', accent: '#c9b27a',
+    desc: 'Snapped off in the Old One. The shaft still has the Margaret painted on it.' },
+  { id: 'trident', name: 'Barnacle Trident', kind: 'trident', style: 'thrust', price: 1100,
+    dmg: 52, reach: 112, width: 60, cd: .5, knock: 240,
+    metal: '#b7c4bc', grip: '#3f5a52', accent: '#e8dcc0',
+    desc: 'Three prongs, all crusted over. Hard to miss with, harder to pull out.' },
+  { id: 'eel', name: 'Eel on a Rope', kind: 'eel', style: 'zap', price: 2200,
+    dmg: 54, reach: 200, chain: 3, cd: .8, knock: 120,
+    metal: '#7fe0ff', grip: '#4a5a3a', accent: '#d8f06a',
+    desc: 'A live electric eel on a leash. It hates everything nearby. Mostly not you.' },
+  { id: 'tusk', name: 'Narwhal Tusk', kind: 'tusk', style: 'lance', price: 3600,
+    dmg: 115, reach: 74, dash: 680, cd: .9, knock: 320,
+    metal: '#efe6d0', grip: '#5a4a52', accent: '#b9a88e',
+    desc: 'Hold on and kick. You go through the thing in front of you, and so does it.' },
+  { id: 'bell', name: 'Sunken Bell', kind: 'bell', style: 'ring', price: 6000,
+    dmg: 135, reach: 270, cd: 1.2, knock: 420,
+    metal: '#b8864a', grip: '#4a3b2a', accent: '#e8c76a',
+    desc: "Lanthorne's old warning bell. Rung underwater, everything in earshot comes apart." }
+];
+
 const GOODS = [
   { id: 'bandage', name: 'Oiled Bandage',  price: 24,  type: 'consume', max: 5,
     desc: 'Binds 2 hearts back together. Press Q to use.' },

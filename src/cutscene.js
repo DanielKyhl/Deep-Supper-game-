@@ -88,6 +88,7 @@ const CUT = {
   tweens: [], letterbox: 0, skipHold: 0, skippable: true,
   dad: { x: 560, face: -1, state: 'idle', visible: false, pipe: true },
   girl: { x: 0, y: DECK_Y, face: 1, pose: 'stand', rot: 0, visible: false },
+  drops: { x: 0, visible: false },
   harbourX: -1200, bigShadow: 0, titleCard: null, wake: 0, allowShadows: 0,
 
   play(steps, opts) {
@@ -426,8 +427,16 @@ function buildGirlScene() {
 
 /* ============================= ENDING ================================== */
 
+// what the Old One leaves on the deck: the suit it swallowed and the harpoon stuck in it
+function takeTheSuit() {
+  CUT.drops.visible = false;
+  Player.suit = Math.max(Player.suit, 0);
+  Player.diveWeapon = Math.max(Player.diveWeapon, 0);
+}
+
 function buildEnding() {
   const finalize = () => {
+    takeTheSuit();
     Game.night = 0.12;
     CUT.harbourX = 300;
     CUT.dad.visible = true; CUT.dad.x = 300; CUT.dad.face = 1;
@@ -437,6 +446,26 @@ function buildEnding() {
   return {
     finalize,
     steps: [
+      // it coughs something up on its way back over the rail
+      sAct(() => {
+        Dialogue.hide();
+        Player.face = 1; Player.state = 'idle';
+        Object.assign(CUT.drops, { visible: true, x: Player.x + 120 });
+        Sfx.thud(); Cam.kick(5);
+        Particles.burst(Player.x + 120, DECK_Y - 12, 20, { color: '#9fd4e4', vy: rand(-240, -60), g: 800, size: rand(2, 5), life: .7 });
+      }),
+      sWait(1.2),
+      sSay('You', 'It coughed something up on its way back over the rail.'),
+      sSay('You', 'A diving suit. Brass helmet, rubber gone hard, and a harpoon snapped off through the sleeve.'),
+      sSay('You', 'Somebody went down after it before me. A long time before me.'),
+      sAct(() => {
+        takeTheSuit();
+        Sfx.buy();
+        Floaters.add(VIEW_W / 2, 230, 'Diving suit + Drowned Harpoon', { color: '#9ff0ff', size: 22, fixed: true, life: 2.8, vy: -12 });
+      }),
+      sHideText(),
+      sWait(1.4),
+
       sAct(() => {
         Dialogue.hide();
         Player.face = 1; Player.state = 'idle';
@@ -462,9 +491,16 @@ function buildEnding() {
       sSay('You', "You said to catch something. I caught something."),
       sSay('Dad', "..."),
       sSay('Dad', "Your mother is going to need a bigger pot."),
+      sSay('Dad', 'And where did you get that suit?'),
+      sSay('You', 'It was inside it.'),
+      sSay('Dad', "That's the Margaret's stamp on the collar. That was your great-grandad's. He went over the side in it and never came up."),
+      sSay('Dad', 'Everyone said he was mad. Kept talking about lights down there. A city.'),
+      sSay('You', '...'),
+      sSay('Dad', "Don't you dare."),
+      sSay('You', "I won't."),
       sHideText(),
       sWait(1.2),
-      sTitle('THE END', 'You caught supper. Supper caught nothing.', 5.0),
+      sTitle('END OF PART ONE', 'He did.', 5.0),
       sAct(() => { finalize(); })
     ]
   };

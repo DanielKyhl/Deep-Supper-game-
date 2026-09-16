@@ -229,6 +229,22 @@ describe('stations and dialogue', () => {
     assert.match(g.Game.objective(), /still down there/);
     P.beatBoss = true;
     assert.match(g.Game.objective(), /quiet/);
+    P.suit = 0;
+    assert.match(g.Game.objective(), /Dive at the bow/);
+    P.suit = g.SUITS.length - 1;
+    assert.match(g.Game.objective(), /Lanthorne is down there/);
+    P.beatMother = true;
+    assert.match(g.Game.objective(), /lit again/);
+  });
+
+  test('once diving, the HUD shows the suit and the diving weapon', () => {
+    const { h, g, P } = onDeck({ draw: true });
+    Object.assign(P, { beatBoss: true, suit: 2, diveWeapon: 3, weapon: 5 });
+    h.sandbox.__text = [];
+    h.eval('(() => { const f = Text.draw; Text.draw = function (g, s, ...a) { __text.push(String(s)); return f.call(this, g, s, ...a); }; })()');
+    h.frame();
+    assert.ok(h.sandbox.__text.includes('Riveted Pressure Suit'));
+    assert.ok(h.sandbox.__text.includes('Narwhal Tusk'));
   });
 
   test('Player.reset puts every field back to a new voyage', () => {
