@@ -20,14 +20,19 @@ const CHOICE_LABELS = {
 const SCREEN_TITLES = {
   pause: 'PAUSED', options: 'OPTIONS', graphics: 'GRAPHICS', audio: 'AUDIO',
   controls: 'CONTROLS', gameplay: 'GAMEPLAY', credits: 'CREDITS',
-  confirmNew: 'NEW VOYAGE', confirmReset: 'RESET SETTINGS', confirmQuit: 'QUIT'
+  confirmNew: 'NEW VOYAGE', confirmReset: 'RESET SETTINGS', confirmQuit: 'QUIT',
+  saveSlots: 'SAVE GAME', loadSlots: 'LOAD GAME', confirmOverwrite: 'OVERWRITE', confirmLoad: 'LOAD'
 };
+
+// screens whose rows carry long values
+const WIDE_SCREENS = ['controls', 'graphics', 'audio', 'credits', 'saveSlots', 'loadSlots'];
 
 const Menu = {
   context: 'main',     // 'main' (title screen) or 'pause'
   stack: ['main'],
   sel: {},
   rebinding: null,     // the action waiting for a key, while rebinding
+  pendingSlot: 0,      // the slot a confirm screen is asking about
   notice: '', noticeT: 0,
   t: 0,
   hits: [],            // clickable rows from the last draw
@@ -80,6 +85,7 @@ const Menu = {
     switch (id) {
       case 'main': return [
         { kind: 'action', label: 'Continue', id: 'continue', hidden: !hasSave, run: () => Game.continueGame() },
+        { kind: 'action', label: 'Load game', id: 'load', hidden: !SaveGame.anySlot(), run: () => this.push('loadSlots') },
         { kind: 'action', label: 'New voyage', id: 'new', run: () => hasSave ? this.push('confirmNew') : Game.beginVoyage() },
         { kind: 'action', label: 'Options', id: 'options', run: () => this.push('options') },
         { kind: 'action', label: 'Credits', id: 'credits', run: () => this.push('credits') },
@@ -88,6 +94,8 @@ const Menu = {
 
       case 'pause': return [
         { kind: 'action', label: 'Resume', id: 'resume', run: () => Game.resume() },
+        { kind: 'action', label: 'Save game', id: 'save', run: () => this.push('saveSlots') },
+        { kind: 'action', label: 'Load game', id: 'load', hidden: !SaveGame.anySlot(), run: () => this.push('loadSlots') },
         { kind: 'action', label: 'Options', id: 'options', run: () => this.push('options') },
         { kind: 'action', label: 'Save and return to title', id: 'title', run: () => Game.quitToTitle() },
         { kind: 'action', label: 'Save and quit game', id: 'quit', hidden: !isApp, run: () => Game.quitApp() },
@@ -165,6 +173,40 @@ const Menu = {
         { kind: 'action', label: 'Stay', id: 'no', run: () => this.back() }
       ];
 
+      case 'saveSlots':
+      case 'loadSlots': {
+        const saving = id === 'saveSlots';
+        const rows = [];
+        for (let n = 1; n <= SLOT_COUNT; n++) {
+          const d = SaveGame.readSlot(n);
+          rows.push({
+            kind: 'slot', id: 'slot' + n, slot: n, empty: !d,
+            label: 'Slot ' + n + '    ' + SaveGame.describe(d), value: SaveGame.stamp(d),
+            run: () => saving ? this.chooseSave(n, d) : this.chooseLoad(n, d)
+          });
+        }
+        return rows.concat([
+          { kind: 'gap' },
+          { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
+        ]);
+      }
+
+      case 'confirmOverwrite': return [
+        { kind: 'text', label: 'Slot ' + this.pendingSlot + ' already holds a voyage.' },
+        { kind: 'text', label: 'Save over it?' },
+        { kind: 'gap' },
+        { kind: 'action', label: 'Overwrite', id: 'yes', run: () => { this.back(); this.saveTo(this.pendingSlot); } },
+        { kind: 'action', label: 'Cancel', id: 'no', run: () => this.back() }
+      ];
+
+      case 'confirmLoad': return [
+        { kind: 'text', label: 'Load slot ' + this.pendingSlot + '?' },
+        { kind: 'text', label: 'Anything since you last saved will be lost.' },
+        { kind: 'gap' },
+        { kind: 'action', label: 'Load', id: 'yes', run: () => Game.loadSlot(this.pendingSlot) },
+        { kind: 'action', label: 'Cancel', id: 'no', run: () => this.back() }
+      ];
+
       case 'credits': return [
         { kind: 'text', label: 'DEEP SUPPER' },
         { kind: 'text', label: 'Made by Daniel Kyhl' },
@@ -176,6 +218,25 @@ const Menu = {
       ];
     }
     return [];
+  },
+
+  /* ----------------------------- save slots ----------------------------- */
+
+  chooseSave(n, existing) {
+    if (existing) { this.pendingSlot = n; this.push('confirmOverwrite'); return; }
+    this.saveTo(n);
+  },
+
+  saveTo(n) {
+    if (Game.saveSlot(n)) { Sfx.buy(); this.say('Saved to slot ' + n + '.'); }
+    else { Sfx.deny(); this.say('Saved for this session only: storage is unavailable.'); }
+  },
+
+  chooseLoad(n, d) {
+    if (!d) { Sfx.deny(); this.say('Slot ' + n + ' is empty.'); return; }
+    // mid-voyage, loading throws away the voyage in progress, so ask first
+    if (this.context === 'pause') { this.pendingSlot = n; this.push('confirmLoad'); return; }
+    Game.loadSlot(n);
   },
 
   selectable(it) { return !!it && it.kind !== 'gap' && it.kind !== 'text'; },
@@ -199,6 +260,7 @@ const Menu = {
 
   valueText(it) {
     const d = Settings.data;
+    if (it.kind === 'slot') return it.value || '';
     if (it.kind === 'toggle') return d[it.key] ? 'ON' : 'OFF';
     if (it.kind === 'choice') {
       const map = CHOICE_LABELS[it.key] || {};
@@ -225,7 +287,7 @@ const Menu = {
   // enter or a click on an item; `side` is -1/+1 when a click lands on a value
   activate(it, side) {
     if (!it || !this.selectable(it)) return;
-    if (it.kind === 'action') { Sfx.select(); it.run(); return; }
+    if (it.kind === 'action' || it.kind === 'slot') { Sfx.select(); it.run(); return; }
     if (it.kind === 'toggle') { Settings.set(it.key, !Settings.data[it.key]); Sfx.select(); return; }
     if (it.kind === 'choice') {
       if (side) return this.adjust(it, side);
@@ -321,7 +383,7 @@ const Menu = {
     if (id === 'main' && this.noticeT > 0) {
       g.save();
       g.globalAlpha = clamp(this.noticeT, 0, 1);
-      Text.draw(g, this.notice, VIEW_W / 2, VIEW_H - 46, { size: 16, align: 'center', color: '#f0cf8a', outline: 'rgba(0,0,0,.8)' });
+      Text.draw(g, this.notice, VIEW_W / 2, VIEW_H - 34, { size: 16, align: 'center', color: '#f0cf8a', outline: 'rgba(0,0,0,.8)' });
       g.restore();
     }
   },
@@ -340,22 +402,25 @@ const Menu = {
       size: 22, align: 'center', color: '#a8b4cf', outline: 'rgba(0,0,0,.8)'
     });
 
-    // rows centred on ry: the 28px-tall label sits in the middle of a 40px box
-    const top = 262, rowH = 46, w = 320, x = VIEW_W / 2 - w / 2;
+    // rows centred on ry: the 28px-tall label sits in the middle of its box;
+    // a long menu packs its rows tighter so the last one clears the hint
+    const tight = items.length > 5;
+    const top = tight ? 240 : 262, rowH = tight ? 38 : 46, boxH = rowH - 6;
+    const w = 320, x = VIEW_W / 2 - w / 2;
     items.forEach((it, i) => {
       const ry = top + i * rowH;
       const on = i === sel;
       if (on) {
         g.fillStyle = 'rgba(200,164,92,.18)';
-        g.fillRect(x, ry - 20, w, 40);
+        g.fillRect(x, ry - boxH / 2, w, boxH);
         g.fillStyle = '#e8c76a';
-        g.fillRect(x, ry - 20, 4, 40);
-        g.fillRect(x + w - 4, ry - 20, 4, 40);
+        g.fillRect(x, ry - boxH / 2, 4, boxH);
+        g.fillRect(x + w - 4, ry - boxH / 2, 4, boxH);
       }
       Text.draw(g, it.label, VIEW_W / 2, ry + 14, {
         size: 26, align: 'center', color: on ? '#f6e9c6' : '#9aa7c4', outline: 'rgba(0,0,0,.85)'
       });
-      this.hits.push({ x, y: ry - 20, w, h: 40, index: i });
+      this.hits.push({ x, y: ry - boxH / 2, w, h: boxH, index: i });
     });
 
     Text.draw(g, '↑↓ choose     ENTER select', VIEW_W / 2, VIEW_H - 18, {
@@ -372,7 +437,7 @@ const Menu = {
 
     // long lists tighten their rows so the panel always fits on screen
     const rowH = Math.min(34, Math.floor((VIEW_H - 36 - 122) / Math.max(1, items.length)));
-    const wide = id === 'controls' || id === 'graphics' || id === 'audio' || id === 'credits';
+    const wide = WIDE_SCREENS.indexOf(id) >= 0;
     const W = wide ? 720 : 580;
     const H = 92 + items.length * rowH + 30;
     const X = VIEW_W / 2 - W / 2;
@@ -399,8 +464,9 @@ const Menu = {
         g.fillRect(X + 16, ry - 14, 4, 28);
       }
       const hasValue = it.kind !== 'action';
+      const labelCol = on ? '#f6e9c6' : (it.empty ? '#6f7892' : '#c4cbe0');
       Text.draw(g, it.label, hasValue ? X + 40 : VIEW_W / 2, ry + 6, {
-        size: 18, align: hasValue ? 'left' : 'center', color: on ? '#f6e9c6' : '#c4cbe0'
+        size: 18, align: hasValue ? 'left' : 'center', color: labelCol
       });
       if (hasValue) {
         if (it.kind === 'slider') this.drawSlider(g, valueX, ry, W * .48 - 50, Settings.data[it.key], it.key, on);

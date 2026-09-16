@@ -95,6 +95,69 @@ describe('saving and continuing', () => {
   });
 });
 
+describe('save slots', () => {
+  test('save to a slot from the pause menu, play on, then load back to that moment', () => {
+    const h = loadGame({ seed: 2 });
+    h.startVoyage();
+    Object.assign(h.g.Player, { coins: 100, weapon: 0, x: 900 });
+    h.tap('Escape');
+    F.chooseMenu(h, 'save');
+    F.chooseMenu(h, 'slot2');
+    assert.match(h.g.Menu.notice, /slot 2/);
+    h.tap('Escape'); h.tap('Escape');
+    assert.equal(h.g.Game.state, 'play');
+
+    Object.assign(h.g.Player, { coins: 5, weapon: 3 });
+    h.tap('Escape');
+    F.chooseMenu(h, 'load');
+    F.chooseMenu(h, 'slot2');
+    F.chooseMenu(h, 'yes');
+    assert.ok(h.until(() => h.g.Game.state === 'play', 3));
+    assert.equal(h.g.Player.coins, 100);
+    assert.equal(h.g.Player.weapon, 0);
+    assert.equal(h.g.Player.x, 900);
+    assert.match(h.g.Game.toastText, /slot 2/);
+  });
+
+  test('slots survive a restart and load from the title menu', () => {
+    const h = loadGame({ draw: false });
+    h.startVoyage();
+    h.g.Player.coins = 777;
+    h.g.SaveGame.saveSlot(3);
+    const again = restart(h);
+    F.chooseMenu(again, 'load');
+    F.chooseMenu(again, 'slot3');
+    assert.ok(again.until(() => again.g.Game.state === 'play', 3));
+    assert.equal(again.g.Player.coins, 777);
+  });
+
+  test('loading a slot in the middle of a fight puts you back on deck, fight over', () => {
+    const h = loadGame({ draw: false });
+    h.startVoyage();
+    h.g.Player.weapon = 0;
+    h.g.SaveGame.saveSlot(1);
+    h.g.Game.startBattle(h.g.MONSTERS[4]);
+    h.frames(1);
+    h.tap('Escape');
+    F.chooseMenu(h, 'load');
+    F.chooseMenu(h, 'slot1');
+    F.chooseMenu(h, 'yes');
+    assert.ok(h.until(() => h.g.Game.state === 'play', 3));
+    assert.equal(h.g.Cam.locked, false);
+    h.keyDown('KeyD'); h.frames(.3);
+    assert.equal(h.g.Player.face, 1, 'free to walk again');
+  });
+
+  test('the autosave and the slots never overwrite each other', () => {
+    const h = loadGame({ draw: false });
+    h.startVoyage();
+    h.g.Player.coins = 11; h.g.SaveGame.saveSlot(1);
+    h.g.Player.coins = 22; h.g.Game.autosave();
+    assert.equal(h.g.SaveGame.readSlot(1).coins, 11);
+    assert.equal(h.g.SaveGame.read().coins, 22);
+  });
+});
+
 describe('starting over', () => {
   test('New voyage over a save asks first; No keeps the save', () => {
     const h = loadGame({ draw: false });

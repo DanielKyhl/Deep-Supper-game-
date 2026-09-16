@@ -114,27 +114,45 @@ const Game = {
   },
 
   continueGame() {
-    const d = SaveGame.read();
+    return this.loadSave(SaveGame.read(), 'Back aboard the Margaret.');
+  },
+
+  loadSlot(n) {
+    return this.loadSave(SaveGame.readSlot(n), 'Loaded slot ' + n + '.');
+  },
+
+  saveSlot(n) {
+    return SaveGame.saveSlot(n);
+  },
+
+  // fade out of wherever we are, onto the deck of a restored voyage
+  loadSave(d, message) {
     if (!d) return false;
     Sfx.select();
     this.fadeOut(() => {
       SaveGame.restore(d);
       Player.hp = Player.maxHp;
-      this.endingRun = false;
-      this._toldStart = true;
-      this.night = 1;
-      this.viewY = 0;
-      this.msgs = [];
-      CUT.stop();
-      CUT.harbourX = -1400; CUT.dad.visible = false; CUT.letterbox = 0;
-      CUT.allowShadows = 1; CUT.wake = 1; CUT.bigShadow = 0; CUT.titleCard = null;
-      Particles.clear(); Floaters.clear(); Dialogue.hide();
-      Cam.locked = false;
-      Cam.snap(Player.x);
+      this.atSea();
       this.state = 'play';
-      this.toast('Back aboard the Margaret.');
+      this.toast(message);
     });
     return true;
+  },
+
+  // out on the water at night with nothing going on: the state every load starts from
+  atSea() {
+    this.endingRun = false;
+    this._toldStart = true;
+    this.night = 1;
+    this.viewY = 0;
+    this.msgs = [];
+    CUT.stop();
+    CUT.harbourX = -1400; CUT.dad.visible = false; CUT.letterbox = 0;
+    CUT.allowShadows = 1; CUT.wake = 1; CUT.bigShadow = 0; CUT.titleCard = null;
+    Particles.clear(); Floaters.clear(); Dialogue.hide();
+    Player.state = 'idle'; Player.bState = 'idle'; Player.y = DECK_Y; Player.vy = 0;
+    Cam.locked = false;
+    Cam.snap(Player.x);
   },
 
   pause() {

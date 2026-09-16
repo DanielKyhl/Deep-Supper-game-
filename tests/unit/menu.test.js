@@ -63,6 +63,107 @@ describe('menu screens', () => {
   });
 });
 
+describe('save slot screens', () => {
+  const SLOT = n => 'deepsupper.slot' + n + '.v1';
+
+  test('Load game appears on the title and pause menus only once a slot is used', () => {
+    const { g } = loadGame({ draw: false });
+    assert.ok(!labels(g.Menu, 'main').includes('Load game'));
+    assert.ok(!labels(g.Menu, 'pause').includes('Load game'));
+    assert.ok(labels(g.Menu, 'pause').includes('Save game'));
+    g.SaveGame.saveSlot(2);
+    assert.ok(labels(g.Menu, 'main').includes('Load game'));
+    assert.ok(labels(g.Menu, 'pause').includes('Load game'));
+  });
+
+  test('both slot screens list three slots and Back, with empty ones marked', () => {
+    const { g } = loadGame({ draw: false });
+    g.SaveGame.saveSlot(2);
+    for (const id of ['saveSlots', 'loadSlots']) {
+      const items = g.Menu.items(id);
+      assert.deepEqual(plain(items.filter(i => i.kind === 'slot').map(i => i.slot)), [1, 2, 3]);
+      assert.match(items[0].label, /Slot 1 +— empty —/);
+      assert.equal(items[0].empty, true);
+      assert.match(items[1].label, /Bamboo Rod · 0§/);
+      assert.ok(items[1].value.length > 0, 'shows when it was saved');
+      assert.equal(items[items.length - 1].label, 'Back');
+    }
+  });
+
+  test('saving to an empty slot saves straight away and says so', () => {
+    const { h, g } = loadGame({ draw: false });
+    g.Player.coins = 9;
+    g.Menu.openPause();
+    g.Menu.push('saveSlots');
+    g.Menu.items('saveSlots')[0].run();
+    assert.equal(JSON.parse(h.storage.get(SLOT(1))).coins, 9);
+    assert.match(g.Menu.notice, /Saved to slot 1/);
+    assert.equal(g.Menu.top(), 'saveSlots');
+  });
+
+  test('saving over a used slot asks first, and Overwrite replaces it', () => {
+    const { h, g } = loadGame({ draw: false });
+    g.Player.coins = 1; g.SaveGame.saveSlot(3);
+    g.Player.coins = 2;
+    g.Menu.openPause(); g.Menu.push('saveSlots');
+    g.Menu.items('saveSlots')[2].run();
+    assert.equal(g.Menu.top(), 'confirmOverwrite');
+    assert.match(g.Menu.items('confirmOverwrite')[0].label, /Slot 3/);
+    assert.equal(JSON.parse(h.storage.get(SLOT(3))).coins, 1, 'nothing written yet');
+    g.Menu.items('confirmOverwrite').find(i => i.id === 'yes').run();
+    assert.equal(JSON.parse(h.storage.get(SLOT(3))).coins, 2);
+    assert.equal(g.Menu.top(), 'saveSlots');
+  });
+
+  test('Cancel on the overwrite question keeps the old save', () => {
+    const { h, g } = loadGame({ draw: false });
+    g.Player.coins = 1; g.SaveGame.saveSlot(1);
+    g.Player.coins = 2;
+    g.Menu.openPause(); g.Menu.push('saveSlots');
+    g.Menu.items('saveSlots')[0].run();
+    g.Menu.items('confirmOverwrite').find(i => i.id === 'no').run();
+    assert.equal(JSON.parse(h.storage.get(SLOT(1))).coins, 1);
+  });
+
+  test('an empty slot cannot be loaded', () => {
+    const { g } = loadGame({ draw: false });
+    g.Menu.push('loadSlots');
+    g.Menu.items('loadSlots')[1].run();
+    assert.match(g.Menu.notice, /Slot 2 is empty/);
+    assert.equal(g.Game.fade.dir, 0);
+  });
+
+  test('from the title, loading a slot starts right away', () => {
+    const { g } = loadGame({ draw: false });
+    g.SaveGame.saveSlot(1);
+    g.Menu.push('loadSlots');
+    g.Menu.items('loadSlots')[0].run();
+    assert.equal(g.Game.fade.dir, 1);
+  });
+
+  test('mid-voyage, loading a slot asks first', () => {
+    const { h, g } = loadGame({ draw: false });
+    g.SaveGame.saveSlot(1);
+    h.startVoyage();
+    g.Game.pause();
+    g.Menu.push('loadSlots');
+    g.Menu.items('loadSlots')[0].run();
+    assert.equal(g.Menu.top(), 'confirmLoad');
+    assert.equal(g.Game.fade.dir, 0);
+    g.Menu.items('confirmLoad').find(i => i.id === 'yes').run();
+    assert.equal(g.Game.fade.dir, 1);
+  });
+
+  test('a full title menu still fits above the key hints', () => {
+    const { h, g } = loadGame({ draw: false, storage: { 'deepsupper.save.v1': aSave }, native: { isApp: true, setFullscreen() {}, quit() {} } });
+    g.SaveGame.saveSlot(1);
+    g.Menu.draw(h.eval('bctx'));
+    assert.ok(g.Menu.items('main').length >= 6);
+    for (const hit of g.Menu.hits) assert.ok(hit.y >= 190 && hit.y + hit.h <= g.VIEW_H - 32, 'row at ' + hit.y);
+    for (let i = 1; i < g.Menu.hits.length; i++) assert.ok(g.Menu.hits[i].y >= g.Menu.hits[i - 1].y + g.Menu.hits[i - 1].h, 'rows overlap');
+  });
+});
+
 describe('cursor movement', () => {
   const { g } = loadGame({ draw: false });
   const M = g.Menu;
@@ -235,7 +336,7 @@ describe('rebinding from the controls screen', () => {
 });
 
 describe('drawing and the mouse', () => {
-  const screens = ['main', 'pause', 'options', 'graphics', 'audio', 'controls', 'gameplay', 'credits', 'confirmNew', 'confirmReset', 'confirmQuit'];
+  const screens = ['main', 'pause', 'options', 'graphics', 'audio', 'controls', 'gameplay', 'credits', 'confirmNew', 'confirmReset', 'confirmQuit', 'saveSlots', 'loadSlots', 'confirmOverwrite', 'confirmLoad'];
 
   test('every screen draws with balanced state and registers a hit row per selectable item', () => {
     const { h, g } = loadGame({ draw: false });

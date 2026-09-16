@@ -102,6 +102,66 @@ describe('SaveGame.sanitize', () => {
   });
 });
 
+describe('SaveGame: manual slots', () => {
+  test('a slot round-trips a voyage and is separate from the autosave', () => {
+    const { h, g } = loadGame({ draw: false });
+    g.Player.coins = 41;
+    assert.equal(g.SaveGame.saveSlot(2), true);
+    assert.ok(h.storage.has('deepsupper.slot2.v1'));
+    assert.equal(g.SaveGame.exists(), false, 'the autosave was not touched');
+    assert.equal(g.SaveGame.readSlot(2).coins, 41);
+    assert.equal(g.SaveGame.readSlot(1), null);
+  });
+
+  test('only slots 1 to 3 exist', () => {
+    const { g } = loadGame({ draw: false });
+    assert.equal(g.SLOT_COUNT, 3);
+    for (const n of [0, 4, -1, 1.5, '1', null]) {
+      assert.equal(g.SaveGame.saveSlot(n), false, String(n));
+      assert.equal(g.SaveGame.readSlot(n), null);
+    }
+  });
+
+  test('clearing one slot leaves the others alone', () => {
+    const { g } = loadGame({ draw: false });
+    g.SaveGame.saveSlot(1); g.SaveGame.saveSlot(3);
+    g.SaveGame.clearSlot(1);
+    assert.equal(g.SaveGame.readSlot(1), null);
+    assert.ok(g.SaveGame.readSlot(3));
+  });
+
+  test('anySlot is true once any slot holds a valid voyage', () => {
+    const { g } = loadGame({ draw: false, storage: { 'deepsupper.slot2.v1': '{broken' } });
+    assert.equal(g.SaveGame.anySlot(), false, 'a corrupt slot counts as empty');
+    g.SaveGame.saveSlot(3);
+    assert.equal(g.SaveGame.anySlot(), true);
+  });
+
+  test('describe names the gear and the coins, or says empty', () => {
+    const { g } = loadGame({ draw: false });
+    assert.equal(g.SaveGame.describe(null), '— empty —');
+    Object.assign(g.Player, { rod: 2, coins: 340 });
+    g.SaveGame.saveSlot(1);
+    assert.equal(g.SaveGame.describe(g.SaveGame.readSlot(1)), 'Deepline Rod · 340§');
+  });
+
+  test('stamp gives a short day, month and time', () => {
+    const { g } = loadGame({ draw: false });
+    assert.match(g.SaveGame.stamp({ savedAt: Date.now() }), /^\d{1,2} [A-Z][a-z]{2} \d\d:\d\d$/);
+    assert.equal(g.SaveGame.stamp(null), '');
+    assert.equal(g.SaveGame.stamp({ savedAt: 0 }), '');
+  });
+
+  test('every character in a slot description is in the font', () => {
+    const { g } = loadGame({ draw: false });
+    g.SaveGame.saveSlot(1);
+    const d = g.SaveGame.readSlot(1);
+    for (const ch of g.SaveGame.describe(d) + g.SaveGame.stamp(d) + g.SaveGame.describe(null)) {
+      assert.ok(g.GLYPHS[ch] !== undefined || g.GLYPHS[ch.toUpperCase()] !== undefined, JSON.stringify(ch));
+    }
+  });
+});
+
 describe('SaveGame: snapshot, save, read, restore', () => {
   test('snapshot captures every save field from the live player', () => {
     const { g } = loadGame({ draw: false });

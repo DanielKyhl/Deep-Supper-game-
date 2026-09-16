@@ -9,8 +9,11 @@
    ======================================================================== */
 
 const SETTINGS_KEY = 'deepsupper.settings.v1';
-const SAVE_KEY = 'deepsupper.save.v1';
-const GAME_VERSION = '1.0.0';
+const SAVE_KEY = 'deepsupper.save.v1';       // the autosave, which Continue loads
+const SLOT_COUNT = 3;                        // manual save slots
+const GAME_VERSION = '1.1.0';
+
+function slotKey(n) { return 'deepsupper.slot' + n + '.v1'; }
 
 /* --------------------------------- storage ------------------------------ */
 
@@ -312,6 +315,42 @@ const SaveGame = {
       }
     }
     return d;
+  },
+
+  /* ---- manual slots: the same data, kept until the player overwrites it ---- */
+
+  validSlot(n) { return Number.isInteger(n) && n >= 1 && n <= SLOT_COUNT; },
+
+  saveSlot(n) {
+    if (!this.validSlot(n)) return false;
+    return Store.set(slotKey(n), JSON.stringify(this.snapshot()));
+  },
+
+  readSlot(n) {
+    if (!this.validSlot(n)) return null;
+    return this.sanitize(Store.readJSON(slotKey(n)));
+  },
+
+  clearSlot(n) { if (this.validSlot(n)) Store.remove(slotKey(n)); },
+
+  anySlot() {
+    for (let n = 1; n <= SLOT_COUNT; n++) if (this.readSlot(n)) return true;
+    return false;
+  },
+
+  // "Deepline Rod · 340§" — what a save holds, in a few words
+  describe(d) {
+    if (!d) return '— empty —';
+    return RODS[d.rod].name + ' · ' + d.coins + '§';
+  },
+
+  // "16 Sep 19:04"
+  stamp(d) {
+    if (!d || !d.savedAt) return '';
+    const t = new Date(d.savedAt);
+    const two = v => (v < 10 ? '0' : '') + v;
+    const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][t.getMonth()];
+    return t.getDate() + ' ' + month + ' ' + two(t.getHours()) + ':' + two(t.getMinutes());
   },
 
   // put a validated save onto the live Player
