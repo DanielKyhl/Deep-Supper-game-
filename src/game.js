@@ -139,6 +139,33 @@ const Game = {
     return true;
   },
 
+  /* ---------------------------- test shortcuts -------------------------- */
+
+  // everything Dorran sells for the fishing half of the game
+  giveFishingGear() {
+    const bandage = GOODS.find(x => x.type === 'consume');
+    const locket = GOODS.find(x => x.type === 'maxhp');
+    Object.assign(Player, {
+      rod: RODS.length - 1, weapon: WEAPONS.length - 1,
+      bandages: bandage.max, lockets: locket.max, maxHp: 5 + locket.max,
+      lantern: true, luck: true, introDone: true, totalKills: Math.max(Player.totalKills, 12)
+    });
+    Player.hp = Player.maxHp;
+    this.crateOpen = true;
+  },
+
+  // straight into the Old One with every item bought
+  devFinalBoss() {
+    Sfx.select();
+    this.fadeOut(() => {
+      Player.reset();
+      this.giveFishingGear();
+      Player.x = 1100;
+      this.atSea();
+      this.startBattle(MONSTERS.find(m => m.boss));
+    });
+  },
+
   // out on the water at night with nothing going on: the state every load starts from
   atSea() {
     this.endingRun = false;

@@ -195,6 +195,36 @@ describe('ending a battle', () => {
   });
 });
 
+describe('test shortcuts', () => {
+  test('giveFishingGear buys everything Dorran sells for fishing', () => {
+    const { g } = loadGame({ draw: false });
+    g.Game.giveFishingGear();
+    const P = g.Player;
+    assert.equal(P.rod, g.RODS.length - 1);
+    assert.equal(P.weapon, g.WEAPONS.length - 1);
+    assert.equal(P.bandages, 5);
+    assert.equal(P.lockets, 4);
+    assert.equal(P.maxHp, 9);
+    assert.equal(P.hp, 9);
+    assert.equal(P.lantern && P.luck && P.introDone, true);
+    assert.equal(g.Game.crateOpen, true);
+  });
+
+  test('the final boss shortcut fades straight into the Old One, fully geared', () => {
+    const { h, g } = loadGame({ draw: false });
+    g.Player.coins = 500;
+    g.Game.devFinalBoss();
+    h.until(() => g.Game.state === 'battle', 3);
+    assert.equal(g.Game.state, 'battle');
+    assert.equal(g.Battle.def.id, 'leviathan');
+    assert.equal(g.Player.weapon, g.WEAPONS.length - 1);
+    assert.equal(g.Player.coins, 0, 'a fresh voyage, not the old one');
+    assert.equal(g.Game.night, 1);
+    h.frame();
+    assert.equal(g.Music.themeName, 'boss');
+  });
+});
+
 describe('quitting', () => {
   test('quitting the app from play saves first and asks the shell to close', () => {
     let quit = 0;

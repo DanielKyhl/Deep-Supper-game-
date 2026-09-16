@@ -10,9 +10,17 @@ const labels = (M, id) => plain(M.items(id).map(i => i.label));
 const key = (h, code) => { h.press(code); h.g.Menu.update(1 / 60); h.g.Input.endFrame(); };
 
 describe('menu screens', () => {
-  test('the title menu without a save offers a new voyage, options and credits', () => {
+  test('the title menu without a save offers a new voyage, options, test shortcuts and credits', () => {
     const { g } = loadGame({ draw: false });
-    assert.deepEqual(labels(g.Menu, 'main'), ['New voyage', 'Options', 'Credits']);
+    assert.deepEqual(labels(g.Menu, 'main'), ['New voyage', 'Options', 'Test shortcuts', 'Credits']);
+  });
+
+  test('the test shortcuts screen warns what it does and ends with Back', () => {
+    const { g } = loadGame({ draw: false });
+    const items = g.Menu.items('dev');
+    assert.match(items[0].label, /replaces your Continue save/);
+    assert.ok(items.some(i => i.id === 'devOldOne'));
+    assert.equal(items[items.length - 1].label, 'Back');
   });
 
   test('with a save, Continue comes first', () => {
@@ -336,7 +344,7 @@ describe('rebinding from the controls screen', () => {
 });
 
 describe('drawing and the mouse', () => {
-  const screens = ['main', 'pause', 'options', 'graphics', 'audio', 'controls', 'gameplay', 'credits', 'confirmNew', 'confirmReset', 'confirmQuit', 'saveSlots', 'loadSlots', 'confirmOverwrite', 'confirmLoad'];
+  const screens = ['main', 'pause', 'options', 'graphics', 'audio', 'controls', 'gameplay', 'credits', 'confirmNew', 'confirmReset', 'confirmQuit', 'saveSlots', 'loadSlots', 'confirmOverwrite', 'confirmLoad', 'dev'];
 
   test('every screen draws with balanced state and registers a hit row per selectable item', () => {
     const { h, g } = loadGame({ draw: false });

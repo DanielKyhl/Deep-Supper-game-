@@ -21,11 +21,12 @@ const SCREEN_TITLES = {
   pause: 'PAUSED', options: 'OPTIONS', graphics: 'GRAPHICS', audio: 'AUDIO',
   controls: 'CONTROLS', gameplay: 'GAMEPLAY', credits: 'CREDITS',
   confirmNew: 'NEW VOYAGE', confirmReset: 'RESET SETTINGS', confirmQuit: 'QUIT',
-  saveSlots: 'SAVE GAME', loadSlots: 'LOAD GAME', confirmOverwrite: 'OVERWRITE', confirmLoad: 'LOAD'
+  saveSlots: 'SAVE GAME', loadSlots: 'LOAD GAME', confirmOverwrite: 'OVERWRITE', confirmLoad: 'LOAD',
+  dev: 'TEST SHORTCUTS'
 };
 
 // screens whose rows carry long values
-const WIDE_SCREENS = ['controls', 'graphics', 'audio', 'credits', 'saveSlots', 'loadSlots'];
+const WIDE_SCREENS = ['controls', 'graphics', 'audio', 'credits', 'saveSlots', 'loadSlots', 'dev'];
 
 const Menu = {
   context: 'main',     // 'main' (title screen) or 'pause'
@@ -88,6 +89,7 @@ const Menu = {
         { kind: 'action', label: 'Load game', id: 'load', hidden: !SaveGame.anySlot(), run: () => this.push('loadSlots') },
         { kind: 'action', label: 'New voyage', id: 'new', run: () => hasSave ? this.push('confirmNew') : Game.beginVoyage() },
         { kind: 'action', label: 'Options', id: 'options', run: () => this.push('options') },
+        { kind: 'action', label: 'Test shortcuts', id: 'dev', run: () => this.push('dev') },
         { kind: 'action', label: 'Credits', id: 'credits', run: () => this.push('credits') },
         { kind: 'action', label: 'Quit', id: 'quit', hidden: !isApp, run: () => this.push('confirmQuit') }
       ].filter(i => !i.hidden);
@@ -205,6 +207,15 @@ const Menu = {
         { kind: 'gap' },
         { kind: 'action', label: 'Load', id: 'yes', run: () => Game.loadSlot(this.pendingSlot) },
         { kind: 'action', label: 'Cancel', id: 'no', run: () => this.back() }
+      ];
+
+      // jumps for trying out later parts of the game without playing up to them
+      case 'dev': return [
+        { kind: 'text', label: 'For testing. Each shortcut replaces your Continue save.' },
+        { kind: 'gap' },
+        { kind: 'action', label: 'Fight the Old One, fully geared', id: 'devOldOne', run: () => Game.devFinalBoss() },
+        { kind: 'gap' },
+        { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
       ];
 
       case 'credits': return [
