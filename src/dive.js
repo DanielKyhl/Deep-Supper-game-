@@ -104,6 +104,7 @@ const Dive = {
     this.camFocus = null;
     this.banner = null;
     this.girl.visible = false;
+    Sfx.setUnderwater(false);
   },
 
   suit() { return SUITS[Math.max(0, Player.suit)]; },
@@ -139,7 +140,7 @@ const Dive = {
   _gear(dt) {
     if (!this.suited && this.t > .6) {
       this.suited = true;
-      Sfx.whoosh(); Sfx.thud();
+      Sfx.suitUp();
       Particles.burst(FISH_X, DECK_Y - 30, 22, { color: '#d8cdb4', vx: rand(-120, 120), vy: rand(-160, -30), g: 200, size: rand(2, 5), life: .7 });
     }
     if (this.t > 1.5) { this.phase = 'leap'; this.t = 0; }
@@ -185,6 +186,9 @@ const Dive = {
       air: suit.air, pressureT: 0, drownT: 0, bubbleT: 0, animT: 0
     };
     this.deepest = 0;
+    this.amb = { breath: 1.5, beep: 0, creak: .3, sonar: rand(6, 14), moan: rand(18, 30) };
+    Sfx.setUnderwater(true);
+    Sfx.plunge();
     this.spawnAll();
     this.cam.x = clamp(this.p.x - VIEW_W / 2, 0, DIVE_W - VIEW_W);
     this.cam.y = -120;
@@ -249,6 +253,7 @@ const Dive = {
     this._shots(dt);
     this._projectiles(dt);
     this._respawn(dt);
+    this._ambience(dt);
     this._camera(dt);
     for (let i = this.zaps.length - 1; i >= 0; i--) { this.zaps[i].t += dt; if (this.zaps[i].t > .22) this.zaps.splice(i, 1); }
   },
@@ -345,7 +350,7 @@ const Dive = {
     // pressure
     if (p.y > suit.depth) {
       p.pressureT += dt;
-      if (p.pressureT > 1.5) { p.pressureT = 0; this.hurtPlayer(1, p.x, p.y + 1, true); Cam.kick(3); }
+      if (p.pressureT > 1.5) { p.pressureT = 0; Sfx.creak(true); this.hurtPlayer(1, p.x, p.y + 1, true); Cam.kick(3); }
     } else p.pressureT = 0;
 
     // bubbles from the helmet
@@ -474,7 +479,7 @@ const Dive = {
     m.vx += kx * w.knock * heft; m.vy += ky * w.knock * heft;
     this.hitstop = crit ? .07 : .04;
     Cam.kick(crit ? 5 : 2.5);
-    Sfx.hit(); if (crit) Sfx.crit();
+    Sfx.hitWet(crit);
     if (Prefs.damageNumbers) {
       Floaters.add(m.x, m.y - 30, String(dmg), { color: crit ? '#ffd257' : '#fff', size: crit ? 30 : 22, life: .8 });
     }
@@ -493,7 +498,7 @@ const Dive = {
     Player.catches.push(trophy);
     Player.kills[m.def.id] = (Player.kills[m.def.id] || 0) + 1;
     Player.totalKills++;
-    Sfx.roar(); Cam.kick(7);
+    Sfx.creatureDie(m.def.len); Cam.kick(7);
     Floaters.add(m.x, m.y - 60, m.def.name, { color: '#9ff0ff', size: 20, life: 1.6, vy: -30 });
     Particles.burst(m.x, m.y, 40, { color: chance(.5) ? '#ffe9a8' : '#c4e6f2', vx: rand(-260, 260), vy: rand(-260, 260), g: 0, drag: 2.5, size: rand(2, 7), life: rand(.6, 1.2) });
     if (!m.def.spawnOnly) this.respawns.push({ zone: m.zone, t: 45 });
@@ -519,7 +524,7 @@ const Dive = {
       p.vx += dx / d * 340; p.vy += dy / d * 340;
       p.invuln = 1.0;
     }
-    Sfx.hurt(); Cam.kick(6);
+    Sfx.hurtUnder(); Cam.kick(6);
     Game.hurtFlash = 1;
     if (Prefs.damageNumbers) Floaters.add(p.x, p.y - 40, '-' + dmg, { color: '#ff7a7a', size: 24 });
     Particles.burst(p.x, p.y, 10, { color: '#e2464c', vx: rand(-140, 140), vy: rand(-140, 140), g: 0, drag: 3, size: rand(2, 4), life: .5 });
@@ -552,6 +557,8 @@ const Dive = {
         m.cool -= dt;
         if (m.cool <= 0 && dist < def.aggro * 1.2) {
           m.atk = choice(def.atk); m.state = 'tele'; m.t = 0;
+          const lv = this._near(m);
+          if (lv > .05) Sfx.growl(def.len, lv);
         }
         if (dist > def.aggro * 2.4) { m.state = 'drift'; m.t = 0; m.wanderT = 0; }
         break;
@@ -564,10 +571,12 @@ const Dive = {
         if (m.t >= dur) {
           m.dirX = dx / dist; m.dirY = dy / dist;
           m.state = m.atk; m.t = 0; m.shots = 0;
-          if (m.atk === 'charge' || m.atk === 'bite') Sfx.roar();
+          const lv = this._near(m);
+          if (lv > .05 && m.atk === 'bite') Sfx.chomp(lv);
+          if (lv > .05 && m.atk === 'charge') Sfx.rush(lv);
           if (m.atk === 'pulse') {
             this.rings.push({ x: m.x, y: m.y, r: def.len * .3, max: 210 + def.len * .35, speed: 380, width: 22, from: 'mob', dmg: def.dmg, hit: new Set(), t: 0 });
-            Sfx.tone({ f: 120, f2: 60, dur: .5, type: 'sine', vol: .25 });
+            if (lv > .05) Sfx.pulseBoom(lv);
           }
         }
         break;
@@ -596,7 +605,8 @@ const Dive = {
           const hx = m.x + (dx / dist) * def.len * .38, hy = m.y + (dy / dist) * def.len * .2;
           const ang = Math.atan2(dy, dx) + (m.shots - 2) * .22;
           this.globs.push({ x: hx, y: hy, vx: Math.cos(ang) * 320, vy: Math.sin(ang) * 320, r: 11, t: 0, dmg: 1 });
-          Sfx.noise({ f: 700, f2: 200, dur: .16, vol: .12 });
+          const lv = this._near(m);
+          if (lv > .05) Sfx.inkSquirt(lv);
         }
         if (m.t > .5) this._recover(m, .8);
         break;
@@ -716,7 +726,7 @@ const Dive = {
     if (want <= B.phase) return;
     B.phase = want;
     B.state = 'tele'; B.t = 0; B.atk = 'roar';
-    Sfx.roar(); Cam.kick(14);
+    Sfx.motherRoar(); Cam.kick(14);
     this.banner = want === 2
       ? { text: 'SHE IS NOT PLAYING', t: 0, dur: 2.6, color: '#ff8a5a' }
       : { text: 'LANTHORNE GOES DARK', t: 0, dur: 3, color: '#c46bff' };
@@ -765,11 +775,11 @@ const Dive = {
           B.dirX = dx / dist; B.dirY = dy / dist;
           if (B.atk === 'roar') { B.state = 'idle'; B.cool = .6; break; }
           B.state = B.atk;
-          if (B.atk === 'maw') Sfx.roar();
-          if (B.atk === 'sweep') { B.sweepX = CITY_X - B.sweepDir * (MOTHER_ARENA.w / 2 + 120); Sfx.whoosh(); }
+          if (B.atk === 'maw') { Sfx.growl(B.def.len, 1); Sfx.chomp(1); }
+          if (B.atk === 'sweep') { B.sweepX = CITY_X - B.sweepDir * (MOTHER_ARENA.w / 2 + 120); Sfx.rush(1); }
           if (B.atk === 'pulse') { B.pulses = 0; }
           if (B.atk === 'brood') this._brood();
-          if (B.atk === 'inhale') Sfx.noise({ f: 300, f2: 1200, dur: 1.6, filter: 'bandpass', vol: .3 });
+          if (B.atk === 'inhale') Sfx.inhale();
         }
         break;
       }
@@ -797,7 +807,7 @@ const Dive = {
         if (B.pulses < want && B.t > B.pulses * .5) {
           B.pulses++;
           this.rings.push({ x: B.x, y: B.y, r: 160, max: 1100, speed: 440, width: 34, from: 'mob', dmg: 1, hit: new Set(), t: 0 });
-          Sfx.tone({ f: 90, f2: 40, dur: .8, type: 'sine', vol: .35 }); Cam.kick(6);
+          Sfx.pulseBoom(1); Cam.kick(6);
         }
         if (B.t > .5 * want + .2) this._bossRest(.9);
         break;
@@ -842,6 +852,30 @@ const Dive = {
     }
   },
 
+  // the helmet's own soundscape: breathing, the gauge, the suit, and far-off things
+  _ambience(dt) {
+    const p = this.p, suit = this.suit(), A = this.amb;
+    if (!A) return;
+    A.breath -= dt;
+    if (A.breath <= 0 && p.air > 0) { A.breath = rand(3.4, 4.2); Sfx.breathe(); }
+    if (p.air < suit.air * .25) {
+      A.beep -= dt;
+      if (A.beep <= 0) { A.beep = p.air <= 0 ? .6 : 1.3; Sfx.lowAir(p.air <= 0); }
+    } else A.beep = 0;
+    if (p.y > suit.depth) {
+      A.creak -= dt;
+      if (A.creak <= 0) { A.creak = rand(.9, 1.4); Sfx.creak(false); }
+    } else A.creak = .3;
+    if (p.y > 900) { A.sonar -= dt; if (A.sonar <= 0) { A.sonar = rand(14, 26); Sfx.sonar(); } }
+    if (p.y > 1400) { A.moan -= dt; if (A.moan <= 0) { A.moan = rand(22, 45); Sfx.moan(); } }
+    if (chance(dt * .6)) Sfx.bubbleBlip(.5);
+  },
+
+  // how loud a creature is from where he is: full up close, nothing past ~1000px
+  _near(m) {
+    return clamp(1.2 - Math.hypot(m.x - this.p.x, m.y - this.p.y) / 850, 0, 1);
+  },
+
   _bossRest(dur) { const B = this.boss; B.state = 'rest'; B.t = 0; B.restDur = dur; },
 
   // three of her young, out of her mouth
@@ -854,7 +888,7 @@ const Dive = {
       b.state = 'hunt'; b.cool = rand(.8, 1.6);
       b.vx = this.boss.face * rand(200, 400); b.vy = rand(-200, 200);
     }
-    Sfx.roar();
+    Sfx.broodSqueal();
   },
 
   killBoss() {
@@ -868,7 +902,7 @@ const Dive = {
     for (const m of this.mobs) if (m.def.spawnOnly && !m.dead) { m.dead = true; m.state = 'dead'; m.t = 0; }
     this.rings.length = 0; this.globs.length = 0;
     this.banner = null;
-    Sfx.roar(); Cam.kick(18);
+    Sfx.motherRoar(); Sfx.creatureDie(B.def.len); Cam.kick(18);
     this.phase = 'scene';
     const s = motherEndSteps(this);
     CUT.play(s.steps, { finalize: s.finalize, onEnd: () => { this.phase = 'swim'; } });
@@ -893,7 +927,7 @@ const Dive = {
   climb() {
     if (this.phase !== 'swim') return;
     this.phase = 'climb';
-    Sfx.splash();
+    Sfx.climbOut();
     const n = Player.catches.length - this.haulStart;
     Game.fadeOut(() => this.backOnDeck(n ? 'Back aboard with ' + n + ' in the net.' : 'Back aboard. Dry, nearly.'));
   },
@@ -901,7 +935,7 @@ const Dive = {
   blackout() {
     if (this.phase !== 'swim') return;
     this.phase = 'blackout';
-    Sfx.roar();
+    Sfx.blackout();
     Game.fadeOut(() => {
       const lost = Player.catches.length - this.haulStart;
       Player.catches.length = this.haulStart;

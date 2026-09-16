@@ -256,14 +256,22 @@ const Input = (function () {
 
 /* --------------------------------- audio -------------------------------- */
 
+// how far the underwater lowpass opens, above and below the surface
+const OPEN_HZ = 22000, MUFFLED_HZ = 1100;
+
 const Sfx = {
-  ac: null, master: null, muted: false, ready: false,
+  ac: null, master: null, bus: null, muffle: null, muted: false, ready: false,
+  under: false, bed: null,
   level: .64,          // master x sfx volume, 0..1
 
   // what the master gain node should be set to right now
   // scaled so the default volumes (80% x 80%) sound as loud as they always did
   gainValue() { return this.muted ? 0 : 0.47 * this.level; },
 
+  /* Effects go bus -> muffle -> master -> speakers. The muffle is a lowpass
+     that sits wide open above water and closes right down below it, so
+     every sound gets that thick underwater quality without each one
+     needing to know where it is playing. */
   unlock() {
     if (!this.ac) {
       try {
@@ -273,7 +281,14 @@ const Sfx = {
         this.master = this.ac.createGain();
         this.master.gain.value = this.gainValue();
         this.master.connect(this.ac.destination);
+        this.muffle = this.ac.createBiquadFilter();
+        this.muffle.type = 'lowpass';
+        this.muffle.frequency.value = this.under ? MUFFLED_HZ : OPEN_HZ;
+        this.muffle.connect(this.master);
+        this.bus = this.ac.createGain();
+        this.bus.connect(this.muffle);
         this.ready = true;
+        if (this.under) this._startBed();
       } catch (e) { return; }
     }
     if (this.ac.state === 'suspended') this.ac.resume();
@@ -295,7 +310,7 @@ const Sfx = {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(v, t + (o.atk || .008));
     g.gain.exponentialRampToValueAtTime(0.0001, t + (o.dur || .15));
-    osc.connect(g); g.connect(this.master);
+    osc.connect(g); g.connect(this.bus);
     osc.start(t); osc.stop(t + (o.dur || .15) + .02);
   },
   noise(o) {
@@ -313,7 +328,7 @@ const Sfx = {
     const g = ac.createGain();
     g.gain.setValueAtTime(o.vol === undefined ? .3 : o.vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f); f.connect(g); g.connect(this.master);
+    src.connect(f); f.connect(g); g.connect(this.bus);
     src.start(t);
   },
 
@@ -338,6 +353,135 @@ const Sfx = {
   text()   { this.tone({ f: 520 + Math.random() * 120, dur: .018, type: 'square', vol: .035 }); },
 
   /* ------------------------------ underwater ------------------------------ */
+
+  // close the muffle and start the rumble of deep water, or open it back up
+  setUnderwater(on) {
+    on = !!on;
+    if (on === this.under) return;
+    this.under = on;
+    if (!this.ready) return;
+    const f = this.muffle.frequency, t = this.ac.currentTime;
+    f.cancelScheduledValues(t);
+    f.value = on ? MUFFLED_HZ : OPEN_HZ;
+    if (on) this._startBed(); else this._stopBed();
+  },
+
+  // brown noise through a low filter, swelling slowly: the sound of a lot of water
+  _startBed() {
+    if (this.bed || !this.ready) return;
+    const ac = this.ac, n = ac.sampleRate * 3;
+    const buf = ac.createBuffer(1, n, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < n; i++) { last = (last + (Math.random() * 2 - 1) * .02) / 1.02; d[i] = last * 3.5; }
+    const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320;
+    const g = ac.createGain(); g.gain.value = .22;
+    const lfo = ac.createOscillator(), lg = ac.createGain();
+    lfo.frequency.value = .09; lg.gain.value = .08;
+    lfo.connect(lg); lg.connect(g.gain);
+    src.connect(lp); lp.connect(g); g.connect(this.bus);
+    src.start(); lfo.start();
+    this.bed = { src, lfo, g };
+  },
+
+  _stopBed() {
+    const b = this.bed;
+    if (!b) return;
+    this.bed = null;
+    try { b.g.gain.value = 0; b.src.stop(); b.lfo.stop(); } catch (e) { /* already stopped */ }
+  },
+
+  bubbleBlip(v) {
+    const f = 450 + Math.random() * 500;
+    this.tone({ f, f2: f * 2.3, dur: .05 + Math.random() * .03, type: 'sine', vol: .05 * (v === undefined ? 1 : v) });
+  },
+  bubbles(n, spread) {
+    for (let i = 0; i < n; i++) setTimeout(() => this.bubbleBlip(.8), Math.random() * (spread || 400));
+  },
+  // in through the regulator with a hiss, out in a stream of bubbles
+  breathe() {
+    this.noise({ f: 1800, f2: 2400, dur: .7, filter: 'bandpass', vol: .05 });
+    setTimeout(() => this.bubbles(5, 500), 1200);
+  },
+  plunge() {
+    this.noise({ f: 700, f2: 180, dur: 1, vol: .3 });
+    this.bubbles(10, 900);
+  },
+  climbOut() {
+    this.splash();
+    [150, 330, 520].forEach(d => setTimeout(() => this.tone({ f: 1500 + Math.random() * 600, dur: .03, type: 'sine', vol: .05 }), d));
+  },
+  suitUp() {
+    this.tone({ f: 320, f2: 200, dur: .07, type: 'square', vol: .14 });
+    setTimeout(() => this.tone({ f: 180, dur: .22, type: 'triangle', vol: .16 }), 90);
+    [260, 300, 340].forEach(d => setTimeout(() => this.tone({ f: 1100, dur: .015, type: 'square', vol: .05 }), d));
+  },
+  // a heartbeat of warning from the gauge on the helmet
+  lowAir(urgent) {
+    this.tone({ f: urgent ? 1760 : 1480, dur: .06, type: 'square', vol: .06 });
+    setTimeout(() => this.tone({ f: urgent ? 1760 : 1480, dur: .06, type: 'square', vol: .06 }), 140);
+  },
+  // the suit complaining about the weight of water on it
+  creak(hard) {
+    this.tone({ f: hard ? 60 : 75, f2: 48, dur: hard ? .7 : .45, type: 'sawtooth', vol: hard ? .14 : .08 });
+    this.noise({ f: 320, f2: 180, dur: .4, filter: 'bandpass', vol: hard ? .12 : .06 });
+  },
+  sonar() {
+    this.tone({ f: 1320, dur: 1.6, type: 'sine', vol: .035, atk: .004 });
+    setTimeout(() => this.tone({ f: 1320, dur: 1.2, type: 'sine', vol: .012, atk: .004 }), 650);
+  },
+  // something enormous, very far away, singing
+  moan() {
+    this.tone({ f: 170, f2: 105, dur: 3.2, type: 'sine', vol: .07, atk: .8 });
+    this.tone({ f: 342, f2: 214, dur: 2.6, type: 'triangle', vol: .02, atk: .9 });
+  },
+  hurtUnder() {
+    this.tone({ f: 130, f2: 50, dur: .3, type: 'sine', vol: .3 });
+    this.noise({ f: 500, f2: 120, dur: .25, vol: .18 });
+    this.bubbles(6, 300);
+  },
+  hitWet(crit) {
+    this.tone({ f: crit ? 220 : 150, f2: 60, dur: .14, type: 'sine', vol: .26 });
+    this.noise({ f: 900, f2: 200, dur: .14, vol: .16 });
+  },
+  // creature sounds, deeper for bigger things and quieter further away
+  growl(len, level) {
+    const f = clamp(210 - len * .3, 34, 170), v = level === undefined ? 1 : level;
+    this.tone({ f, f2: f * .7, dur: .6, type: 'sawtooth', vol: .1 * v });
+    this.noise({ f: 400, f2: 150, dur: .5, vol: .06 * v });
+  },
+  chomp(level) {
+    const v = level === undefined ? 1 : level;
+    this.tone({ f: 140, f2: 55, dur: .12, type: 'square', vol: .14 * v });
+    this.noise({ f: 1200, f2: 300, dur: .09, filter: 'bandpass', vol: .12 * v });
+  },
+  rush(level) { this.noise({ f: 250, f2: 1300, dur: .55, filter: 'bandpass', vol: .18 * (level === undefined ? 1 : level) }); },
+  inkSquirt(level) { this.noise({ f: 1100, f2: 260, dur: .22, vol: .12 * (level === undefined ? 1 : level) }); },
+  pulseBoom(level) {
+    const v = level === undefined ? 1 : level;
+    this.tone({ f: 64, f2: 34, dur: .9, type: 'sine', vol: .34 * v });
+    this.noise({ f: 220, f2: 80, dur: .8, vol: .16 * v });
+  },
+  creatureDie(len) {
+    const f = clamp(160 - len * .15, 40, 140);
+    this.tone({ f, f2: f * .35, dur: 1.3, type: 'sawtooth', vol: .15 });
+    this.bubbles(12, 1000);
+  },
+  blackout() {
+    this.tone({ f: 55, dur: .3, type: 'sine', vol: .35 });
+    setTimeout(() => this.tone({ f: 50, dur: .35, type: 'sine', vol: .3 }), 420);
+    this.bubbles(14, 1200);
+  },
+  motherRoar() {
+    this.tone({ f: 58, f2: 30, dur: 1.8, type: 'sawtooth', vol: .32 });
+    this.tone({ f: 116, f2: 70, dur: 1.4, type: 'sawtooth', vol: .12 });
+    this.noise({ f: 300, f2: 90, dur: 1.6, vol: .24 });
+  },
+  broodSqueal() {
+    [0, 90, 170].forEach(d => setTimeout(() => this.tone({ f: 900 + Math.random() * 300, f2: 1500, dur: .14, type: 'square', vol: .05 }), d));
+  },
+  inhale() { this.noise({ f: 300, f2: 1400, dur: 1.7, filter: 'bandpass', vol: .26 }); },
 
   // each launcher sounds like what it is
   fireUnder(style) {
@@ -368,7 +512,7 @@ const Sfx = {
   reelOut() { [0, 40, 80, 120].forEach(d => setTimeout(() => this.tone({ f: 900, dur: .02, type: 'square', vol: .05 }), d)); },
   reelIn()  { this.tone({ f: 260, f2: 140, dur: .08, type: 'square', vol: .14 }); },
   zapUnder() { this.noise({ f: 5000, f2: 900, dur: .25, filter: 'highpass', vol: .14 }); this.tone({ f: 80, f2: 60, dur: .2, type: 'sawtooth', vol: .1 }); },
-  dashUnder() { this.noise({ f: 400, f2: 1600, dur: .3, filter: 'bandpass', vol: .18 }); }
+  dashUnder() { this.noise({ f: 400, f2: 1600, dur: .3, filter: 'bandpass', vol: .18 }); this.bubbles(4, 250); }
 };
 
 /* -------------------------------- camera -------------------------------- */
