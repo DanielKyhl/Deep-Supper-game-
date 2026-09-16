@@ -28,10 +28,19 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Unit and integration tests
-        run: npm test
+        id: unit
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee unit.log
+      - name: Report failing unit and integration tests
+        if: failure() && steps.unit.outcome == 'failure'
+        shell: bash
+        run: node .github/report-failures.js unit.log "Mac unit and integration tests"
       - name: Build the Mac apps (arm64 and x64 .dmg)
         run: npm run dist:mac
       - name: End-to-end tests against the packaged Apple Silicon app
+        id: e2e
         env:
           DEEPSUPPER_EXE: dist/mac-arm64/Deep Supper.app/Contents/MacOS/Deep Supper
         run: |
@@ -40,7 +49,7 @@ jobs:
       # step logs need a GitHub sign-in to read; the run summary and its
       # annotations don't, so failing tests are copied there
       - name: Report failing end-to-end tests
-        if: failure()
+        if: failure() && steps.e2e.outcome == 'failure'
         run: node .github/report-failures.js e2e.log "Mac end-to-end tests"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -60,7 +69,15 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Unit and integration tests
-        run: npm test
+        id: unit
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee unit.log
+      - name: Report failing unit and integration tests
+        if: failure() && steps.unit.outcome == 'failure'
+        shell: bash
+        run: node .github/report-failures.js unit.log "Windows unit and integration tests"
       - name: Build the Windows app (portable .exe)
         run: npm run dist
       - uses: actions/upload-artifact@v4
