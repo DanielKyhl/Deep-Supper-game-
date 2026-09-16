@@ -26,7 +26,7 @@ describe('a voyage in the app', () => {
     await A.until(page, () => Game.state === 'play', null, 5000);
     await page.keyboard.up('Escape');
     assert.equal(await page.evaluate(() => Game.night), 1);
-    assert.equal(await page.evaluate(() => Dialogue.who), 'Dorran', 'the boy says nothing; his uncle does');
+    assert.equal(await page.evaluate(() => Dialogue.who), '', 'the boy says nothing; the story is told in narration');
     await page.evaluate(() => Settings.set('textSpeed', 'instant'));
     for (let i = 0; i < 6 && await page.evaluate(() => Dialogue.active); i++) {
       await page.waitForTimeout(250);
@@ -45,6 +45,28 @@ describe('a voyage in the app', () => {
     const right = await page.evaluate(() => ({ x: Player.x, face: Player.face }));
     assert.ok(right.x > left.x + 40);
     assert.equal(right.face, 1);
+  });
+
+  test('walking the pixel-art deck at night, a whole frame is drawn in a few milliseconds', async () => {
+    await page.evaluate(() => {
+      window.__frameMs = [];
+      const frame = Game.frame;
+      Game.frame = function (...a) {
+        const t0 = performance.now();
+        const r = frame.apply(this, a);
+        window.__frameMs.push(performance.now() - t0);
+        return r;
+      };
+      window.__restoreFrame = () => { Game.frame = frame; };
+    });
+    await A.hold(page, 'KeyD', 1500);
+    await A.hold(page, 'KeyA', 1000);
+    const ms = await page.evaluate(() => { window.__restoreFrame(); return window.__frameMs; });
+    assert.ok(ms.length > 60, 'only ' + ms.length + ' frames ran');
+    const sorted = ms.slice(1).sort((a, b) => a - b);
+    const median = sorted[sorted.length >> 1];
+    assert.ok(median < 6, 'median frame ' + median.toFixed(2) + ' ms');
+    assert.equal(await page.evaluate(() => Game.night), 1);
   });
 
   test('E at the crate takes the dip net', async () => {

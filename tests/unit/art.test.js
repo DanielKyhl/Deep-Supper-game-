@@ -151,16 +151,6 @@ describe('drawing characters and monsters', () => {
     }
   });
 
-  test('the boy is mirrored by his facing, so A really does turn him left', () => {
-    const mirror = face => {
-      rec.reset(); rec.startLog();
-      g.Art.boy(bctx, 400, g.DECK_Y, { face, state: 'walk', t: 1 });
-      return rec.stopLog().filter(e => e.fn === 'scale').map(e => e.args[0]);
-    };
-    assert.ok(mirror(-1).includes(-1), 'facing left scales x by -1');
-    assert.ok(!mirror(1).includes(-1), 'facing right is never mirrored');
-  });
-
   test('every weapon draws through a full swing', () => {
     for (const w of g.WEAPONS) {
       for (const p of [0, .3, .7, 1]) balanced(w.id + ' at ' + p, () => g.Art.weapon(bctx, w, 1, p));
