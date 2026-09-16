@@ -35,8 +35,10 @@ const Battle = {
     Player.face = 1;
     Player.bState = 'idle';
     Player.attackT = 0; Player.combo = 0; Player.attackDone = false;
+    Player.chargeT = 0; Player.heavy = false;
     Player.rollT = 0; Player.rollCd = 0;
     Player.invuln = 0; Player.knock = 0; Player.healT = 0;
+    Status.clear(Player);
 
     this.m = {
       def, x: Cam.x + VIEW_W + 180, y: DECK_Y - 250,
@@ -135,6 +137,7 @@ const Battle = {
 
   _updatePlayer(dt, frozen) {
     const P = Player;
+    if (!frozen) Status.tickPlayer(P, dt, dmg => this._poisonHit(dmg));
     P.invuln = Math.max(0, P.invuln - dt);
     P.rollCd = Math.max(0, P.rollCd - dt);
     P.healT = Math.max(0, P.healT - dt);
@@ -166,7 +169,9 @@ const Battle = {
       // buffer a follow-up
       if (Input.tap('attack') && elapsed > total * .45) P.comboBuffer = true;
       if (P.attackT <= 0) {
-        if (P.comboBuffer && P.combo < 2) { this._swing(P.combo + 1); }
+        const wasHeavy = P.heavy;
+        P.heavy = false;
+        if (P.comboBuffer && P.combo < 2 && !wasHeavy) { this._swing(P.combo + 1); }
         else { P.bState = 'idle'; P.combo = 0; P.comboBuffer = false; }
       }
     } else if (!frozen) {
@@ -176,14 +181,35 @@ const Battle = {
       if (Input.held('right')) mv += 1;
       if (mv !== 0) { P.face = mv; P.bState = onGround ? 'walk' : 'jump'; }
       else P.bState = onGround ? 'idle' : 'jump';
-      P.x += mv * 250 * dt;
+
+      // still holding the attack key once a swing is over: winding up a heavy blow
+      const w = deckWeapon();
+      if (P.weapon >= 0 && Input.held('attack') && !Input.tap('attack')) {
+        const need = chargeTime(w);
+        P.chargeT += dt;
+        P.bState = 'charge';
+        if (P.chargeT >= need && !P.chargeReady) {
+          P.chargeReady = true;
+          Sfx.tone({ f: 660, f2: 990, dur: .16, type: 'triangle', vol: .12 });
+          Particles.burst(P.x + P.face * 20, P.y - 70, 10, { color: '#ffe9a8', vx: rand(-120, 120), vy: rand(-140, 40), g: 200, size: rand(2, 4), life: .45 });
+        } else if (!P.chargeReady && chance(dt * 30)) {
+          const a = rand(0, 6.28);
+          Particles.burst(P.x + P.face * 16 + Math.cos(a) * 46, P.y - 60 + Math.sin(a) * 40, 1, { color: 'rgba(255,233,168,.8)', vx: -Math.cos(a) * 90, vy: -Math.sin(a) * 90, g: 0, size: 2, life: .45 });
+        }
+      } else if (P.chargeT > 0) {
+        const full = P.chargeT >= chargeTime(w);
+        P.chargeT = 0; P.chargeReady = false;
+        if (full) this._heavy();
+      }
+      P.x += mv * 250 * dt * (P.chargeT > 0 ? .35 : 1);
 
       if (Input.tap('jump') && onGround) {
         P.vy = -640; Sfx.whoosh();
         Particles.burst(P.x, DECK_Y, 5, { color: 'rgba(220,230,244,.7)', vy: -40, g: 400, size: 3, life: .35 });
       }
-      if (Input.tap('attack') && P.weapon >= 0) this._swing(0);
+      if (Input.tap('attack') && P.weapon >= 0 && P.bState !== 'attack') this._swing(0);
       if (Input.tap('roll') && onGround && P.rollCd <= 0) {
+        P.chargeT = 0; P.chargeReady = false;
         P.rollT = .34; P.rollCd = .62; P.invuln = Math.max(P.invuln, .30);
         Sfx.whoosh();
       }
@@ -191,6 +217,7 @@ const Battle = {
         P.bandages--; P.hp = Math.min(P.maxHp, P.hp + 2); P.healT = .5;
         Sfx.heal();
         if (Prefs.damageNumbers) Floaters.add(P.x, DECK_Y - 70, '+2', { color: '#8ce0a4', size: 22 });
+        if (Status.cure(P)) Floaters.add(P.x, DECK_Y - 96, 'the sting is out', { color: '#b8f0a8', size: 16, life: 1 });
         Particles.burst(P.x, DECK_Y - 40, 12, { color: '#a8f0c0', vy: -90, g: 120, size: 3, life: .8 });
       }
     }
@@ -215,9 +242,27 @@ const Battle = {
     }
   },
 
+  // let go at full charge: the weapon's heavy blow
+  _heavy() {
+    const P = Player, w = deckWeapon(), hv = w.heavy || {};
+    P.combo = 0;
+    P.heavy = true;
+    P.attackDur = .5 / (w.speed || 1);
+    P.attackT = P.attackDur;
+    P.attackDone = false;
+    P.comboBuffer = false;
+    P.bState = 'attack';
+    // the lunge carries him forward on the same slide knockback uses
+    if (hv.dash) P.knock = P.face * Math.sqrt(2 * 900 * hv.dash);
+    Sfx.swing();
+    Sfx.tone({ f: 110, f2: 55, dur: .34, type: 'sawtooth', vol: .15 });
+    Cam.kick(4);
+  },
+
   _swing(step) {
     const P = Player;
     const w = deckWeapon();
+    P.heavy = false;
     P.combo = step;
     const base = w.style === 'chop' ? .44 : (w.style === 'thrust' ? .26 : .32);
     P.attackDur = (step === 2 ? base * 1.4 : base) / (w.speed || 1);
@@ -232,6 +277,11 @@ const Battle = {
   _playerHitbox() {
     const P = Player;
     const w = deckWeapon();
+    if (P.heavy) {
+      const hv = w.heavy || {}, reach = 64 * w.reach * (hv.reach || 1.25);
+      if (hv.both) return { x: P.x - reach, y: P.y - 110, w: reach * 2, h: 110 };
+      return { x: P.face > 0 ? P.x + 6 : P.x - 6 - reach, y: P.y - 110, w: reach, h: 110 };
+    }
     const reach = 64 * w.reach;
     let y, h;
     if (w.style === 'thrust') { y = P.y - 54; h = 34; }             // narrow, level
@@ -253,18 +303,22 @@ const Battle = {
 
     Player.attackDone = true;
     const sw = deckWeapon();
-    const crit = chance(.14);
-    let dmg = Math.round(sw.dmg * rand(.88, 1.12) * (crit ? 1.75 : 1) * (Player.combo === 2 ? 1.35 : 1));
+    const heavy = Player.heavy, hv = (heavy && sw.heavy) || null;
+    const crit = (hv && hv.crit) || chance(.14);
+    let dmg = Math.round(sw.dmg * rand(.88, 1.12) * (crit ? 1.75 : 1) * (Player.combo === 2 && !heavy ? 1.35 : 1) * (hv ? hv.mult : 1));
     if (m.state === 'recover') dmg = Math.round(dmg * (this.parried > 0 ? 1.8 : 1.35));
+    const windingUp = m.state === 'tele' && m.atk !== 'roar';
+    this.lastBlowHeavy = heavy;
     // one blow, whatever it is
     if (Player.excalibur) dmg = Math.max(dmg, m.hp);
     m.x += Player.face * 6 * (sw.knock || 1);
     m.hp -= dmg;
     m.flash = 1;
     m.hits++;
-    this.hitstop = crit ? .085 : .05;
-    Cam.kick(crit ? 6 : 3.2);
+    this.hitstop = heavy ? .12 : crit ? .085 : .05;
+    Cam.kick(heavy ? 10 : crit ? 6 : 3.2);
     Sfx.hit(); if (crit) Sfx.crit();
+    if (hv && hv.pull) m.x -= Player.face * hv.pull;
 
     const hx = Player.x + Player.face * 60, hy = Player.y - 54;
     if (Prefs.damageNumbers) Floaters.add(hx, hy - 14, String(dmg), {
@@ -285,7 +339,65 @@ const Battle = {
     m.x += Player.face * 10;
 
     if (m.hp <= 0) this._die();
-    else this._checkBossPhase();
+    else {
+      if (hv) {
+        this._afflict({ dmg: sw.dmg, bleed: hv.bleed ? 1 : 0, stun: hv.stun ? 1 : 0, stunDur: hv.stun }, true);
+        // caught mid wind-up, it loses the attack
+        if (windingUp && !this._answering() && !Status.stunned(m)) {
+          this._recover(.6);
+          if (Prefs.damageNumbers) Floaters.add(m.x, m.y - this.len * this.girth - 50, 'INTERRUPTED', { color: '#f0cf6a', size: 16, life: .9 });
+        }
+        Particles.burst(hx, hy, 18, { color: sw.accent || '#ffe9a8', vx: rand(-260, 260), vy: rand(-260, 60), g: 600, size: rand(3, 7), life: rand(.4, .8) });
+      } else this._afflict(sw, false);
+      this._checkBossPhase();
+    }
+  },
+
+  // bleeding and stunning, and saying so
+  _afflict(w, heavy) {
+    const m = this.m;
+    if (this._answering()) return [];
+    const got = Status.inflict(m, w, heavy);
+    const x = m.x, y = m.y - this.len * this.girth - 24;
+    if (got.includes('bleed') && Prefs.damageNumbers) Floaters.add(x - 30, y, 'BLEEDING', { color: '#ff6a6a', size: 15, life: .8 });
+    if (got.includes('stun')) {
+      if (Prefs.damageNumbers) Floaters.add(x + 30, y, 'STUNNED', { color: '#ffd257', size: 15, life: .8 });
+      Sfx.tone({ f: 1300, f2: 900, dur: .22, type: 'triangle', vol: .09 });
+    }
+    return got;
+  },
+
+  // the Old One mid-skill-check is never knocked out of it
+  _answering() { const s = this.m.state; return s === 'jaw' || s === 'breach' || s === 'drag'; },
+
+  // a bleed tick: small, red, and it can finish a thing off
+  _bleed(dmg) {
+    const m = this.m;
+    if (m.state === 'dead' || this.phase !== 'fight') return;
+    m.hp -= dmg;
+    m.flash = Math.max(m.flash, .45);
+    if (Prefs.damageNumbers) Floaters.add(m.x + rand(-30, 30), m.y - 20, String(dmg), { color: '#ff7a7a', size: 16, life: .6 });
+    Particles.burst(m.x + rand(-this.len * .3, this.len * .3), m.y + 10, 4, { color: '#8e2c3a', vx: rand(-40, 40), vy: rand(-40, 20), g: 800, size: rand(2, 4), life: .6 });
+    if (m.hp <= 0) {
+      if (typeof Achievements !== 'undefined') Achievements.event('bleedKill');
+      this._die();
+    } else this._checkBossPhase();
+  },
+
+  // poison running its course: one heart, no knockback
+  _poisonHit(dmg) {
+    const P = Player;
+    if (this.phase !== 'fight') return;
+    P.hp -= dmg;
+    Sfx.hurt();
+    Game.hurtFlash = .6;
+    if (Prefs.damageNumbers) Floaters.add(P.x, P.y - 70, '-' + dmg, { color: '#8ee07a', size: 22 });
+    if (P.hp <= 0) {
+      P.hp = 0;
+      this.phase = 'lose';
+      this.m.t = 0;
+      this.banner = { text: 'YOU ARE DOWN', t: 0, dur: 3, color: '#ff6a6a' };
+    }
   },
 
   _die() {
@@ -305,13 +417,15 @@ const Battle = {
     Player.catches.push(trophy);
     Player.kills[this.def.id] = (Player.kills[this.def.id] || 0) + 1;
     Player.totalKills++;
+    if (this.lastBlowHeavy && Player.attackDone && Player.heavy && typeof Achievements !== 'undefined') Achievements.event('heavyKill');
     this.banner = { text: 'DEFEATED', t: 0, dur: 3, color: '#8ce0a4' };
   },
 
-  _hurtPlayer(dmg, fromX, force) {
+  _hurtPlayer(dmg, fromX, force, o) {
     const P = Player;
     if ((P.invuln > 0 && !force) || this.phase !== 'fight') return;
     P.hp -= dmg;
+    if (o && o.poison && P.hp > 0 && Status.poison(P) && Prefs.damageNumbers) Floaters.add(P.x, P.y - 96, 'POISONED', { color: '#8ee07a', size: 18, life: 1 });
     P.invuln = 1.05;
     P.knock = (P.x < fromX ? -1 : 1) * 340;
     P.vy = -230;
@@ -379,6 +493,17 @@ const Battle = {
     const m = this.m, d = this.def;
     m.t += dt;
     m.flash = Math.max(0, m.flash - dt * 4);
+    Status.tick(m, dt, dmg => this._bleed(dmg));
+    if (this.phase !== 'fight') return;
+    if (Status.stunned(m) && !this._answering()) {
+      // whatever it was about to do, it isn't now; it reels until the stars clear
+      if (m.state !== 'recover') { m.state = 'recover'; m.recDur = .35; m.lure = 0; this.glare = 0; }
+      m.t = 0;
+      m.thrashAmt = .4; m.gape = .35;
+      m.rot = Math.sin(this.t * 7) * .12;
+      m.y = approach(m.y, this.restY + 10, dt * 150);
+      return;
+    }
     const rageMul = this.bossPhase >= 3 ? 1.7 : (this.rage ? 1.35 : 1);
     const restY = this.restY;
     const P = Player;
@@ -742,7 +867,7 @@ const Battle = {
     for (let i = this.curtains.length - 1; i >= 0; i--) {
       const c = this.curtains[i];
       c.t += dt;
-      if (live && c.t > c.warn && c.t < c.warn + c.on && overlaps({ x: c.x - c.w / 2, y: 0, w: c.w, h: DECK_Y }, pb)) this._hurtPlayer(1, c.x);
+      if (live && c.t > c.warn && c.t < c.warn + c.on && overlaps({ x: c.x - c.w / 2, y: 0, w: c.w, h: DECK_Y }, pb)) this._hurtPlayer(1, c.x, false, { poison: true });
       if (c.t > c.warn + c.on + .2) this.curtains.splice(i, 1);
     }
     for (let i = this.shards.length - 1; i >= 0; i--) {
@@ -957,6 +1082,7 @@ const Battle = {
     }
     Art.monster(g, drawM, this.t);
     g.restore();
+    if (this.phase === 'fight') Status.drawIcons(g, m.x - camX, m.y - this.len * this.girth - 40, m.fx, this.t);
 
     // telegraph marker
     if (m.state === 'tele' && this.phase === 'fight') {
@@ -1030,7 +1156,28 @@ const Battle = {
       hold: P.weapon >= 0 ? 'weapon' : null, weapon: w
     };
 
-    if (P.bState === 'attack') {
+    if (P.bState === 'charge') {
+      const k = clamp(P.chargeT / chargeTime(w), 0, 1), shake = k >= 1 ? Math.sin(P.animT * 60) * .05 : 0;
+      o.state = 'idle';
+      o.weaponAngle = lerp(-1.15, w.style === 'thrust' ? -.6 : -2.6, easeOut(k)) + shake;
+      o.frontArm = lerp(.35, w.style === 'thrust' ? -.9 : -1.9, easeOut(k));
+      o.lunge = w.style === 'thrust' ? -6 * k : 0;
+    } else if (P.bState === 'attack' && P.heavy) {
+      const total = P.attackDur, e = (total - P.attackT) / total;
+      o.swingP = e;
+      const hv = w.heavy || {};
+      if (w.style === 'thrust') {
+        o.weaponAngle = -.1; o.frontArm = .05;
+        o.lunge = ease(clamp(e / .3, 0, 1)) * 20;
+      } else if (hv.both) {
+        o.weaponAngle = -2.4 + ease(clamp(e / .8, 0, 1)) * 6.8;
+        o.frontArm = -1.4 + ease(clamp(e / .8, 0, 1)) * 2.4;
+      } else {
+        const k = ease(clamp(e / .55, 0, 1));
+        o.weaponAngle = lerp(-2.9, 1.5, k);
+        o.frontArm = lerp(-2.1, 1.1, k);
+      }
+    } else if (P.bState === 'attack') {
       const total = P.attackDur, e = (total - P.attackT) / total;
       o.swingP = e;
       if (w.style === 'thrust') {
@@ -1058,6 +1205,7 @@ const Battle = {
     }
 
     Art.boy(g, sx, P.y, o);
+    if (Status.poisoned(P)) Status.drawPoison(g, sx, P.y, P.animT);
 
     // the trail the weapon leaves
     if (P.bState === 'attack' && P.weapon >= 0) {
@@ -1090,7 +1238,8 @@ const Battle = {
           const mid = base + span * ease(clamp((e - .14) / .44, 0, 1));
           const wide = chop ? .55 : .75;
           g.globalAlpha = a * .8;
-          g.lineWidth = (chop ? 10 : 7) * a + 2;
+          if (P.heavy) g.strokeStyle = w.accent || w.metal;
+          g.lineWidth = (chop || P.heavy ? 12 : 7) * a + 2;
           g.beginPath(); g.arc(0, 16, R, mid - wide, mid + wide); g.stroke();
           g.globalAlpha = a * .32;
           g.lineWidth = (chop ? 22 : 16) * a;
@@ -1099,6 +1248,16 @@ const Battle = {
         g.lineCap = 'butt';
         g.restore();
       }
+    }
+    // how charged the heavy blow is: a row of pips over his head
+    if (P.bState === 'charge') {
+      const k = clamp(P.chargeT / chargeTime(w), 0, 1), full = k >= 1;
+      const pips = 6, bx = snap(sx - pips * 5), by = snap(P.y - 118);
+      for (let i = 0; i < pips; i++) {
+        g.fillStyle = (i + 1) / pips <= k + .001 ? (full && Math.sin(P.animT * 30) > 0 ? '#fff6d0' : '#f0cf6a') : 'rgba(20,16,12,.6)';
+        g.fillRect(bx + i * 10, by, 8, 6);
+      }
+      if (full) Text.draw(g, (w.heavy ? w.heavy.name : 'Heavy').toUpperCase(), sx, by - 8, { size: 12, align: 'center', color: '#f0cf6a', outline: 'rgba(0,0,0,.7)', outlineW: 3 });
     }
     g.restore();
   },
@@ -1201,7 +1360,7 @@ const Battle = {
     /* controls reminder */
     if (this.phase === 'fight' && this.t < 7) {
       const a = clamp(Math.min(this.t, 7 - this.t), 0, 1) * .8;
-      Text.draw(g, '[J] swing   [K] roll   [SPACE] jump   [Q] bandage', VIEW_W / 2, VIEW_H - 92, {
+      Text.draw(g, '[J] swing, hold for a heavy blow   [K] roll   [SPACE] jump   [Q] bandage', VIEW_W / 2, VIEW_H - 92, {
         size: 14, align: 'center', color: 'rgba(210,220,244,' + a + ')', font: 'Verdana, sans-serif'
       });
     }

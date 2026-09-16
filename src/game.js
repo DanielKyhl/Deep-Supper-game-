@@ -20,6 +20,7 @@ const Player = {
   sawEnding: false,                              // sailed home and watched the credits
   // battle scratch
   attackT: 0, attackDur: .32, attackDone: false, combo: 0, comboBuffer: false,
+  chargeT: 0, heavy: false,          // holding the attack key for a heavy blow, and whether this one is
   rollT: 0, rollCd: 0, invuln: 0, knock: 0, healT: 0,
 
   reset() {
@@ -365,6 +366,7 @@ const Game = {
 
   endBattle(won, reward) {
     Cam.locked = false;
+    Status.clear(Player);
     Player.bState = 'idle';
     Player.attackT = 0; Player.rollT = 0; Player.invuln = 0; Player.knock = 0;
     Player.y = DECK_Y; Player.vy = 0;

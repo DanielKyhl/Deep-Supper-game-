@@ -104,6 +104,7 @@ const Dive = {
     this.camFocus = null;
     this.banner = null;
     this.girl.visible = false;
+    Status.clear(Player);
     Sfx.setUnderwater(false);
   },
 
@@ -307,7 +308,8 @@ const Dive = {
       p.aim = n ? Math.atan2(iy, ix) : (p.face > 0 ? 0 : Math.PI);
     }
 
-    const acc = 1000 * suit.speed, top = 240 * suit.speed;
+    Status.tickPlayer(P, dt, dmg => this.hurtPlayer(dmg, p.x, p.y + 1, true));
+    const acc = 1000 * suit.speed * Status.speed(P), top = 240 * suit.speed * Status.speed(P);
     p.vx += ix * acc * dt;
     p.vy += iy * acc * dt;
     // past the suit's depth the water pushes back on the way down
@@ -335,6 +337,7 @@ const Dive = {
       P.bandages--; P.hp = Math.min(P.maxHp, P.hp + 2); p.healT = .5;
       Sfx.heal();
       if (Prefs.damageNumbers) Floaters.add(p.x, p.y - 40, '+2', { color: '#8ce0a4', size: 22 });
+      if (Status.cure(P)) Floaters.add(p.x, p.y - 66, 'the sting is out', { color: '#b8f0a8', size: 16, life: 1 });
     }
 
     p.x += p.vx * dt;
@@ -456,7 +459,7 @@ const Dive = {
   // lightning jumping on from what was hit to the nearest few around it
   _chain(first, w) {
     this.zaps.push({ x1: first.x - 30, y1: first.y - 20, x2: first.x, y2: first.y, t: 0 });
-    if (!first.dead && !first.def.boss) { first.state = 'stun'; first.t = 0; first.stun = .5; }
+    if (!first.dead && !first.def.boss) { first.state = 'stun'; first.t = 0; first.stun = .5; Status.stun(first, .5); }
     const near = this.targets()
       .filter(m => m !== first && !m.dead && Math.hypot(m.x - first.x, m.y - first.y) < w.jump + Math.min(m.def.len * .3, 120))
       .sort((a, b) => Math.hypot(a.x - first.x, a.y - first.y) - Math.hypot(b.x - first.x, b.y - first.y))
@@ -466,7 +469,7 @@ const Dive = {
       this.zaps.push({ x1: from.x, y1: from.y, x2: m.x, y2: m.y, t: 0 });
       const dx = m.x - from.x, dy = m.y - from.y, d = Math.hypot(dx, dy) || 1;
       this.hitMob(m, w, dx / d, dy / d);
-      if (!m.dead && !m.def.boss) { m.state = 'stun'; m.t = 0; m.stun = .5; }
+      if (!m.dead && !m.def.boss) { m.state = 'stun'; m.t = 0; m.stun = .5; Status.stun(m, .5); }
       from = m;
     }
     Sfx.zapUnder();
@@ -494,9 +497,27 @@ const Dive = {
     Particles.burst(m.x - kx * m.def.len * .2, m.y - ky * 10, crit ? 14 : 8, {
       color: chance(.5) ? '#c4e6f2' : '#8e2c3a', vx: rand(-160, 160), vy: rand(-160, 160), g: 0, drag: 3, size: rand(2, 5), life: rand(.3, .7)
     });
-    if (m.def.boss) { if (m.hp <= 0) this.killBoss(); else this._bossPhase(); return; }
-    if (m.hp <= 0) this.killMob(m);
+    if (m.def.boss) {
+      if (m.hp <= 0) this.killBoss();
+      else { if (w.bleed) Status.inflict(m, { dmg: w.dmg, bleed: w.bleed }); this._bossPhase(); }
+      return;
+    }
+    if (m.hp <= 0) { this.killMob(m); return; }
+    const got = Status.inflict(m, w);
+    if (got.includes('stun')) { m.state = 'stun'; m.t = 0; m.stun = Math.max(m.stun || 0, Status.fx(m).stun); }
     else if (m.state === 'drift') { m.state = 'hunt'; m.t = 0; m.cool = rand(.4, .9); }
+  },
+
+  // a bleed tick on something down here
+  _bleedMob(m, dmg) {
+    if (m.dead) return;
+    m.hp -= dmg;
+    m.flash = Math.max(m.flash, .45);
+    if (Prefs.damageNumbers) Floaters.add(m.x + rand(-20, 20), m.y - 20, String(dmg), { color: '#ff7a7a', size: 16, life: .6 });
+    Particles.burst(m.x, m.y, 3, { color: '#8e2c3a', vx: rand(-40, 40), vy: rand(-40, 40), g: 0, drag: 2, size: rand(2, 4), life: .7 });
+    if (m.hp > 0) return;
+    if (typeof Achievements !== 'undefined') Achievements.event('bleedKill');
+    if (m.def.boss) this.killBoss(); else this.killMob(m);
   },
 
   killMob(m) {
@@ -545,6 +566,7 @@ const Dive = {
     const def = m.def, p = this.p;
     m.t += dt;
     m.flash = Math.max(0, m.flash - dt * 4);
+    if (!m.dead) { Status.tick(m, dt, dmg => this._bleedMob(m, dmg)); if (m.dead) return; }
     const dx = p.x - m.x, dy = p.y - m.y, dist = Math.hypot(dx, dy) || 1;
     const spd = def.speed;
     const toward = (s, k) => { m.vx += dx / dist * s * dt * k; m.vy += dy / dist * s * dt * k; };
@@ -583,7 +605,7 @@ const Dive = {
           if (lv > .05 && m.atk === 'bite') Sfx.chomp(lv);
           if (lv > .05 && m.atk === 'charge') Sfx.rush(lv);
           if (m.atk === 'pulse') {
-            this.rings.push({ x: m.x, y: m.y, r: def.len * .3, max: 210 + def.len * .35, speed: 380, width: 22, from: 'mob', dmg: def.dmg, hit: new Set(), t: 0 });
+            this.rings.push({ x: m.x, y: m.y, r: def.len * .3, max: 210 + def.len * .35, speed: 380, width: 22, from: 'mob', dmg: def.dmg, hit: new Set(), t: 0, poison: def.plan === 'bloom' });
             if (lv > .05) Sfx.pulseBoom(lv);
           }
         }
@@ -612,7 +634,7 @@ const Dive = {
           m.shots++;
           const hx = m.x + (dx / dist) * def.len * .38, hy = m.y + (dy / dist) * def.len * .2;
           const ang = Math.atan2(dy, dx) + (m.shots - 2) * .22;
-          this.globs.push({ x: hx, y: hy, vx: Math.cos(ang) * 320, vy: Math.sin(ang) * 320, r: 11, t: 0, dmg: 1 });
+          this.globs.push({ x: hx, y: hy, vx: Math.cos(ang) * 320, vy: Math.sin(ang) * 320, r: 11, t: 0, dmg: 1, kind: 'ink' });
           const lv = this._near(m);
           if (lv > .05) Sfx.inkSquirt(lv);
         }
@@ -747,7 +769,13 @@ const Dive = {
       b.vx *= 1 - Math.min(1, dt * .6); b.vy *= 1 - Math.min(1, dt * .6);
       b.x += b.vx * dt; b.y += b.vy * dt;
       if (chance(dt * 20)) Particles.add(b.x, b.y, { vx: 0, vy: 0, g: 0, size: 3, life: .5, color: 'rgba(40,20,60,.8)' });
-      if (Math.hypot(p.x - b.x, p.y - b.y) < b.r + 16) { this.hurtPlayer(b.dmg, b.x, b.y); this.globs.splice(i, 1); continue; }
+      if (Math.hypot(p.x - b.x, p.y - b.y) < b.r + 16) {
+        const landed = p.invuln <= 0;
+        this.hurtPlayer(b.dmg, b.x, b.y);
+        if (landed && b.kind === 'ink' && Player.hp > 0) Status.ink(Player);
+        this.globs.splice(i, 1);
+        continue;
+      }
       if (b.t > 2.4) this.globs.splice(i, 1);
     }
     for (let i = this.rings.length - 1; i >= 0; i--) {
@@ -757,7 +785,12 @@ const Dive = {
       // rings only ever come from the creatures; his weapons all fire shots
       if (!R.hit.has('player')) {
         const d = Math.hypot(p.x - R.x, p.y - R.y);
-        if (Math.abs(d - R.r) < R.width / 2 + 14) { R.hit.add('player'); this.hurtPlayer(R.dmg, R.x, R.y); }
+        if (Math.abs(d - R.r) < R.width / 2 + 14) {
+          R.hit.add('player');
+          const landed = p.invuln <= 0;
+          this.hurtPlayer(R.dmg, R.x, R.y);
+          if (landed && R.poison && Player.hp > 0 && Status.poison(Player) && Prefs.damageNumbers) Floaters.add(p.x, p.y - 66, 'POISONED', { color: '#8ee07a', size: 18, life: 1 });
+        }
       }
       if (R.r >= R.max) this.rings.splice(i, 1);
     }
@@ -915,6 +948,7 @@ const Dive = {
   _boss(dt) {
     const B = this.boss, p = this.p, def = B.def;
     B.t += dt;
+    if (!B.dead) { Status.tick(B, dt, dmg => this._bleedMob(B, dmg)); if (B.dead || this.boss !== B) return; }
     B.flash = Math.max(0, B.flash - dt * 3);
     if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.dur) this.banner = null; }
     const rage = B.phase >= 3 ? 1.45 : (B.phase === 2 ? 1.2 : 1);
@@ -1152,6 +1186,8 @@ const Dive = {
 
   drawUI(g) {
     if (!this.underwater) return;
+    // ink across the glass of his helmet
+    Status.drawInk(g, Player.fx);
     this.drawHUD(g);
     this._drawBoss(g);
     if (this.phase === 'scene') { CUT.drawOverlay(g); return; }

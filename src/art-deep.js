@@ -135,6 +135,7 @@ Object.assign(Art, {
       if (m.dead) g.globalAlpha = clamp(1 - m.t / 1.8, 0, 1);
       this.monster(g, { x: m.x, y: m.y, face: m.face, rot: m.rot, len: m.def.len, def: m.def, flash: m.flash, gape: m.gape, seed: m.seed, thrashAmt: m.thrash, noShadow: true }, t);
       g.restore();
+      if (!m.dead) Status.drawIcons(g, m.x, m.y - m.def.len * (m.def.girth || .27) - 44, m.fx, t);
       if (!m.dead && m.hp < m.maxHp) {
         const bw = 56, by = m.y - m.def.len * (m.def.girth || .27) - 26;
         g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(snap(m.x - bw / 2), snap(by), bw, 4);
@@ -220,6 +221,7 @@ Object.assign(Art, {
       recoil: p.fireT / .18, loaded: p.cd <= 0 && !p.harpoonOut,
       alpha: blink ? .45 : 1
     });
+    if (Status.poisoned(Player)) Status.drawPoison(g, p.x, p.y + 30, p.animT);
     g.restore();
 
     // marine snow, drifting past the glass

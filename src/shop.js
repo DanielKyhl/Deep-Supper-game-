@@ -88,7 +88,7 @@ const Shop = {
         r.push({
           kind: 'diveweapon', idx: i, name: w.name, sub: w.desc, price: w.price,
           owned: i <= Player.diveWeapon, locked: i > Player.diveWeapon + 1,
-          stat: 'damage ' + w.dmg + '  ·  ' + FIRE_STYLES[w.style]
+          stat: 'damage ' + w.dmg + '  ·  ' + FIRE_STYLES[w.style] + statusTags(w)
         });
       });
       return r;
@@ -107,7 +107,7 @@ const Shop = {
         r.push({
           kind: 'weapon', idx: i, name: s.name, sub: s.desc, price: s.price,
           owned: i <= Player.weapon, locked: i > Player.weapon + 1,
-          stat: 'damage ' + s.dmg + '  ·  ' + s.style
+          stat: 'damage ' + s.dmg + '  ·  ' + s.style + statusTags(s) + (s.heavy ? '  ·  heavy: ' + s.heavy.name.toLowerCase() : '')
         });
       });
       return r;

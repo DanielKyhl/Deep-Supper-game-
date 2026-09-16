@@ -223,6 +223,7 @@ function loadGame(opts) {
   // asks for rareCatches or rigs them itself.
   evalIn('SeaDice.s = ' + ((((opts.seed || 1) * 2654435761) >>> 0) || 1));
   if (!opts.rareCatches) evalIn('SeaDice.chance = function () { return false; }');
+  evalIn('Status.s = ' + ((((opts.seed || 1) * 2246822519) >>> 0) || 7));
 
   const Game = g.Game;
   const emit = (type, ev) => { for (const fn of (windowListeners[type] || [])) fn(ev); };

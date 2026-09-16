@@ -18,36 +18,50 @@ const RODS = [
      swing  — wide arc, generous vertical coverage
      chop   — slow overhead, huge damage, small window
      thrust — long and narrow, fast, poor against tall targets
-   `kind` is purely how Art draws it.                                      */
+   `kind` is purely how Art draws it. `bleed` and `stun`, where a weapon has
+   them, are the chance a hit leaves a creature bleeding or stunned
+   (see status.js).
+
+   `heavy` is what the weapon does when the attack key is held after a swing
+   and let go once it has charged: `mult` times the damage, and whichever of
+   a stun (seconds), a bleed, a dash forward, a pull toward you, a reach
+   multiplier, both sides at once, or a certain crit it brings. A heavy blow
+   landing while a creature winds up knocks it out of the attack.         */
 
 const WEAPONS = [
   { id: 'dipnet', name: 'Dip Net', kind: 'net', style: 'swing', price: 0,
     dmg: 8, reach: 1.05, speed: 1.0, knock: 0.6,
+    heavy: { name: 'Scoop', mult: 1.8, stun: 1.0, reach: 1.2 },
     metal: '#9aa6b4', grip: '#8a6a3c', accent: '#d9d2b8',
     desc: 'For scooping herring. You are not scooping herring.' },
 
   { id: 'gaff', name: 'Gaff Hook', kind: 'gaff', style: 'swing', price: 120,
     dmg: 14, reach: 1.22, speed: 1.05, knock: 0.9,
+    heavy: { name: 'Haul', mult: 2.0, stun: .8, pull: 70, reach: 1.3 },
     metal: '#b7bec8', grip: '#6b4a2a', accent: '#8e6a3a',
     desc: 'A hook on a stick. Honest work, honest tool.' },
 
   { id: 'cleaver', name: 'Gutting Cleaver', kind: 'cleaver', style: 'chop', price: 280,
-    dmg: 26, reach: 0.98, speed: 0.78, knock: 1.5,
+    dmg: 26, reach: 0.98, speed: 0.78, knock: 1.5, bleed: .35,
+    heavy: { name: 'Cleave', mult: 3.0, bleed: true, reach: 1.15 },
     metal: '#d3dae4', grip: '#4a3b2a', accent: '#8e2c3a',
     desc: 'Meant for taking heads off things that already stopped moving.' },
 
   { id: 'harpoon', name: 'Whaling Harpoon', kind: 'harpoon', style: 'thrust', price: 520,
-    dmg: 33, reach: 1.48, speed: 1.22, knock: 0.7,
+    dmg: 33, reach: 1.48, speed: 1.22, knock: 0.7, bleed: .2,
+    heavy: { name: 'Lunge', mult: 2.6, bleed: true, dash: 170, reach: 1.7 },
     metal: '#a7c6d8', grip: '#3f5b6b', accent: '#c9b27a',
     desc: 'Barbed, so it only travels one direction through a thing.' },
 
   { id: 'chain', name: 'Anchor Chain', kind: 'chain', style: 'swing', price: 860,
-    dmg: 44, reach: 1.40, speed: 0.72, knock: 2.0,
+    dmg: 44, reach: 1.40, speed: 0.72, knock: 2.0, stun: .15,
+    heavy: { name: 'Whirl', mult: 2.2, stun: .8, both: true, reach: 1.1 },
     metal: '#8d949e', grip: '#5a5f6b', accent: '#3f434d',
     desc: 'Six feet of ground tackle. No edge at all. Doesn’t need one.' },
 
   { id: 'tooth', name: "Leviathan's Tooth", kind: 'tooth', style: 'swing', price: 1500,
-    dmg: 62, reach: 1.20, speed: 1.10, knock: 1.4,
+    dmg: 62, reach: 1.20, speed: 1.10, knock: 1.4, bleed: .25,
+    heavy: { name: 'Rend', mult: 2.8, bleed: true, crit: true, reach: 1.25 },
     metal: '#f2ead6', grip: '#4a3b52', accent: '#a88ad0',
     desc: 'Pulled from a jaw by a boy who should not have survived doing it.' }
 ];
@@ -57,6 +71,7 @@ const WEAPONS = [
 const EXCALIBUR = {
   id: 'excalibur', name: 'Excalibur', kind: 'excalibur', style: 'swing', price: 0,
   dmg: 999, reach: 1.34, speed: 1.2, knock: 2.4,
+  heavy: { name: 'Judgement', mult: 1, both: true, reach: 1.4 },
   metal: '#e6eeff', grip: '#34407a', accent: '#f0cf6a',
   desc: 'It came out of the sea, not a stone. Nothing on this boat survives one blow of it.'
 };
@@ -97,7 +112,7 @@ const SUITS = [
    `speed` and `range` are the shot's, in pixels; `size` its radius.        */
 const DIVE_WEAPONS = [
   { id: 'harpoon', name: 'Drowned Harpoon', kind: 'dharpoon', style: 'harpoon', price: 0,
-    dmg: 30, speed: 950, range: 560, cd: .15, knock: 160, size: 10,
+    dmg: 30, speed: 950, range: 560, cd: .15, knock: 160, size: 10, bleed: .2,
     metal: '#9fb8c4', grip: '#5b4a3a', accent: '#c9b27a',
     desc: "The Old One's harpoon on a spring launcher. It bites, then reels back in." },
   { id: 'trident', name: 'Barnacle Trident', kind: 'trident', style: 'spread', price: 1100,
@@ -109,21 +124,32 @@ const DIVE_WEAPONS = [
     metal: '#7fe0ff', grip: '#4a5a3a', accent: '#d8f06a',
     desc: 'A live electric eel on a leash. It spits lightning at what you point it at, and at whatever is next to that.' },
   { id: 'tusk', name: 'Narwhal Tusk', kind: 'tusk', style: 'pierce', price: 3600,
-    dmg: 115, speed: 1200, range: 760, cd: 1.0, knock: 260, size: 10,
+    dmg: 115, speed: 1200, range: 760, cd: 1.0, knock: 260, size: 10, bleed: .45,
     metal: '#efe6d0', grip: '#5a4a52', accent: '#b9a88e',
     desc: "A narwhal's tusk in a whaler's crossbow. It goes through the first thing, and the next." },
   { id: 'bell', name: 'Sunken Bell', kind: 'bell', style: 'wave', price: 6000,
-    dmg: 135, speed: 520, range: 640, cd: 1.2, knock: 380, size: 26, grow: 90,
+    dmg: 135, speed: 520, range: 640, cd: 1.2, knock: 380, size: 26, grow: 90, stun: 1, stunDur: 1.2,
     metal: '#b8864a', grip: '#4a3b2a', accent: '#e8c76a',
     desc: "Lanthorne's old warning bell. Its ring rolls out ahead of you and breaks everything it passes." }
 ];
+
+// how long a weapon takes to charge a heavy blow, in seconds
+function chargeTime(w) { return clamp(.6 / (w.speed || 1), .45, .85); }
+
+// what a weapon leaves behind, for the shop
+function statusTags(w) {
+  const t = [];
+  if (w.bleed) t.push('bleeds');
+  if (w.stun || w.style === 'chain') t.push('stuns');
+  return t.length ? '  ·  ' + t.join(', ') : '';
+}
 
 // how the shop describes each way of firing
 const FIRE_STYLES = { harpoon: 'harpoon on a line', spread: 'spread of 3', chain: 'chain lightning', pierce: 'pierces', wave: 'sound wave' };
 
 const GOODS = [
   { id: 'bandage', name: 'Oiled Bandage',  price: 24,  type: 'consume', max: 5,
-    desc: 'Binds 2 hearts back together. Press Q to use.' },
+    desc: 'Binds 2 hearts back together, and draws out any poison. Press Q to use.' },
   { id: 'locket',  name: 'Heart Locket',   price: 150, type: 'maxhp', max: 4, scale: 1.55,
     desc: 'A portrait of nobody. Raises your maximum health by one.' },
   { id: 'lantern', name: 'Storm Lantern',  price: 95,  type: 'lantern', max: 1,
