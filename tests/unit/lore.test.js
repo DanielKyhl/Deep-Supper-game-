@@ -177,9 +177,9 @@ describe('what turns up on a line', () => {
     assert.match(g.Game.toastText, /bottle/);
   });
 
-  test('Excalibur: once in a thousand casts, and then it is yours', () => {
+  test('Excalibur: once in a hundred casts, and then it is yours', () => {
     const { h, g, P } = onDeck();
-    assert.equal(g.EXCALIBUR_CHANCE, .001);
+    assert.equal(g.EXCALIBUR_CHANCE, .01);
     rig(g, 'excalibur');
     landSpecial(h);
     assert.equal(P.excalibur, true);

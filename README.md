@@ -139,7 +139,7 @@ will recognise. In part two, eight more things lie on the sea floor for you to s
 and pick up: three letters, and five relics that shouldn't be down there. Everything you
 find goes into the **Journal** in the pause menu, where you can read it again.
 
-Once in a thousand casts, the line comes up with **Excalibur** on it. From then on it is
+Once in a hundred casts, the line comes up with **Excalibur** on it. From then on it is
 your weapon on deck, and it kills anything on the boat in one blow. It is no use
 underwater.
 

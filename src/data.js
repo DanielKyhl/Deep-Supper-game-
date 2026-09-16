@@ -52,7 +52,7 @@ const WEAPONS = [
     desc: 'Pulled from a jaw by a boy who should not have survived doing it.' }
 ];
 
-/* One sword, not for sale. It comes up on a line once in a thousand casts,
+/* One sword, not for sale. It comes up on a line once in a hundred casts,
    and nothing on the boat survives a single blow from it.                 */
 const EXCALIBUR = {
   id: 'excalibur', name: 'Excalibur', kind: 'excalibur', style: 'swing', price: 0,
