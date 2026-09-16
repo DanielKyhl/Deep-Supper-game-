@@ -2,15 +2,16 @@
 #
 # Every push to main builds and tests both, so a broken build shows up
 # straight away; the files are kept for a week under the run's Artifacts.
-# Pushing a tag, or publishing a release on GitHub with a new tag, also
-# puts the builds on that release, creating it first if it doesn't exist.
+# Publishing a release on GitHub builds that version and attaches the .dmg
+# files and the .exe to the release.
 
 name: Build
 
 on:
   push:
     branches: [main]
-    tags: ['*']
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -63,7 +64,7 @@ jobs:
           retention-days: 7
 
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'release'
     needs: [mac, windows]
     runs-on: ubuntu-latest
     steps:
@@ -71,18 +72,10 @@ jobs:
         with:
           path: builds
           merge-multiple: true
-      - name: Put the builds on the release
+      - name: Attach the builds to the release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ github.event.release.tag_name }}
         run: |
           ls -l builds
-          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            cat > notes.md <<'EOF'
-          **Mac:** download the `-mac-arm64.dmg` for Apple Silicon (M1 and later) or the `-mac-x64.dmg` for an Intel Mac. Open it and drag Deep Supper into Applications. The game isn't signed by Apple, so the first time you open it macOS will refuse: go to System Settings → Privacy & Security, scroll down, and click **Open Anyway**.
-
-          **Windows:** download the `.exe` and run it. If Windows SmartScreen warns you, click **More info → Run anyway**.
-          EOF
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "${TAG//_/ }" --notes-file notes.md
-          fi
           gh release upload "$TAG" builds/* --repo "$GITHUB_REPOSITORY" --clobber

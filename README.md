@@ -64,9 +64,9 @@ You don't need a Mac for a release, though. GitHub builds both versions
 - **Every push to main:** builds and tests the Mac and Windows versions, including
   end-to-end tests on the packaged Mac app. The files stay under that run's Artifacts
   for a week.
-- **A release:** publish one on GitHub with a new tag, or push a tag. About fifteen
-  minutes later the `.dmg` files and the `.exe` are attached to it. A pushed tag with
-  no release gets one created.
+- **A release:** when you publish a release on GitHub, that version is built and about
+  fifteen minutes later the `.dmg` files and the `.exe` are attached to it. You don't
+  need to upload anything yourself.
 
 The game still runs in a browser too: open `index.html`. Saves and settings then live in
 that browser's local storage, and there is no Quit option.
