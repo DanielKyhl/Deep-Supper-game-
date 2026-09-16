@@ -10,9 +10,27 @@ synthesised from oscillators. There are no asset files of any kind.
 
 ## Playing it
 
-**The app:** run `DeepSupper-1.4.0.exe`. It is a single portable file: no installer, and
+Download the game from the
+[Releases page](https://github.com/DanielKyhl/Deep-Supper-game-/releases/latest).
+
+**Windows:** run `DeepSupper-1.4.0.exe`. It is a single portable file: no installer, and
 nothing to uninstall. It isn't code-signed, so Windows SmartScreen may ask you to
 confirm the first time ("More info" → "Run anyway").
+
+**Mac:** download `DeepSupper-1.4.0-mac-arm64.dmg` for an Apple Silicon Mac (M1 or
+later), or `DeepSupper-1.4.0-mac-x64.dmg` for an Intel Mac (Apple menu → About This Mac shows
+which). Open it and drag Deep Supper into Applications. The game isn't signed by Apple,
+so the first time you open it macOS refuses. Click **Done**, then go to **System Settings →
+Privacy & Security**, scroll down and click **Open Anyway**. After that it opens normally.
+If macOS instead says the app "is damaged", that's the same missing signature. Run this
+once in Terminal, then open the game again:
+
+```bash
+xattr -cr "/Applications/Deep Supper.app"
+```
+
+On a Mac, `Cmd+Q` quits, and `Ctrl+Cmd+F` or the window's green button toggles
+fullscreen (`F11` usually belongs to macOS there).
 
 **From source** (needs [Node.js](https://nodejs.org) 20 or newer):
 
@@ -32,6 +50,23 @@ npm run dist
 
 This writes `dist/DeepSupper-1.4.0.exe`. `npm run dist:folder` builds an unpacked
 `dist/win-unpacked/` instead, which is quicker to rebuild while testing.
+
+**Building for Mac** has to happen on a Mac:
+
+```bash
+npm run dist:mac
+```
+
+This writes `dist/DeepSupper-1.4.0-mac-arm64.dmg` and `dist/DeepSupper-1.4.0-mac-x64.dmg`.
+
+You don't need a Mac for a release, though. GitHub builds both versions
+(`.github/workflows/build.yml`):
+- **Every push to main:** builds and tests the Mac and Windows versions, including
+  end-to-end tests on the packaged Mac app. The files stay under that run's Artifacts
+  for a week.
+- **A release:** publish one on GitHub with a new tag, or push a tag. About fifteen
+  minutes later the `.dmg` files and the `.exe` are attached to it. A pushed tag with
+  no release gets one created.
 
 The game still runs in a browser too: open `index.html`. Saves and settings then live in
 that browser's local storage, and there is no Quit option.
@@ -180,7 +215,7 @@ These are the defaults. Every gameplay key can be rebound under Options → Cont
 | `ENTER` | read on through dialogue (so do `E`, `SPACE` and a click) · select in menus |
 | `ESC` | pause · back out of a menu · hold to skip a cutscene |
 | `M` · `N` | mute everything · music only |
-| `F11` | fullscreen |
+| `F11` | fullscreen (on a Mac, `Ctrl+Cmd+F` or the green button) |
 
 `ESC`, `ENTER`, `M`, `N` and `F11` always keep those jobs, so you can never rebind your
 way out of the menus.
@@ -220,7 +255,7 @@ and has three skill checks.
 
 ## Tests
 
-835 tests: 670 unit (80%), 127 integration (15%) and 38 end-to-end (5%).
+837 tests: 671 unit (80%), 127 integration (15%) and 39 end-to-end (5%).
 
 ```bash
 npm test
@@ -258,7 +293,7 @@ packaged build. `npm run test:all` runs everything.
   pixel-art deck, a line tied to the painted rod tip, and every screen through the
   renderer.
 - **End-to-end** (`tests/e2e`) drive the Electron app with Playwright: the window and its
-  lockdown, a voyage played with the keyboard, what a frame on deck costs, Dorran calling out from his stall, dialogue that waits, save slots, settings
+  lockdown (and a Mac's menu), fullscreen however the window gets there, a voyage played with the keyboard, what a frame on deck costs, Dorran calling out from his stall, dialogue that waits, save slots, settings
   and fullscreen surviving a restart, the test shortcuts, diving with real mouse aiming,
   creatures on screen, the Mother, quitting,
   and the single-instance lock. Each launch gets a throwaway profile,
@@ -287,8 +322,9 @@ src/dive.js              diving: swimming, air and pressure, the creatures below
 src/shop.js              Uncle Dorran's stall (sell / gear / goods), and how he talks
 src/menu.js              title menu, pause menu, the journal, every options screen
 src/game.js              state machine, deck exploration, Dorran calling across the deck, HUD, main loop
-electron/main.js         the desktop window
+electron/main.js         the desktop window (and a Mac's minimal menu)
 electron/preload.js      the page's only bridge to the app: fullscreen and quit
+.github/workflows/       builds for Mac and Windows on GitHub, and puts them on releases
 scripts/make-icon.js     draws build/icon.png (npm run icon)
 tests/                   unit, integration and end-to-end suites, and their helpers
 ```
