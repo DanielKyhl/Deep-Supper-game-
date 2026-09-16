@@ -9,7 +9,7 @@ synthesised from oscillators. There are no asset files of any kind.
 
 ## Playing it
 
-**The app:** run `DeepSupper-1.0.0.exe`. It is a single portable file: no installer, and
+**The app:** run `DeepSupper-1.1.0.exe`. It is a single portable file: no installer, and
 nothing to uninstall. It isn't code-signed, so Windows SmartScreen may ask you to
 confirm the first time ("More info" → "Run anyway").
 
@@ -29,7 +29,7 @@ npm start
 npm run dist
 ```
 
-This writes `dist/DeepSupper-1.0.0.exe`. `npm run dist:folder` builds an unpacked
+This writes `dist/DeepSupper-1.1.0.exe`. `npm run dist:folder` builds an unpacked
 `dist/win-unpacked/` instead, which is quicker to rebuild while testing.
 
 The game still runs in a browser too: open `index.html`. Saves and settings then live in
@@ -37,7 +37,7 @@ that browser's local storage, and there is no Quit option.
 
 ## The loop
 
-1. **Opening cutscene** (no player input) — Dad hands over the boat, walks off down the
+1. **Opening cutscene** — Dad hands over the boat, walks off down the
    quay, and the *Margaret* sails out while the sun goes down. Something the length of
    the hull passes between you and the water. Hold `ESC` to skip.
 2. **Walk the deck** — find the crate by the wheelhouse and take the dip net.
@@ -60,11 +60,47 @@ From the Deepline rod onward, something far bigger than anything you can catch r
 out of the dark below your hook while you wait, looks at you, and goes away again. The
 Abyssal Rod is what finally reaches it.
 
+Somewhere around the second or third rod, one bite doesn't fight back. What comes up
+on the line is Nerys, from Lanthorne, a city eighty fathoms under the boat. She has
+things to say about what is rising out of the trench, and about your great-grandfather.
+
+Lines of dialogue wait for you: the first press (`E`, `ENTER`, `SPACE` or a click)
+finishes typing a line, and the next moves on.
+
+## Part two: diving
+
+Beating the Old One ends part one, and it leaves something on the deck: a diving suit
+and a harpoon. From then on, `E` at the bow suits the boy up and he goes over the rail.
+
+Below the *Margaret* is an open sea in four bands, each walled off from the next by a
+rock shelf with a gap in it: **the Shelf**, **the Drop**, **the Drowned Halls** and, on the
+seabed, **Lanthorne**. Sixteen creatures live down there, and they notice you. Your tank
+runs out of air (it refills at the surface), and every suit buckles past its depth, so
+going deeper means climbing the ladder at the bow, selling what you killed to Dorran,
+and buying a better suit: four in all, down to the Trench Hardsuit.
+
+Nothing that goes bang works underwater. The five diving weapons each fight differently:
+the **Drowned Harpoon** and **Barnacle Trident** stab wherever you aim, the **Eel on a Rope**
+lashes the nearest few things with lightning, the **Narwhal Tusk** carries you straight
+through whatever is in front of you, and the **Sunken Bell** rings out a ring of sound that
+hits everything in earshot. Blacking out, from injury or lack of air, costs you what you
+caught on that dive.
+
+At the bottom, in front of Lanthorne's gate, Nerys is in trouble, and the Old One turns
+out not to have been the worst thing in the sea.
+
 ## Menus, options and saves
 
-The game opens on a title menu: **Continue** (when there is a save), **New voyage**,
-**Options**, **Credits** and **Quit**. `ESC` during play opens the pause menu, which can
-also reach Options, save and return to the title, or save and quit.
+The game opens on a title menu: **Continue** (when there is a save), **Load game** (when a
+slot is used), **New voyage**, **Options**, **Test shortcuts**, **Credits** and **Quit**. `ESC`
+during play opens the pause menu: **Save game** and **Load game** (three save slots, which
+ask before overwriting or throwing away progress), Options, save and return to the title,
+or save and quit.
+
+**Test shortcuts** jump straight to later parts of the game with the right gear: the Old
+One with every fishing item bought, a fresh diving suit at the bow, or the bottom of the
+sea in the best suit. They replace your Continue save, so use a save slot first if you
+want to keep a voyage.
 
 | Options screen | What's on it |
 |---|---|
@@ -84,12 +120,13 @@ These are the defaults. Every gameplay key can be rebound under Options → Cont
 | Key | |
 |---|---|
 | `A` `D` / arrows | walk |
-| `SPACE` / `W` | jump · hold to reel |
-| `E` | interact · set the hook · put the rod down |
+| `SPACE` / `W` | jump · hold to reel · swim up |
+| `S` / ↓ | swim down (↑ swims up too) |
+| `E` | interact · set the hook · put the rod down · dive · climb aboard |
 | `J` | swing your weapon |
-| `K` / `L-SHIFT` | roll (brief invulnerability) |
+| `K` / `L-SHIFT` | roll on deck, dash underwater (brief invulnerability) |
 | `Q` | bandage |
-| `ENTER` | advance dialogue · select in menus |
+| `ENTER` | read on through dialogue (so do `E`, `SPACE` and a click) · select in menus |
 | `ESC` | pause · back out of a menu · hold to skip a cutscene |
 | `M` · `N` | mute everything · music only |
 | `F11` | fullscreen |
@@ -99,7 +136,7 @@ way out of the menus.
 
 ## What's in it
 
-**17 monsters** across four depths, drawn from nine body plans — eel, anglerfish,
+**17 monsters** to fish up across four depths, and **18 more** below the surface, drawn from ten body plans — eel, anglerfish,
 tentacled, ray, crustacean, jellyfish bloom, drowned husk, all-mouth, and whatever The
 Old One is. None of them are rigid sprites: each silhouette is rebuilt every frame
 around a spine or a pulse, so they undulate, breathe and blink.
@@ -109,14 +146,14 @@ gaff hook, a gutting cleaver, a whaling harpoon, six feet of anchor chain, and a
 Each has its own artwork and swing style — wide arcs, slow overhead chops, or fast
 narrow thrusts that whiff against anything rearing up.
 
-**Five pieces of music** in D minor, crossfaded by game state, played on synthesised
+**Eight pieces of music**, crossfaded by game state, played on synthesised
 harp, lead, pad, bell, drums and a drone.
 
-**A three-phase final boss** that changes its attack pool twice on the way down.
+**Two three-phase bosses**, each of which changes its attack pool twice on the way down.
 
 ## Tests
 
-493 tests: 394 unit (80%), 74 integration (15%) and 25 end-to-end (5%).
+651 tests: 520 unit (80%), 97 integration (15%) and 34 end-to-end (5%).
 
 ```bash
 npm test
@@ -135,16 +172,20 @@ packaged build. `npm run test:all` runs everything.
 - **Unit** (`tests/unit`) load the real game scripts into a Node `vm` sandbox with a
   recording canvas, a fake keyboard and mouse, and a fake Web Audio graph, then test one
   system at a time: the pixel pipeline, input, the font, settings and key binding, save
-  validation, data tables, deck movement, fishing and the reel minigame, the ambush,
-  combat and boss phases, the shop, menus, cutscenes, the icon encoder, and every drawing
-  routine.
+  validation and save slots, data tables, deck movement, fishing and the reel minigame,
+  the ambush, Nerys, combat and boss phases, diving (swimming, air, pressure, every
+  weapon, every creature, the Mother), the shop, menus, cutscenes, the icon encoder, and
+  every drawing routine.
 - **Integration** (`tests/integration`) play through whole journeys with real key presses
   and full rendered frames: the first voyage from the title menu to the first sale,
-  saving and continuing (including damaged saves), options taking effect in play, fishing
-  into fights, the boss and the ending, pausing, and every screen through the renderer.
+  saving and continuing (including damaged saves and save slots), options taking effect in
+  play, fishing into fights, Nerys, the Old One and the end of part one, diving from the
+  bow to a deeper suit and back, the Mother and the end of part two, pausing, and every
+  screen through the renderer.
 - **End-to-end** (`tests/e2e`) drive the Electron app with Playwright: the window and its
-  lockdown, a voyage played with the keyboard, settings and fullscreen surviving a
-  restart, quitting, and the single-instance lock. Each launch gets a throwaway profile,
+  lockdown, a voyage played with the keyboard, dialogue that waits, save slots, settings
+  and fullscreen surviving a restart, the test shortcuts, diving and the Mother, quitting,
+  and the single-instance lock. Each launch gets a throwaway profile,
   so tests never touch your real saves.
 
 ## Files
@@ -156,10 +197,12 @@ src/core.js              pixel pipeline, math, input, WebAudio sfx, particles, t
 src/music.js             the procedural score
 src/data.js              rods, weapons, goods, monsters, catch tables
 src/settings.js          options and the save file, both validated on load
-src/art.js               all drawing: sky, sea, water column, boat, people, monsters
-src/cutscene.js          dialogue box, step sequencer, opening + ending
+src/art.js               drawing: sky, sea, water column, boat, people, monsters
+src/art-deep.js          drawing for part two: Nerys, the suit, the sea below, the Mother
+src/cutscene.js          dialogue box, step sequencer, opening, Nerys, both endings
 src/fishing.js           cast → sink → wait → hook → reel, and the ambush
 src/battle.js            player combat, monster AI and attacks, boss phases
+src/dive.js              diving: swimming, air and pressure, the creatures below, the Mother
 src/shop.js              Dorran's stall (sell / gear / goods)
 src/menu.js              title menu, pause menu, every options screen
 src/game.js              state machine, deck exploration, HUD, main loop
