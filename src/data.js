@@ -233,6 +233,123 @@ const MONSTERS = [
     flavour: 'The sea went flat and quiet, the way a room does when you walk in.' }
 ];
 
+/* ----------------------------- the Brood, below ----------------------------
+   What you meet swimming. `zone` is which band of water it lives in (see
+   DIVE_ZONES in dive.js), `aggro` how close you get before it notices.
+   Attacks: bite (a short lunge), charge (a long straight run), ink (three
+   globs), pulse (a ring of force spreading out from its body).            */
+
+const DIVE_MONSTERS = [
+
+  /* ------------------------------ The Shelf ------------------------------ */
+
+  { id: 'kelpstrangler', name: 'Kelp Strangler', zone: 1, plan: 'eel',
+    hp: 90, len: 200, girth: .12, value: 110, dmg: 1, speed: 110, eyes: 2, aggro: 280,
+    body: [70, 110, 70], belly: [170, 200, 150], fin: [50, 80, 50], eye: '#e8f06a', glow: null,
+    atk: ['bite', 'bite', 'charge'],
+    flavour: 'It looks like kelp right up until it has you by the ankle.' },
+
+  { id: 'reefgnasher', name: 'Reef Gnasher', zone: 1, plan: 'angler',
+    hp: 110, len: 170, girth: .32, value: 130, dmg: 1, speed: 90, eyes: 2, aggro: 300,
+    body: [150, 100, 80], belly: [220, 190, 160], fin: [110, 70, 60], eye: '#ffcf4a', glow: '#ffb05a',
+    atk: ['bite', 'ink'],
+    flavour: 'Lives in the shipwrecks. Built most of them.' },
+
+  { id: 'bladderjelly', name: 'Bladder Jelly', zone: 1, plan: 'bloom',
+    hp: 80, len: 160, girth: .45, value: 120, dmg: 1, speed: 60, eyes: 0, aggro: 240,
+    body: [150, 120, 190], belly: [220, 200, 240], fin: [110, 90, 150], eye: '#ffffff', glow: '#d6a8ff',
+    atk: ['pulse'],
+    flavour: 'Drifts toward warmth. You are warmth.' },
+
+  { id: 'shelfcrab', name: 'Shelf Crab', zone: 1, plan: 'crustacean',
+    hp: 140, len: 180, girth: .3, value: 150, dmg: 1, speed: 70, eyes: 2, aggro: 260,
+    body: [170, 80, 60], belly: [230, 170, 130], fin: [130, 60, 40], eye: '#f2e2bd', glow: null,
+    atk: ['charge', 'bite'],
+    flavour: 'A crab the size of a rowing boat, and just as keen to be in the water with you.' },
+
+  /* ------------------------------ The Drop ------------------------------- */
+
+  { id: 'clifflamprey', name: 'Cliff Lamprey', zone: 2, plan: 'eel',
+    hp: 220, len: 260, girth: .1, value: 300, dmg: 1, speed: 150, eyes: 2, aggro: 340,
+    body: [80, 80, 100], belly: [170, 170, 190], fin: [55, 55, 75], eye: '#ff6a6a', glow: null,
+    atk: ['charge', 'bite', 'bite'],
+    flavour: 'Hangs off the cliff by its mouth, waiting for something with blood in it.' },
+
+  { id: 'hollowshell', name: 'Hollowshell', zone: 2, plan: 'crustacean',
+    hp: 320, len: 230, girth: .34, value: 360, dmg: 2, speed: 80, eyes: 4, aggro: 280,
+    body: [96, 104, 92], belly: [172, 178, 158], fin: [66, 72, 62], eye: '#9effc4', glow: null,
+    atk: ['charge', 'pulse'],
+    flavour: 'Something else lives inside the shell. It has never come out to be introduced.' },
+
+  { id: 'gulperwidow', name: 'Gulper Widow', zone: 2, plan: 'maw',
+    hp: 260, len: 240, girth: .42, value: 340, dmg: 2, speed: 110, eyes: 6, aggro: 320,
+    body: [60, 40, 70], belly: [150, 120, 160], fin: [40, 26, 50], eye: '#ff8f5a', glow: '#ff7a5a',
+    atk: ['bite', 'ink', 'bite'],
+    flavour: 'All mouth and mourning. It wears the nets of every boat it has emptied.' },
+
+  { id: 'sootwing', name: 'Sootwing', zone: 2, plan: 'ray',
+    hp: 240, len: 300, girth: .24, value: 320, dmg: 1, speed: 130, eyes: 2, aggro: 360,
+    body: [40, 44, 60], belly: [130, 136, 160], fin: [28, 30, 44], eye: '#c9f6ff', glow: null,
+    atk: ['ink', 'charge'],
+    flavour: 'Leaves a cloud of black behind it, and whatever it was chasing inside the cloud.' },
+
+  /* --------------------------- The Drowned Halls ------------------------- */
+
+  { id: 'hallwarden', name: 'Hall Warden', zone: 3, plan: 'husk',
+    hp: 560, len: 320, girth: .32, value: 680, dmg: 2, speed: 110, eyes: 4, aggro: 360,
+    body: [70, 74, 80], belly: [160, 166, 172], fin: [44, 48, 54], eye: '#9effc4', glow: '#9effc4',
+    atk: ['bite', 'pulse', 'charge'],
+    flavour: 'It still walks its old rounds. The hall it guards has no roof any more.' },
+
+  { id: 'lanternthief', name: 'Lantern Thief', zone: 3, plan: 'angler',
+    hp: 480, len: 280, girth: .33, value: 620, dmg: 2, speed: 130, eyes: 1, aggro: 400,
+    body: [50, 70, 110], belly: [150, 180, 220], fin: [34, 48, 80], eye: '#c9f6ff', glow: '#8fe6ff',
+    atk: ['bite', 'ink', 'ink'],
+    flavour: "The light on its head was somebody's front door lamp." },
+
+  { id: 'palechoir', name: 'Pale Choir-Ray', zone: 3, plan: 'ray',
+    hp: 520, len: 360, girth: .25, value: 700, dmg: 2, speed: 140, eyes: 3, aggro: 380,
+    body: [200, 196, 210], belly: [236, 232, 240], fin: [150, 146, 160], eye: '#4a3b52', glow: null,
+    atk: ['charge', 'pulse', 'ink'],
+    flavour: 'Sings as it comes for you. Beautifully. That is the worst part.' },
+
+  { id: 'brinetongue', name: 'Brinetongue', zone: 3, plan: 'tentacle',
+    hp: 600, len: 300, girth: .36, value: 760, dmg: 2, speed: 115, eyes: 5, aggro: 350,
+    body: [110, 60, 70], belly: [200, 150, 160], fin: [80, 40, 50], eye: '#ffd257', glow: '#ff7a5a',
+    atk: ['bite', 'charge', 'bite'],
+    flavour: 'Tastes the water for you from three halls away.' },
+
+  /* ------------------------------ Lanthorne ------------------------------ */
+
+  { id: 'broodsister', name: 'Brood Sister', zone: 4, plan: 'tentacle',
+    hp: 900, len: 360, girth: .36, value: 1150, dmg: 2, speed: 140, eyes: 7, aggro: 420,
+    body: [60, 40, 62], belly: [160, 120, 160], fin: [40, 26, 44], eye: '#c46bff', glow: '#c46bff',
+    atk: ['bite', 'charge', 'pulse'],
+    flavour: 'The Old One had siblings. This is one of the small ones.' },
+
+  { id: 'trenchmaw', name: 'Trench Maw', zone: 4, plan: 'maw',
+    hp: 1100, len: 380, girth: .44, value: 1300, dmg: 3, speed: 120, eyes: 9, aggro: 400,
+    body: [40, 50, 80], belly: [140, 150, 190], fin: [26, 32, 56], eye: '#ff6a6a', glow: '#7a9cff',
+    atk: ['bite', 'ink', 'pulse'],
+    flavour: 'It came up out of the trench with its mouth already open.' },
+
+  { id: 'gatecrawler', name: 'Gate Crawler', zone: 4, plan: 'crustacean',
+    hp: 1200, len: 340, girth: .3, value: 1250, dmg: 2, speed: 100, eyes: 6, aggro: 380,
+    body: [90, 96, 120], belly: [170, 176, 200], fin: [60, 64, 84], eye: '#ffcf4a', glow: null,
+    atk: ['charge', 'charge', 'pulse'],
+    flavour: "Has been trying to get through Lanthorne's gate for a hundred years. Patient." },
+
+  { id: 'drownedwarden', name: 'Drowned Warden', zone: 4, plan: 'husk',
+    hp: 1000, len: 360, girth: .34, value: 1200, dmg: 2, speed: 130, eyes: 4, aggro: 420,
+    body: [64, 68, 74], belly: [158, 164, 170], fin: [40, 44, 50], eye: '#9ff0ff', glow: '#9ff0ff',
+    atk: ['bite', 'pulse', 'ink', 'charge'],
+    flavour: "One of Lanthorne's own, once. It doesn't remember which side it was on." }
+];
+
+// every creature the game knows, above and below, for saves and trophies
+function allMonsters() { return MONSTERS.concat(DIVE_MONSTERS); }
+function monsterDef(id) { return allMonsters().find(m => m.id === id) || null; }
+
 const JUNK = [
   { name: 'a waterlogged boot', value: 4,  icon: 'boot' },
   { name: 'a knot of black kelp', value: 3, icon: 'kelp' },

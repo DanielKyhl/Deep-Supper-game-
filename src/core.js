@@ -185,6 +185,8 @@ const ACTIONS = {
   roll:      ['KeyK', 'ShiftLeft'],
   interact:  ['KeyE', 'KeyF'],
   use:       ['KeyQ'],
+  up:        ['ArrowUp'],          // swimming; jump's keys swim up too
+  down:      ['KeyS', 'ArrowDown'],
 
   menuUp:    ['ArrowUp', 'KeyW'],
   menuDown:  ['ArrowDown', 'KeyS'],

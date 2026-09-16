@@ -119,6 +119,19 @@ const THEMES = {
     }
   },
 
+  /* under the boat: slow, cold, a sonar ping and a long way to fall */
+  dive: {
+    bpm: 54, bar: 8, vol: .8, drone: 'A0',
+    prog: [['A2', 'm'], ['A2', 'sus'], ['F2', 'M7'], ['E2', 'm'],
+           ['A2', 'm'], ['C3', 'M7'], ['D3', 'm7'], ['E2', 'sus']],
+    voice(M, t, step, bar, beat, chord) {
+      if (beat === 0) M._pad(t, M._notes(chord, 0), 5.0, .05);
+      if (beat === 0 && bar % 2 === 0) M._bass(t, hz(chord[0], -12), 3.6, .14);
+      if (beat === 5) M._pluck(t, M._notes(chord, 24)[bar % 3], 2.6, .04);
+      if (bar % 4 === 1 && beat === 2) M._bell(t, hz(chord[0], 24), 4.5, .035);
+    }
+  },
+
   /* sailing home */
   ending: {
     bpm: 74, bar: 8, vol: .9,

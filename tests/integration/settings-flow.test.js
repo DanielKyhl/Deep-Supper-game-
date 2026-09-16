@@ -74,7 +74,7 @@ describe('rebinding through the Controls screen', () => {
     h.tap('Enter');
     assert.equal(h.g.Menu.rebinding, 'attack');
     h.tap('KeyL');
-    assert.equal(h.g.Menu.valueText(h.g.Menu.items('controls')[3]), 'L  /  J');
+    assert.equal(h.g.Menu.valueText(h.g.Menu.items('controls').find(i => i.action === 'attack')), 'L  /  J');
     h.g.Menu.openMain();
     const B = inReach(h);
     h.tap('KeyL');

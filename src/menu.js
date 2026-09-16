@@ -214,6 +214,7 @@ const Menu = {
         { kind: 'text', label: 'For testing. Each shortcut replaces your Continue save.' },
         { kind: 'gap' },
         { kind: 'action', label: 'Fight the Old One, fully geared', id: 'devOldOne', run: () => Game.devFinalBoss() },
+        { kind: 'action', label: 'Start diving, with the first suit', id: 'devDiving', run: () => Game.devDiving() },
         { kind: 'gap' },
         { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
       ];

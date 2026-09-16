@@ -200,6 +200,53 @@ describe('monsters', () => {
   });
 });
 
+describe('the Brood below', () => {
+  const D = g.DIVE_MONSTERS;
+  const PLANS = ['eel', 'angler', 'tentacle', 'ray', 'crustacean', 'bloom', 'husk', 'maw', 'leviathan'];
+
+  test('four creatures in each of the four zones, none of them from above', () => {
+    for (let z = 1; z <= 4; z++) assert.equal(D.filter(m => m.zone === z && !m.boss && !m.spawnOnly).length, 4, 'zone ' + z);
+    const ids = D.map(m => m.id).concat(MONSTERS.map(m => m.id));
+    assert.ok(unique(ids), 'no id is shared with the fishing monsters');
+  });
+
+  test('every creature is fully specified, with underwater attacks only', () => {
+    for (const m of D) {
+      assert.ok(PLANS.includes(m.plan), m.id + ' plan');
+      assert.ok(m.hp > 0 && m.len > 0 && m.value > 0 && m.dmg >= 1 && m.speed > 0 && m.aggro > 100, m.id + ' stats');
+      assert.ok(m.girth > 0 && m.girth < 1);
+      assert.ok(isRgb(m.body) && isRgb(m.belly) && isRgb(m.fin), m.id + ' colours');
+      assert.ok(m.atk.length && m.atk.every(a => ['bite', 'charge', 'ink', 'pulse'].includes(a)), m.id + ' attacks');
+      assert.ok(m.flavour.length > 10);
+    }
+  });
+
+  test('deeper zones hold tougher, more valuable things than anything you could fish up', () => {
+    const avg = (z, k) => { const ms = D.filter(m => m.zone === z && !m.boss && !m.spawnOnly); return ms.reduce((a, m) => a + m[k], 0) / ms.length; };
+    for (let z = 2; z <= 4; z++) {
+      assert.ok(avg(z, 'hp') > avg(z - 1, 'hp') * 1.5, 'hp in zone ' + z);
+      assert.ok(avg(z, 'value') > avg(z - 1, 'value'), 'value in zone ' + z);
+    }
+    const fishedDeep = MONSTERS.filter(m => m.depth === 4 && !m.boss);
+    assert.ok(avg(4, 'hp') > fishedDeep.reduce((a, m) => a + m.hp, 0) / fishedDeep.length);
+  });
+
+  test('allMonsters and monsterDef find creatures above and below', () => {
+    assert.equal(g.allMonsters().length, MONSTERS.length + D.length);
+    assert.equal(g.monsterDef('gnashfin').name, 'Gnashfin');
+    assert.equal(g.monsterDef('trenchmaw').zone, 4);
+    assert.equal(g.monsterDef('nothing'), null);
+  });
+
+  test('selling down there pays for the suits: a zone pays for the next suit in a handful of kills', () => {
+    for (let z = 1; z <= 3; z++) {
+      const avg = D.filter(m => m.zone === z && !m.boss && !m.spawnOnly).reduce((a, m) => a + m.value, 0) / 4;
+      const kills = g.SUITS[z].price / avg;
+      assert.ok(kills > 2 && kills < 12, 'zone ' + z + ' needs ' + kills.toFixed(1) + ' kills');
+    }
+  });
+});
+
 describe('rollCatch and makeTrophy', () => {
   test('never rolls anything deeper than the rod reaches', () => {
     for (let d = 1; d <= 3; d++) {

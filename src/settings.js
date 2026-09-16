@@ -43,17 +43,20 @@ const Store = {
 /* --------------------------------- controls ----------------------------- */
 
 // the actions a player may rebind, in the order the Controls screen lists them
-const REBINDABLE = ['left', 'right', 'jump', 'attack', 'roll', 'interact', 'use'];
+const REBINDABLE = ['left', 'right', 'jump', 'down', 'up', 'attack', 'roll', 'interact', 'use'];
 
 const ACTION_LABELS = {
-  left: 'Move left', right: 'Move right', jump: 'Jump / reel', attack: 'Attack',
-  roll: 'Roll', interact: 'Interact / set hook', use: 'Bandage'
+  left: 'Move left', right: 'Move right', jump: 'Jump / reel / swim up', attack: 'Attack',
+  roll: 'Roll / dash', interact: 'Interact / set hook', use: 'Bandage',
+  up: 'Swim up (also)', down: 'Swim down'
 };
 
 const DEFAULT_BINDINGS = {
   left: ['KeyA', 'ArrowLeft'],
   right: ['KeyD', 'ArrowRight'],
   jump: ['Space', 'KeyW'],
+  down: ['KeyS', 'ArrowDown'],
+  up: ['ArrowUp'],
   attack: ['KeyJ', 'KeyX'],
   roll: ['KeyK', 'ShiftLeft'],
   interact: ['KeyE', 'KeyF'],
@@ -145,7 +148,16 @@ function sanitizeSettings(raw) {
   if (!raw || typeof raw !== 'object') return out;
   for (const k in SETTINGS_SPEC) if (k in raw) out[k] = sanitizeValue(SETTINGS_SPEC[k], raw[k]);
   if (raw.bindings && typeof raw.bindings === 'object') {
+    const saved = REBINDABLE.filter(a => Array.isArray(raw.bindings[a]));
     for (const a of REBINDABLE) out.bindings[a] = sanitizeBinding(raw.bindings[a], DEFAULT_BINDINGS[a]);
+    // an action added since the file was saved takes only default keys nobody else has
+    const taken = new Set(saved.flatMap(a => out.bindings[a]));
+    for (const a of REBINDABLE) {
+      if (saved.indexOf(a) >= 0) continue;
+      const free = out.bindings[a].filter(k => !taken.has(k));
+      if (free.length) out.bindings[a] = free;
+      free.forEach(k => taken.add(k));
+    }
   }
   return out;
 }
@@ -305,7 +317,7 @@ const SaveGame = {
     d.x = (typeof raw.x === 'number' && isFinite(raw.x)) ? clamp(raw.x, WALK_L, WALK_R) : 640;
     d.kills = {};
     if (raw.kills && typeof raw.kills === 'object') {
-      for (const m of MONSTERS) {
+      for (const m of allMonsters()) {
         const v = raw.kills[m.id];
         if (typeof v === 'number' && v > 0) d.kills[m.id] = Math.floor(v);
       }
@@ -313,7 +325,7 @@ const SaveGame = {
     d.catches = [];
     if (Array.isArray(raw.catches)) {
       for (const c of raw.catches.slice(0, 200)) {
-        const def = c && MONSTERS.find(m => m.id === c.id);
+        const def = c && monsterDef(c.id);
         if (!def) continue;
         d.catches.push({
           id: def.id, name: def.name, len: def.len, body: def.body, belly: def.belly,

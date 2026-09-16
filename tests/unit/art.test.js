@@ -85,6 +85,39 @@ describe('drawing the world', () => {
   });
 });
 
+describe('drawing the sea below', () => {
+  test('the dive draws at every depth, from the surface to Lanthorne', () => {
+    const D = g.Dive;
+    g.Player.suit = 3; g.Player.diveWeapon = 4;
+    D.enterWater();
+    for (const [x, y] of [[3200, 40], [1150, 820], [3300, 1900], [900, 2900], [2400, 3700], [300, 3980]]) {
+      Object.assign(D.p, { x, y });
+      D._camera(0, true);
+      balanced('dive at ' + y, () => g.Art.diveScene(bctx, D, 4));
+    }
+    D.reset();
+  });
+
+  test('every creature below draws in the dive, in every state, with rings, ink and lightning about', () => {
+    const D = g.Dive;
+    g.Player.suit = 3;
+    D.enterWater();
+    D.mobs.length = 0;
+    const states = ['drift', 'hunt', 'tele', 'bite', 'charge', 'ink', 'stun', 'dead'];
+    g.DIVE_MONSTERS.forEach((def, i) => {
+      const m = D.spawn(def.zone, null) || {};
+      Object.assign(m, { def, x: D.p.x + 120 + (i % 4) * 60, y: D.p.y + ((i % 3) - 1) * 80, state: states[i % states.length], hp: def.hp / 2, maxHp: def.hp, t: .5, atk: 'bite', dead: states[i % states.length] === 'dead' });
+    });
+    D.rings.push({ x: D.p.x, y: D.p.y, r: 60, max: 200, from: 'player' }, { x: D.p.x, y: D.p.y, r: 90, max: 200, from: 'mob' });
+    D.globs.push({ x: D.p.x + 40, y: D.p.y, r: 11 });
+    D.zaps.push({ x1: D.p.x, y1: D.p.y, x2: D.p.x + 100, y2: D.p.y + 20, t: .05 });
+    D.p.atk = { style: 'thrust', t: .1, dur: .3, ax: 1, ay: 0 };
+    D._camera(0, true);
+    balanced('crowded dive', () => g.Art.diveScene(bctx, D, 2));
+    D.reset();
+  });
+});
+
 describe('drawing characters and monsters', () => {
   test('the boy draws in every state, both ways round, with every held item', () => {
     for (const face of [1, -1]) {

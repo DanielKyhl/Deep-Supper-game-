@@ -168,6 +168,20 @@ const Game = {
     });
   },
 
+  // the Old One already beaten and its suit on: ready to go over the side
+  devDiving() {
+    Sfx.select();
+    this.fadeOut(() => {
+      Player.reset();
+      this.giveFishingGear();
+      Object.assign(Player, { beatBoss: true, suit: 0, diveWeapon: 0 });
+      Player.x = FISH_X - 80;
+      this.atSea();
+      this.state = 'play';
+      this.toast('Test shortcut: the suit is yours. Dive at the bow.');
+    });
+  },
+
   // out on the water at night with nothing going on: the state every load starts from
   atSea() {
     this.endingRun = false;
@@ -180,6 +194,7 @@ const Game = {
     this.cutKind = null;
     CUT.allowShadows = 1; CUT.wake = 1; CUT.bigShadow = 0; CUT.titleCard = null;
     Particles.clear(); Floaters.clear(); Dialogue.hide();
+    Dive.reset();
     Player.state = 'idle'; Player.bState = 'idle'; Player.y = DECK_Y; Player.vy = 0;
     Cam.locked = false;
     Cam.snap(Player.x);
@@ -209,6 +224,7 @@ const Game = {
       this.endingRun = false;
       Cam.locked = false;
       Particles.clear(); Floaters.clear();
+      Dive.reset();
       this.night = .88;
       CUT.harbourX = 300;
       CUT.girl.visible = false;
@@ -306,6 +322,7 @@ const Game = {
     const st = this.state === 'pause' ? this.pausedFrom : this.state;
     if (st === 'menu') want = 'title';
     else if (st === 'battle') want = (Battle.def && Battle.def.boss) ? 'boss' : 'battle';
+    else if (st === 'dive') want = Dive.underwater ? 'dive' : 'sea';
     else if (st === 'cutscene') want = this.endingRun ? 'ending' : this.cutKind === 'girl' ? 'lanthorne' : (this.night < .5 ? 'title' : 'sea');
     if (want !== this._musicWant) { this._musicWant = want; Music.set(want); }
   },
@@ -348,6 +365,7 @@ const Game = {
       case 'play':     this.updatePlay(dt); break;
       case 'fish':     if (Input.tap('cancel')) this.pause(); else Fishing.update(dt); break;
       case 'battle':   if (Input.tap('cancel')) this.pause(); else Battle.update(dt); break;
+      case 'dive':     if (Input.tap('cancel') && Dive.phase === 'swim') this.pause(); else Dive.update(dt); break;
       case 'shop':     Shop.update(dt); break;
       case 'pause':    Menu.update(dt); break;
     }
@@ -384,7 +402,7 @@ const Game = {
   spotLabel(s) {
     if (s.id === 'crate') return Player.weapon < 0 ? 'Open the crate' : null;
     if (s.id === 'stall') return 'Talk to Dorran';
-    if (s.id === 'fish')  return 'Cast your line';
+    if (s.id === 'fish')  return Player.suit >= 0 ? 'Dive' : 'Cast your line';
     return null;
   },
 
@@ -406,6 +424,11 @@ const Game = {
     }
     if (s.id === 'stall') { Shop.open(); return; }
     if (s.id === 'fish') {
+      if (Player.suit >= 0) {
+        this.state = 'dive';
+        Dive.start();
+        return;
+      }
       if (Player.weapon < 0) {
         this.say(['You', "Empty hands, empty boat. That's Dad's rule and he's never once explained it."],
                  ['You', 'There was a crate back by the cabin.']);
@@ -481,10 +504,18 @@ const Game = {
     resetTransform(g);
     g.clearRect(0, 0, VIEW_W, VIEW_H);
 
-    g.save();
-    g.translate(Cam.shakeX, Cam.shakeY);
-    this.drawWorld(g);
-    g.restore();
+    // what is underneath a pause is what gets drawn
+    const scene = this.state === 'pause' ? this.pausedFrom : this.state;
+    const below = scene === 'dive' && Dive.underwater;
+
+    if (below) {
+      Dive.draw(g);
+    } else {
+      g.save();
+      g.translate(Cam.shakeX, Cam.shakeY);
+      this.drawWorld(g, scene);
+      g.restore();
+    }
 
     // ---- overlays (no shake) ----
     switch (this.state) {
@@ -494,10 +525,11 @@ const Game = {
       case 'fish':     if (Fishing.phase !== 'reel') this.drawHUD(g); Fishing.drawUI(g); break;
       case 'battle':   this.drawBattleHUD(g); Battle.drawUI(g); break;
       case 'shop':     Shop.draw(g); break;
-      case 'pause':    this.drawHUD(g); Menu.draw(g); break;
+      case 'dive':     Dive.drawUI(g); break;
+      case 'pause':    if (below) Dive.drawHUD(g); else this.drawHUD(g); Menu.draw(g); break;
     }
 
-    Floaters.draw(g, Cam.x);
+    if (!below) Floaters.draw(g, Cam.x);
 
     if (this.toastT > 0 && this.state === 'play') {
       const a = clamp(Math.min(this.toastT, 1), 0, 1);
@@ -540,8 +572,9 @@ const Game = {
     present();   // buffer -> screen, nearest-neighbour
   },
 
-  drawWorld(g) {
+  drawWorld(g, scene) {
     const t = this.t, night = this.night;
+    scene = scene || this.state;
 
     // the whole world slides up when you are following a line down
     g.save();
@@ -571,7 +604,7 @@ const Game = {
         { face: CUT.dad.face, t: this.t, state: CUT.dad.state });
     }
 
-    if (this.state === 'battle') {
+    if (scene === 'battle') {
       Battle.drawActors(g);
     } else {
       this.drawPlayerOnDeck(g);
@@ -580,14 +613,14 @@ const Game = {
     Art.boatFront(g, Cam.x, t, night);
 
     // station markers float above the rail, behind the water line
-    if (this.state === 'play') this.drawSpotMarkers(g);
+    if (scene === 'play') this.drawSpotMarkers(g);
 
     Art.endBoat(g);
 
     Art.seaFront(g, Cam.x, t, night);
 
     // everything below the surface, once a line is down there
-    if (this.state === 'fish' && (this.viewY > 1 || Fishing.hook.depth > 0)) {
+    if (scene === 'fish' && (this.viewY > 1 || Fishing.hook.depth > 0)) {
       const info = Fishing.waterInfo();
       Art.underwater(g, {
         viewY: this.viewY, t, night, shapes: info.shapes, watcher: info.watcher
@@ -598,7 +631,7 @@ const Game = {
     if (CUT.bigShadow > 0) this.drawBigShadow(g, CUT.bigShadow, t);
 
     // fishing line hangs over the near rail, in front of the water
-    if (this.state === 'fish') Fishing.drawLine(g);
+    if (scene === 'fish') Fishing.drawLine(g);
 
     Particles.draw(g, 0, 'water');
 
@@ -617,7 +650,7 @@ const Game = {
 
     g.restore();          // end of the vertical view pan
 
-    Particles.draw(g, this.state === 'fish' ? 0 : Cam.x);
+    Particles.draw(g, scene === 'fish' ? 0 : Cam.x);
 
     Art.nightTint(g, night * .5);
     Art.vignette(g, night);
@@ -671,10 +704,12 @@ const Game = {
 
   drawPlayerOnDeck(g) {
     const P = Player;
+    const scene = this.state === 'pause' ? this.pausedFrom : this.state;
+    if (scene === 'dive') { Dive.drawDeckPlayer(g); return; }
     const sx = P.x - Cam.x;
     const o = { face: P.face, t: P.animT, state: P.state, squash: bodySquash(P) };
 
-    if (this.state === 'fish') {
+    if (scene === 'fish') {
       o.hold = 'rod';
       o.state = 'idle';
       o.rodAngle = Fishing.rodAngle();

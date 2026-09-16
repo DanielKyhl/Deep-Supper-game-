@@ -116,6 +116,23 @@ describe('defaultSettings and sanitizeSettings', () => {
     assert.equal('fly' in s.bindings, false);
   });
 
+  test('swimming up and down can be rebound like everything else', () => {
+    assert.ok(g.REBINDABLE.includes('up') && g.REBINDABLE.includes('down'));
+    assert.deepEqual(plain(g.DEFAULT_BINDINGS.down), ['KeyS', 'ArrowDown']);
+  });
+
+  test('no default key is shared by two actions', () => {
+    const all = g.REBINDABLE.flatMap(a => plain(g.DEFAULT_BINDINGS[a]));
+    assert.equal(new Set(all).size, all.length);
+  });
+
+  test('a settings file from before swimming keeps its own keys; the new actions take what is free', () => {
+    const s = plain(g.sanitizeSettings(fromHost({ bindings: { left: ['KeyA'], right: ['KeyD'], jump: ['Space'], attack: ['KeyS'], roll: ['KeyK'], interact: ['KeyE'], use: ['KeyQ'] } })));
+    assert.deepEqual(s.bindings.attack, ['KeyS'], 'the old binding wins');
+    assert.deepEqual(s.bindings.down, ['ArrowDown'], 'swim down gives up the S key');
+    assert.deepEqual(s.bindings.up, ['ArrowUp']);
+  });
+
   test('menus and shortcuts own their keys: none of them are rebindable defaults', () => {
     for (const a of g.REBINDABLE) {
       for (const k of g.DEFAULT_BINDINGS[a]) assert.ok(!g.RESERVED_KEYS.includes(k), a + ' uses reserved ' + k);
