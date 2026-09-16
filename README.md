@@ -1,7 +1,8 @@
 # Deep Supper
 
-A 2D sidescroller. You are a small boy on a fishing boat. Your father tells you to
-catch supper and then leaves. It gets dark. The fish are not fish.
+A 2D sidescroller. You are a small boy on a fishing boat. You never say a word, and
+nothing in the sea is half as dangerous as you are. Your father tells you to catch supper
+and then leaves. It gets dark. The fish are not fish.
 
 Plain HTML and JavaScript, rendered as crisp 480x270 pixel art and shipped as a Windows
 desktop app. Every pixel is drawn at runtime on a canvas and every note of music is
@@ -9,7 +10,7 @@ synthesised from oscillators. There are no asset files of any kind.
 
 ## Playing it
 
-**The app:** run `DeepSupper-1.2.0.exe`. It is a single portable file: no installer, and
+**The app:** run `DeepSupper-1.3.0.exe`. It is a single portable file: no installer, and
 nothing to uninstall. It isn't code-signed, so Windows SmartScreen may ask you to
 confirm the first time ("More info" → "Run anyway").
 
@@ -29,7 +30,7 @@ npm start
 npm run dist
 ```
 
-This writes `dist/DeepSupper-1.2.0.exe`. `npm run dist:folder` builds an unpacked
+This writes `dist/DeepSupper-1.3.0.exe`. `npm run dist:folder` builds an unpacked
 `dist/win-unpacked/` instead, which is quicker to rebuild while testing.
 
 The game still runs in a browser too: open `index.html`. Saves and settings then live in
@@ -48,7 +49,7 @@ that browser's local storage, and there is no Quit option.
    the bar without snapping the line. You watch it come up the water column at you.
 5. **Fight what surfaces.** Swing, roll through its lunges, jump its shockwaves and the
    sweeps that scythe the whole deck.
-6. **Sell it to Dorran** at the stall amidships, and spend the coin on a deeper rod or
+6. **Sell it to Uncle Dorran** at the stall amidships, and spend the coin on a deeper rod or
    something heavier to hit things with.
 
 Your first cast is a lie. An ordinary little fish takes the bait, and you start reeling
@@ -63,6 +64,14 @@ Abyssal Rod is what finally reaches it.
 Somewhere around the second or third rod, one bite doesn't fight back. What comes up
 on the line is Nerys, from Lanthorne, a city eighty fathoms under the boat. She has
 things to say about what is rising out of the trench, and about your great-grandfather.
+
+The boy never speaks. Dad, Nerys and his Uncle Dorran do all the talking, and every one
+of them notices. Dorran keeps the stall amidships and a flask in his coat, and has never
+once found anything the boy brings him strange: a nine-eyed thing with a mouth for a face
+is a lovely bit of haddock. He talks you through the opening, tells you where the net is,
+rambles while you browse, calls out from behind his counter as you walk the deck, shouts
+about whatever you haul aboard or climb back up the ladder with, answers Dad for you at
+the end of part one, and forgets all his news whenever a save is loaded.
 
 Lines of dialogue wait for you: the first press (`E`, `ENTER`, `SPACE` or a click)
 finishes typing a line, and the next moves on.
@@ -168,7 +177,7 @@ harp, lead, pad, bell, drums and a drone.
 
 ## Tests
 
-730 tests: 583 unit (80%), 111 integration (15%) and 36 end-to-end (5%).
+760 tests: 607 unit (80%), 116 integration (15%) and 37 end-to-end (5%).
 
 ```bash
 npm test
@@ -189,18 +198,20 @@ packaged build. `npm run test:all` runs everything.
   system at a time: the pixel pipeline, input, the font, settings and key binding, save
   validation and save slots, data tables, deck movement, fishing and the reel minigame,
   the ambush, Nerys, combat and boss phases, diving (swimming, air, pressure, every
-  launcher, every creature, the Mother), underwater sound, the shop, menus, cutscenes, the
-  icon encoder, the pixel-art creature rasteriser and its animation cache, and every
-  drawing routine.
+  launcher, every creature, the Mother), underwater sound, the shop and everything
+  Dorran says there and on deck, a boy who never speaks, menus, cutscenes, the icon
+  encoder, the pixel-art creature rasteriser and its animation cache, and every drawing
+  routine.
 - **Integration** (`tests/integration`) play through whole journeys with real key presses
   and full rendered frames: the first voyage from the title menu to the first sale,
   saving and continuing (including damaged saves and save slots), options taking effect in
   play, fishing into fights, Nerys, the Old One and the end of part one, diving from the
   bow to a deeper suit and back, fighting at range with mouse and keys, what the sea sounds
-  like however you leave it, creatures animating in a crowd, the Mother and the end of part
+  like however you leave it, creatures animating in a crowd, Dorran talking across the deck
+  and over the counter while the boy stays silent, the Mother and the end of part
   two, pausing, and every screen through the renderer.
 - **End-to-end** (`tests/e2e`) drive the Electron app with Playwright: the window and its
-  lockdown, a voyage played with the keyboard, dialogue that waits, save slots, settings
+  lockdown, a voyage played with the keyboard, Dorran calling out from his stall, dialogue that waits, save slots, settings
   and fullscreen surviving a restart, the test shortcuts, diving with real mouse aiming,
   creatures on screen, the Mother, quitting,
   and the single-instance lock. Each launch gets a throwaway profile,
@@ -213,7 +224,7 @@ index.html               page + canvas
 src/font.js              the 5x7 bitmap font
 src/core.js              pixel pipeline, math, input, WebAudio sfx and the underwater mix, particles, text, camera
 src/music.js             the procedural score
-src/data.js              rods, weapons, goods, monsters, catch tables
+src/data.js              rods, weapons, goods, monsters, catch tables, everything Dorran says
 src/settings.js          options and the save file, both validated on load
 src/art.js               drawing: sky, sea, water column, boat, people, weapons, HUD
 src/art-deep.js          drawing for part two: Nerys, the suit, launchers and shots, the sea below
@@ -222,9 +233,9 @@ src/cutscene.js          dialogue box, step sequencer, opening, Nerys, both endi
 src/fishing.js           cast → sink → wait → hook → reel, and the ambush
 src/battle.js            player combat, monster AI and attacks, boss phases
 src/dive.js              diving: swimming, air and pressure, the creatures below, the Mother
-src/shop.js              Dorran's stall (sell / gear / goods)
+src/shop.js              Uncle Dorran's stall (sell / gear / goods), and how he talks
 src/menu.js              title menu, pause menu, every options screen
-src/game.js              state machine, deck exploration, HUD, main loop
+src/game.js              state machine, deck exploration, Dorran calling across the deck, HUD, main loop
 electron/main.js         the desktop window
 electron/preload.js      the page's only bridge to the app: fullscreen and quit
 scripts/make-icon.js     draws build/icon.png (npm run icon)
