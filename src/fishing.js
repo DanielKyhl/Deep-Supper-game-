@@ -185,10 +185,10 @@ const Fishing = {
 
     if (this.t >= this.waitFor) {
       this.phase = 'bite'; this.t = 0;
-      this.target = this.intro ? MINNOW : rollCatch(RODS[Player.rod].depth, Player.luck);
+      this.target = this.intro ? MINNOW : (this.girlDue() ? GIRL : rollCatch(RODS[Player.rod].depth, Player.luck));
       Sfx.bite();
       this.hook.tug = 22;
-      Cam.kick(this.intro ? 1 : 4);
+      Cam.kick(this.target.gentle ? 1 : 4);
       this.watcher.want = 0;
       Particles.burst(this.hook.x, this.hookY(), 14, {
         color: '#cfeaf4', vy: -120, g: -40, size: 3, life: .7, water: true
@@ -210,6 +210,12 @@ const Fishing = {
       this.hook.tug = 0;
       Sfx.deny();
     }
+  },
+
+  // Nerys comes up once, somewhere around the second or third rod
+  girlDue() {
+    if (Player.girlMet || Player.beatBoss) return false;
+    return Player.rod >= 2 || (Player.rod >= 1 && Player.totalKills >= 6);
   },
 
   _fail(dt) {
@@ -238,14 +244,14 @@ const Fishing = {
     this.t = 0;
     const rod = RODS[Player.rod];
     const m = this.target;
-    const small = m === MINNOW;
-    this.barFrac = (small ? 190 : rod.bar) / 300;
+    const small = m === MINNOW, girl = m === GIRL;
+    this.barFrac = (small ? 190 : girl ? 170 : rod.bar) / 300;
     this.by = .6; this.bvy = 0;
     this.fy = .5; this.fvy = 0; this.fTarget = .5; this.fTimer = 0;
-    this.fSpeed = small ? .12 : (0.26 + m.depth * 0.085 + (m.boss ? 0.18 : 0));
+    this.fSpeed = small ? .12 : girl ? .18 : (0.26 + m.depth * 0.085 + (m.boss ? 0.18 : 0));
     // the scripted first monster is a touch gentler: it is also the tutorial
-    if (!small && this.intro) this.fSpeed *= .85;
-    this.prog = small ? .15 : .34;
+    if (!m.gentle && this.intro) this.fSpeed *= .85;
+    this.prog = small ? .15 : girl ? .3 : .34;
     this.tension = 0;
     this.startDepth = this.hook.depth;
     Sfx.reel();
@@ -282,7 +288,7 @@ const Fishing = {
       this.tension = Math.max(0, this.tension - dt * 1.2);
       if (chance(dt * 12)) Sfx.reel();
     } else {
-      this.prog -= dt * (small ? .06 : (0.19 + m.depth * 0.012));
+      this.prog -= dt * (m.gentle ? .07 : (0.19 + m.depth * 0.012));
       this.tension = Math.min(1, this.tension + dt * .55);
       this.shake = this.tension * 3;
     }
@@ -304,8 +310,9 @@ const Fishing = {
     if (this.prog >= 1) {
       this.phase = 'pull'; this.t = 0;
       Sfx.splash();
-      Sfx.roar(); Cam.kick(9);
-      Particles.burst(this.hook.x, WATER_Y, 40, {
+      // whatever is on the line breaks the surface; only monsters roar
+      if (!m.gentle) { Sfx.roar(); Cam.kick(9); }
+      Particles.burst(this.hook.x, WATER_Y, m.gentle ? 16 : 40, {
         color: '#d8eef8', vx: rand(-220, 220), vy: rand(-460, -160), g: 900,
         size: rand(3, 8), life: rand(.6, 1.2), fixed: true
       });
@@ -381,7 +388,8 @@ const Fishing = {
       if (this.intro) Player.introDone = true;
       Cam.locked = false;
       Game.viewY = 0;
-      Game.startBattle(this.target);
+      if (this.target === GIRL) Game.startGirlScene();
+      else Game.startBattle(this.target);
     }
   },
 
@@ -469,7 +477,13 @@ const Fishing = {
       Art.fishIcon(g, 0, 12, 1.7, MINNOW.body, MINNOW.belly);
       g.restore();
     }
-    if (this.target !== MINNOW && this.phase === 'reel') {
+    if (this.target === GIRL && (this.phase === 'reel' || this.phase === 'bite')) {
+      // a person, hanging off the hook by her hair, coming up out of the dark
+      g.save();
+      g.globalAlpha = clamp(.3 + this.prog * .8, .3, 1);
+      Art.girl(g, 0, 70, { pose: 'rise', t: this.t, scale: .8, noShadow: true, face: Math.sin(this.t * .7) > 0 ? 1 : -1 });
+      g.restore();
+    } else if (this.target !== MINNOW && this.phase === 'reel') {
       // a suggestion of the thing you have hooked, hauled up out of the black
       const d = this.target;
       const scale = clamp(.25 + this.prog * .8, .25, 1);
@@ -515,7 +529,7 @@ const Fishing = {
       });
       g.restore();
       // something big rising under the hook
-      if (this.target !== MINNOW) {
+      if (!this.target.gentle) {
         g.save();
         g.globalAlpha = clamp(this.t * 1.2, 0, .55);
         g.fillStyle = '#01050d';
@@ -567,7 +581,10 @@ const Fishing = {
     else if (this.phase === 'fail') this._tip(g, this.msg, '#e28a8a');
     else if (this.phase === 'junk') this._tip(g, 'You reel up ' + this.target.name + '.', '#b8c4dc');
     else if (this.phase === 'ambush' && this.msg) this._tip(g, this.msg, this.eaten ? '#ff9a9a' : '#e8e3d6');
-    else if (this.phase === 'pull') this._tip(g, 'It is coming up…', '#ff9a9a');
+    else if (this.phase === 'pull') {
+      if (this.target === GIRL) this._tip(g, 'It is coming up… it has hands.', '#9ff0ff');
+      else this._tip(g, 'It is coming up…', '#ff9a9a');
+    }
 
     if (this.phase !== 'reel') return;
 
@@ -576,7 +593,8 @@ const Fishing = {
     const sh = (Math.random() * 2 - 1) * this.shake;
 
     panel(g, gx - 22 + sh, gy - 44, gw + 104, gh + 78, { alpha: .92 });
-    Text.draw(g, (this.target === MINNOW ? 'A SMALL FISH' : this.target.name.toUpperCase()),
+    const heading = this.target === MINNOW ? 'A SMALL FISH' : this.target === GIRL ? "IT ISN'T FIGHTING" : this.target.name.toUpperCase();
+    Text.draw(g, heading,
       gx + gw / 2 + 30 + sh, gy - 16, {
         size: 15, align: 'center', color: '#f0cf8a', weight: 'bold', font: 'Verdana, sans-serif'
       });
@@ -640,8 +658,14 @@ const Fishing = {
 
 // the one ordinary fish in the entire game
 const MINNOW = {
-  id: 'minnow', name: 'a small fish', depth: 1, len: 60, girth: .3,
+  id: 'minnow', name: 'a small fish', depth: 1, len: 60, girth: .3, gentle: true,
   hp: 1, value: 6, dmg: 0, speed: 10, plan: 'eel', eyes: 2,
   body: [140, 156, 120], belly: [222, 226, 198], fin: [110, 124, 96], eye: '#2a2028',
   atk: ['lunge'], flavour: 'A fish.'
+};
+
+// not a fish at all
+const GIRL = {
+  id: 'girl', name: 'someone', depth: 2, len: 70, girth: .3, gentle: true,
+  body: [58, 104, 88], belly: [185, 212, 204]
 };

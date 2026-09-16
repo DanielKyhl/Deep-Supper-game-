@@ -100,6 +100,35 @@ describe('from a bite to a fight', () => {
   });
 });
 
+describe('Nerys', () => {
+  test('the Deepline rod brings her up; she talks, dives back in, and it is saved', () => {
+    const h = veteran({ seed: 8 }, { rod: 2, totalKills: 9 });
+    h.frame();
+    F.castLine(h);
+    F.waitForBite(h);
+    assert.equal(h.g.Fishing.target.id, 'girl');
+    F.setHook(h);
+    h.autoReel(40);
+    assert.ok(h.until(() => h.g.Game.state === 'cutscene', 4));
+    h.frame();
+    assert.equal(h.g.Music.themeName, 'lanthorne');
+    const seen = new Set();
+    for (let i = 0; i < 60 * 120 && h.g.Game.state === 'cutscene'; i++) {
+      if (h.g.CUT.girl.visible) seen.add(h.g.CUT.girl.pose);
+      if (h.g.Dialogue.active && h.g.Dialogue.done && h.g.Dialogue.hold > .2) h.tap('Enter');
+      else h.frame();
+    }
+    assert.equal(h.g.Game.state, 'play');
+    for (const pose of ['rise', 'sit', 'stand', 'swim']) assert.ok(seen.has(pose), 'never saw her ' + pose);
+    assert.equal(JSON.parse(h.storage.get('deepsupper.save.v1')).girlMet, true);
+    assert.equal(h.g.Player.catches.length, 0, 'nobody sells Nerys');
+
+    F.castLine(h);
+    F.waitForBite(h);
+    assert.notEqual(h.g.Fishing.target.id, 'girl', 'she only comes up once');
+  });
+});
+
 describe('fights', () => {
   test('a won fight ends with the trophy in the hold and the kill on record', () => {
     const h = veteran({ seed: 1 }, { weapon: 2 });

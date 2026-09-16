@@ -87,6 +87,7 @@ const CUT = {
   steps: null, i: 0, t: 0, running: false, onEnd: null, finalize: null,
   tweens: [], letterbox: 0, skipHold: 0, skippable: true,
   dad: { x: 560, face: -1, state: 'idle', visible: false, pipe: true },
+  girl: { x: 0, y: DECK_Y, face: 1, pose: 'stand', rot: 0, visible: false },
   harbourX: -1200, bigShadow: 0, titleCard: null, wake: 0, allowShadows: 0,
 
   play(steps, opts) {
@@ -340,6 +341,84 @@ function buildOpening() {
       sWait(1.0),
       sAct(() => { CUT.bigShadow = 0; Cam.locked = false; }),
       sTitle('DEEP SUPPER', 'Chapter One — The Fish Are Not Right', 4.0),
+      sAct(() => { finalize(); })
+    ]
+  };
+}
+
+/* ============================= NERYS ===================================
+   Somewhere around the second or third rod, the line comes up with a
+   person on it. She has a lot to say, and then she goes back.            */
+
+// a leap from one point to another over a hump of `height`
+function arc(from, to, height, p) {
+  return { x: lerp(from.x, to.x, p), y: lerp(from.y, to.y, p) - Math.sin(p * Math.PI) * height };
+}
+
+function buildGirlScene() {
+  const G = CUT.girl;
+  const splash = (x, n) => {
+    Sfx.splash();
+    Particles.burst(x, WATER_Y, n, { color: '#cfeaf4', vx: rand(-160, 160), vy: rand(-380, -120), g: 900, size: rand(2, 6), life: rand(.5, 1) });
+  };
+  const finalize = () => {
+    G.visible = false;
+    Player.girlMet = true;
+    Player.x = FISH_X; Player.face = 1; Player.state = 'idle';
+    Game.viewY = 0;
+    Cam.locked = false;
+    Cam.snap(Player.x);
+  };
+  const up = { x: FISH_X + 150, y: WATER_Y + 30 }, deck = { x: FISH_X - 110, y: DECK_Y };
+  const over = { x: FISH_X + 190, y: WATER_Y + 40 };
+
+  return {
+    finalize,
+    steps: [
+      // hauled up and over the rail on the end of the line
+      sAct(() => {
+        Object.assign(G, { visible: true, x: up.x, y: up.y, face: -1, pose: 'rise', rot: 0 });
+        splash(up.x, 30);
+        Cam.kick(4);
+      }),
+      sTween(1.1, p => {
+        const a = arc(up, deck, 150, p);
+        G.x = a.x; G.y = a.y; G.rot = -p * 5.8;
+        if (p > .5) Player.face = -1;
+      }),
+      sAct(() => { G.pose = 'sit'; G.rot = 0; G.face = 1; Sfx.thud(); Cam.kick(5); }),
+      sWait(1.0),
+      sSay('You', 'That is not a fish.'),
+      sSay('???', '*cough* — your hook. It was in my hair.'),
+      sSay('You', 'Sorry. I was trying for supper.'),
+      sAct(() => { G.pose = 'stand'; Dialogue.hide(); }),
+      sWait(.5),
+      sSay('???', "You're the boy. The one on the boat who keeps pulling them up."),
+      sSay('You', 'Pulling what up?'),
+      sSay('???', "The Brood. Everything down there with too many teeth. They've been rising out of the trench all season."),
+      sSay('Nerys', "I'm Nerys. From Lanthorne: the city under your boat. Eighty fathoms, straight down."),
+      sSay('You', "There's a city down there."),
+      sSay('Nerys', "There was a city. Now there's half a city, and a lot of doors we don't open any more."),
+      sSay('Nerys', "Something is waking at the bottom of the trench. The big ones aren't hunting you. They're running from it, straight up your line."),
+      sSay('Nerys', "Our wardens can't hold the outer halls much longer. We need help. Anyone's. Even a boy with a fishing rod."),
+      sSay('You', "I can't breathe down there."),
+      sSay('Nerys', 'No. You would need a suit. Your great-grandfather had one. He used to come down and trade with us.'),
+      sSay('Nerys', "Then one day he didn't come back up. Neither did the suit."),
+      sSay('Nerys', 'Keep hauling them up. Get strong. And if you ever find a way down: come down.'),
+      sHideText(),
+
+      // straight over his head and back into the sea
+      sAct(() => { G.pose = 'swim'; G.face = 1; G.rot = -.9; Sfx.whoosh(); }),
+      sTween(1.0, p => {
+        const a = arc(deck, over, 190, p);
+        G.x = a.x; G.y = a.y - 30; G.rot = lerp(-.9, 1.1, p);
+        if (p > .45) Player.face = 1;
+      }),
+      sAct(() => { G.visible = false; splash(over.x, 34); Cam.kick(3); }),
+      sWait(1.8),
+      sSay('You', '...'),
+      sSay('You', 'Dorran is never going to believe that.'),
+      sHideText(),
       sAct(() => { finalize(); })
     ]
   };

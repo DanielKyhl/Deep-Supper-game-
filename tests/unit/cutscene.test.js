@@ -201,6 +201,37 @@ describe('the opening and the ending', () => {
     assert.match(g.Dialogue.full, /There you are/);
   });
 
+  test("Nerys's scene: who she is, where she is from, and why she needs help", () => {
+    const { h, g } = loadGame({ draw: false });
+    h.startVoyage();
+    g.Game.startGirlScene();
+    const lines = [];
+    for (let i = 0; i < 60 * 90 && g.Game.state === 'cutscene'; i++) {
+      if (g.Dialogue.active && g.Dialogue.done && g.Dialogue.hold > .05 && lines[lines.length - 1] !== g.Dialogue.full) {
+        lines.push(g.Dialogue.full);
+        h.press('Enter');
+      }
+      h.frame();
+    }
+    const all = lines.join(' ');
+    for (const bit of [/Nerys/, /Lanthorne/, /Brood/, /trench/, /great-grandfather/, /suit/]) assert.match(all, bit);
+    assert.equal(g.Game.state, 'play');
+    assert.equal(g.Player.girlMet, true);
+    assert.equal(g.CUT.girl.visible, false);
+  });
+
+  test("her scene's finalize leaves the boy at the bow with her gone", () => {
+    const { g } = loadGame({ draw: false });
+    const s = g.buildGirlScene();
+    g.CUT.girl.visible = true;
+    g.Player.x = 200;
+    s.finalize();
+    assert.equal(g.Player.girlMet, true);
+    assert.equal(g.CUT.girl.visible, false);
+    assert.equal(g.Player.x, g.FISH_X);
+    assert.equal(g.Cam.locked, false);
+  });
+
   test('the ending brings Dad back to the harbour at dawn', () => {
     const { g } = loadGame({ draw: false });
     const e = g.buildEnding();

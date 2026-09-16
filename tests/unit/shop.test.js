@@ -23,6 +23,14 @@ describe('opening the stall', () => {
     assert.ok(S.line.length > 0, 'Dorran says hello');
   });
 
+  test('the first visit after meeting Nerys, Dorran can tell', () => {
+    const { g, S } = atStall(P => { P.girlMet = true; });
+    assert.match(S.line, /met someone/);
+    S.close();
+    g.Shop.open();
+    assert.doesNotMatch(S.line, /met someone/, 'he only says it once');
+  });
+
   test('opens on GEAR when the hold is empty', () => {
     assert.equal(atStall().S.tab, 1);
   });

@@ -105,6 +105,20 @@ const THEMES = {
     }
   },
 
+  /* Nerys, and the city under the boat: warm, slow, and a long way down */
+  lanthorne: {
+    bpm: 64, bar: 8, vol: .85,
+    prog: [['F2', 'M7'], ['A2', 'm7'], ['A#2', 'M7'], ['C3', 'sus'],
+           ['D3', 'm7'], ['A#2', 'M7'], ['G2', 'm7'], ['C3', 'M']],
+    voice(M, t, step, bar, beat, chord) {
+      if (beat === 0) M._bass(t, hz(chord[0], -12), 2.8, .12);
+      if (beat === 0) M._pad(t, M._notes(chord, 12), 4.2, .045);
+      const ns = M._notes(chord, 24);
+      if (beat % 2 === 0) M._pluck(t, ns[(beat / 2 + bar) % ns.length], 2.2, .06);
+      if (beat === 3 || beat === 7) M._bell(t, ns[(bar + beat) % ns.length] * 2, 2.8, .028);
+    }
+  },
+
   /* sailing home */
   ending: {
     bpm: 74, bar: 8, vol: .9,

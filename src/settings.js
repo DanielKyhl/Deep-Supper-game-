@@ -254,7 +254,8 @@ const SAVE_FIELDS = {
   lantern:    { type: 'bool' },
   luck:       { type: 'bool' },
   beatBoss:   { type: 'bool' },
-  introDone:  { type: 'bool' }
+  introDone:  { type: 'bool' },
+  girlMet:    { type: 'bool' }
 };
 
 const SaveGame = {

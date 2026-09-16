@@ -112,6 +112,14 @@ describe('drawing characters and monsters', () => {
     }
   });
 
+  test('Nerys draws in every pose, both ways round', () => {
+    for (const face of [1, -1]) {
+      for (const pose of ['stand', 'sit', 'rise', 'swim']) {
+        balanced('nerys ' + pose, () => g.Art.girl(bctx, 400, g.DECK_Y, { face, pose, t: 2, rot: .3, alpha: .8, scale: .9 }));
+      }
+    }
+  });
+
   test('Dad and Dorran draw', () => {
     balanced('dad', () => g.Art.dad(bctx, 300, g.DECK_Y, { face: -1, t: 1, state: 'walk' }));
     balanced('dorran', () => g.Art.dorran(bctx, 700, g.DECK_Y, { t: 1 }));

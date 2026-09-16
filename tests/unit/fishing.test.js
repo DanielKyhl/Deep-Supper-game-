@@ -318,6 +318,49 @@ describe('the underwater ambush', () => {
   });
 });
 
+describe('Nerys on the line', () => {
+  test('she comes up around the second or third rod, once, and never after the Old One', () => {
+    const { g, F, P } = atBow({ veteran: true });
+    const due = over => { Object.assign(P, { rod: 0, totalKills: 1, girlMet: false, beatBoss: false }, over); return F.girlDue(); };
+    assert.equal(due({}), false, 'not on the bamboo rod');
+    assert.equal(due({ rod: 1, totalKills: 5 }), false);
+    assert.equal(due({ rod: 1, totalKills: 6 }), true, 'second rod, after a few kills');
+    assert.equal(due({ rod: 2 }), true, 'third rod, straight away');
+    assert.equal(due({ rod: 3 }), true);
+    assert.equal(due({ rod: 2, girlMet: true }), false, 'only once');
+    assert.equal(due({ rod: 2, beatBoss: true }), false);
+    assert.ok(g.GIRL.gentle && g.MINNOW.gentle);
+  });
+
+  test('when she is due, the next bite is her', () => {
+    const { g, F, P } = atBow({ veteran: true });
+    P.rod = 2;
+    F.start();
+    assert.ok(runTo(F, 'bite', 20));
+    assert.equal(F.target, g.GIRL);
+  });
+
+  test('she does not fight the line', () => {
+    const { g, F } = atBow({ veteran: true });
+    F.target = g.GIRL; F.hook.depth = F.targetDepth; F._beginReel();
+    near(F.barFrac, 170 / 300);
+    near(F.fSpeed, .18);
+    near(F.prog, .3);
+    const monster = atBow({ veteran: true });
+    monster.F.target = g.MONSTERS[4]; monster.F._beginReel();
+    assert.ok(F.fSpeed < monster.F.fSpeed);
+  });
+
+  test('landing her starts her scene, not a fight', () => {
+    const { g, F } = atBow({ veteran: true });
+    F.target = g.GIRL; F.phase = 'pull'; F.t = 0;
+    step(F, 2);
+    assert.equal(g.Game.state, 'cutscene');
+    assert.equal(g.Game.cutKind, 'girl');
+    assert.equal(g.CUT.girl.visible, true);
+  });
+});
+
 describe('rod pose', () => {
   test('rod angle and bend react to every phase', () => {
     const { F } = atBow();

@@ -13,7 +13,11 @@ const Shop = {
     this.tab = Player.catches.length ? 0 : 1;
     this.sel = 0;
     this.t = 0;
-    this.say(choice(DORRAN_GREET));
+    // the first visit after meeting her, he can tell
+    if (Player.girlMet && !this.remarkedOnGirl) {
+      this.remarkedOnGirl = true;
+      this.say("You've the look of a lad who's met someone. Don't tell me.");
+    } else this.say(choice(DORRAN_GREET));
     Sfx.select();
   },
   close() {

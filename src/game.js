@@ -10,7 +10,7 @@ const Player = {
   animT: 0,
   hp: 5, maxHp: 5,
   coins: 0,
-  rod: 0, weapon: -1, introDone: false,
+  rod: 0, weapon: -1, introDone: false, girlMet: false,
   bandages: 0, lockets: 0, lantern: false, luck: false,
   catches: [],
   kills: {}, totalKills: 0, sold: 0, casts: 0,
@@ -22,7 +22,7 @@ const Player = {
   reset() {
     this.x = 640; this.y = DECK_Y; this.vy = 0; this.face = 1;
     this.hp = 5; this.maxHp = 5; this.coins = 0;
-    this.rod = 0; this.weapon = -1; this.introDone = false;
+    this.rod = 0; this.weapon = -1; this.introDone = false; this.girlMet = false;
     this.bandages = 0; this.lockets = 0; this.lantern = false; this.luck = false;
     this.catches.length = 0; this.kills = {}; this.totalKills = 0; this.sold = 0; this.casts = 0;
     this.beatBoss = false;
@@ -148,7 +148,7 @@ const Game = {
     Object.assign(Player, {
       rod: RODS.length - 1, weapon: WEAPONS.length - 1,
       bandages: bandage.max, lockets: locket.max, maxHp: 5 + locket.max,
-      lantern: true, luck: true, introDone: true, totalKills: Math.max(Player.totalKills, 12)
+      lantern: true, luck: true, introDone: true, girlMet: true, totalKills: Math.max(Player.totalKills, 12)
     });
     Player.hp = Player.maxHp;
     this.crateOpen = true;
@@ -174,7 +174,8 @@ const Game = {
     this.viewY = 0;
     this.msgs = [];
     CUT.stop();
-    CUT.harbourX = -1400; CUT.dad.visible = false; CUT.letterbox = 0;
+    CUT.harbourX = -1400; CUT.dad.visible = false; CUT.girl.visible = false; CUT.letterbox = 0;
+    this.cutKind = null;
     CUT.allowShadows = 1; CUT.wake = 1; CUT.bigShadow = 0; CUT.titleCard = null;
     Particles.clear(); Floaters.clear(); Dialogue.hide();
     Player.state = 'idle'; Player.bState = 'idle'; Player.y = DECK_Y; Player.vy = 0;
@@ -208,6 +209,8 @@ const Game = {
       Particles.clear(); Floaters.clear();
       this.night = .88;
       CUT.harbourX = 300;
+      CUT.girl.visible = false;
+      this.cutKind = null;
       this.state = 'menu';
       Menu.openMain();
     });
@@ -216,6 +219,17 @@ const Game = {
   quitApp() {
     if (this.state !== 'menu' && this.state !== 'cutscene') this.autosave();
     if (window.native && window.native.quit) window.native.quit();
+  },
+
+  // the girl on the end of the line
+  startGirlScene() {
+    const s = buildGirlScene();
+    this.state = 'cutscene';
+    this.cutKind = 'girl';
+    CUT.play(s.steps, {
+      finalize: s.finalize,
+      onEnd: () => { this.cutKind = null; this.state = 'play'; this.autosave(); }
+    });
   },
 
   startBattle(def) {
@@ -290,7 +304,7 @@ const Game = {
     const st = this.state === 'pause' ? this.pausedFrom : this.state;
     if (st === 'menu') want = 'title';
     else if (st === 'battle') want = (Battle.def && Battle.def.boss) ? 'boss' : 'battle';
-    else if (st === 'cutscene') want = this.endingRun ? 'ending' : (this.night < .5 ? 'title' : 'sea');
+    else if (st === 'cutscene') want = this.endingRun ? 'ending' : this.cutKind === 'girl' ? 'lanthorne' : (this.night < .5 ? 'title' : 'sea');
     if (want !== this._musicWant) { this._musicWant = want; Music.set(want); }
   },
 
@@ -546,6 +560,9 @@ const Game = {
     Art.boatBack(g, Cam.x, t, night, { crateOpen: this.crateOpen });
 
     // actors on deck
+    if (CUT.girl.visible) {
+      Art.girl(g, CUT.girl.x - Cam.x, CUT.girl.y, { face: CUT.girl.face, t: this.t, pose: CUT.girl.pose, rot: CUT.girl.rot });
+    }
     if (CUT.dad.visible) {
       Art.dad(g, CUT.dad.x - Cam.x + (this.state === 'cutscene' ? 0 : 0), DECK_Y,
         { face: CUT.dad.face, t: this.t, state: CUT.dad.state });
