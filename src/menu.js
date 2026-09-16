@@ -17,6 +17,13 @@ const CHOICE_LABELS = {
   textSpeed:  { slow: 'Slow', normal: 'Normal', fast: 'Fast', instant: 'Instant' }
 };
 
+// on a Mac F11 belongs to the system; the window's own shortcut is Ctrl+Cmd+F
+function onMac() {
+  const n = window.navigator || {};
+  return /Mac/i.test(String(n.platform || '') + ' ' + String(n.userAgent || ''));
+}
+function fullscreenKeyLabel() { return onMac() ? 'CTRL+CMD+F' : 'F11'; }
+
 const SCREEN_TITLES = {
   pause: 'PAUSED', options: 'OPTIONS', graphics: 'GRAPHICS', audio: 'AUDIO',
   controls: 'CONTROLS', gameplay: 'GAMEPLAY', credits: 'CREDITS',
@@ -142,7 +149,7 @@ const Menu = {
       case 'controls': return REBINDABLE.map(a => ({ kind: 'bind', label: ACTION_LABELS[a], action: a })).concat([
         { kind: 'gap' },
         { kind: 'text', label: 'Menus: arrows, ENTER, ESC      Pause: ESC' },
-        { kind: 'text', label: 'Mute: M      Music: N      Fullscreen: F11' },
+        { kind: 'text', label: 'Mute: M      Music: N      Fullscreen: ' + fullscreenKeyLabel() },
         { kind: 'action', label: 'Reset controls', id: 'resetControls', run: () => { Settings.resetBindings(); this.say('Controls reset to defaults.'); } },
         { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
       ]);

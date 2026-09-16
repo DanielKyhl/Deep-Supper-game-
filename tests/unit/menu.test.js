@@ -301,6 +301,25 @@ describe('navigation stack', () => {
   });
 });
 
+describe('the fullscreen shortcut on the controls screen', () => {
+  const shortcutLine = g => g.Menu.items('controls').find(i => i.kind === 'text' && /Fullscreen/.test(i.label)).label;
+
+  test('on Windows it says F11', () => {
+    const { h, g } = loadGame({ draw: false });
+    h.sandbox.navigator.platform = 'Win32';
+    assert.match(shortcutLine(g), /Fullscreen: F11$/);
+  });
+
+  test("on a Mac, where F11 belongs to the system, it says the window's own Ctrl+Cmd+F", () => {
+    const { h, g } = loadGame({ draw: false });
+    h.sandbox.navigator.platform = 'MacIntel';
+    assert.ok(shortcutLine(g).endsWith('Fullscreen: CTRL+CMD+F'), shortcutLine(g));
+    h.sandbox.navigator.platform = '';
+    h.sandbox.navigator.userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Electron';
+    assert.ok(shortcutLine(g).includes('CTRL+CMD+F'), 'from the user agent when there is no platform');
+  });
+});
+
 describe('rebinding from the controls screen', () => {
   test('ENTER on a binding waits for the next key, which becomes the new binding', () => {
     const { h, g } = loadGame({ draw: false });
