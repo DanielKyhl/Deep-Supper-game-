@@ -34,7 +34,14 @@ jobs:
       - name: End-to-end tests against the packaged Apple Silicon app
         env:
           DEEPSUPPER_EXE: dist/mac-arm64/Deep Supper.app/Contents/MacOS/Deep Supper
-        run: npm run test:e2e
+        run: |
+          set -o pipefail
+          npm run test:e2e 2>&1 | tee e2e.log
+      # step logs need a GitHub sign-in to read; the run summary and its
+      # annotations don't, so failing tests are copied there
+      - name: Report failing end-to-end tests
+        if: failure()
+        run: node .github/report-failures.js e2e.log "Mac end-to-end tests"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
