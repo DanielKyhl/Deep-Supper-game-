@@ -26,6 +26,7 @@ describe('a voyage in the app', () => {
     await A.until(page, () => Game.state === 'play', null, 5000);
     await page.keyboard.up('Escape');
     assert.equal(await page.evaluate(() => Game.night), 1);
+    assert.equal(await page.evaluate(() => Dialogue.who), 'Dorran', 'the boy says nothing; his uncle does');
     await page.evaluate(() => Settings.set('textSpeed', 'instant'));
     for (let i = 0; i < 6 && await page.evaluate(() => Dialogue.active); i++) {
       await page.waitForTimeout(250);
@@ -57,6 +58,26 @@ describe('a voyage in the app', () => {
       await page.keyboard.press('Enter');
     }
     assert.equal(await page.evaluate(() => Game.crateOpen), true);
+  });
+
+  test('walking up to the stall, Dorran calls out; at the counter he talks, a word at a time', async () => {
+    await A.until(page, () => Game.barkCd <= 0 && !Game.bark.text, null, 15000);
+    await page.keyboard.down('KeyD');
+    await A.until(page, () => Game.bark.text !== '', null, 5000);
+    const called = await page.evaluate(() => ({ text: Game.bark.text, near: DORRAN.deck.near.includes(Game.bark.text) }));
+    assert.ok(called.near, 'called out: ' + called.text);
+    await A.until(page, () => Player.x > 730, null, 8000);
+    await page.keyboard.up('KeyD');
+    await page.keyboard.press('KeyE');
+    await A.until(page, () => Game.state === 'shop');
+    const early = await page.evaluate(() => ({ shown: Shop.shown, len: Shop.line.length }));
+    await page.waitForTimeout(2500);
+    const later = await page.evaluate(() => ({ shown: Shop.shown, len: Shop.line.length, bubble: Game.bark.text }));
+    assert.ok(early.shown < early.len, 'still getting his words out: ' + early.shown + '/' + early.len);
+    assert.equal(later.shown, later.len);
+    assert.equal(later.bubble, '');
+    await page.keyboard.press('Escape');
+    await A.until(page, () => Game.state === 'play');
   });
 
   test('E at the bow casts the line', async () => {
