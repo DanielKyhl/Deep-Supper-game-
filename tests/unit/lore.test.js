@@ -28,14 +28,14 @@ function landSpecial(h) {
 }
 
 describe('the letters and relics', () => {
-  test('fourteen of them, each with its own id: six in bottles, three letters and five relics on the bottom', () => {
+  test('twenty of them, each with its own id: eight in bottles, four letters and eight relics on the bottom', () => {
     const { g } = onDeck();
     const L = g.LORE;
-    assert.equal(L.length, 14);
-    assert.equal(new Set(L.map(l => l.id)).size, 14);
-    assert.equal(L.filter(l => l.where === 'bottle').length, 6);
-    assert.equal(L.filter(l => l.where === 'dive' && l.kind === 'letter').length, 3);
-    assert.equal(L.filter(l => l.where === 'dive' && l.kind === 'relic').length, 5);
+    assert.equal(L.length, 20);
+    assert.equal(new Set(L.map(l => l.id)).size, 20);
+    assert.equal(L.filter(l => l.where === 'bottle').length, 8);
+    assert.equal(L.filter(l => l.where === 'dive' && l.kind === 'letter').length, 4);
+    assert.equal(L.filter(l => l.where === 'dive' && l.kind === 'relic').length, 8);
     for (const l of L) assert.ok(l.title && l.from && l.text.length > 80, l.id);
     for (const l of L.filter(l => l.kind === 'relic')) assert.equal(typeof g.RELIC_ART[l.id], 'function', l.id);
   });
@@ -67,11 +67,22 @@ describe('the letters and relics', () => {
 
   test('bottles bring the letters up in order, and none once they are all found', () => {
     const { g, L } = onDeck();
+    g.Player.girlMet = true;
     const bottles = plain(g.LORE.filter(l => l.where === 'bottle').map(l => l.id));
     const got = [];
     while (L.nextBottle()) { const id = L.nextBottle().id; got.push(id); L.find(id); L.close(); }
     assert.deepEqual(got, bottles);
     assert.equal(L.nextBottle(), null);
+  });
+
+  test("Nerys's bottle waits until he has fished her up", () => {
+    const { g, L } = onDeck();
+    g.Player.girlMet = false;
+    for (const l of g.LORE.filter(l => l.where === 'bottle' && l.id !== 'nerys')) L.find(l.id);
+    L.close();
+    assert.equal(L.nextBottle(), null, 'nothing yet');
+    g.Player.girlMet = true;
+    assert.equal(L.nextBottle().id, 'nerys');
   });
 
   test('finding one keeps it, opens it, and saves; finding it again does nothing', () => {
@@ -142,12 +153,12 @@ describe('the letters and relics', () => {
   test('the journal lists what has been found, and opens it', () => {
     const { h, g, P } = onDeck();
     const M = g.Menu;
-    assert.match(M.items('pause').find(i => i.id === 'journal').label, /0\/14/);
+    assert.match(M.items('pause').find(i => i.id === 'journal').label, /0\/20/);
     assert.match(M.items('journal').map(i => i.label).join(' '), /Nothing yet/);
     P.lore.push('iou', 'eggcase');
     const rows = M.items('journal').filter(i => i.kind === 'action' && i.id !== 'back');
     assert.deepEqual(plain(rows.map(r => r.label)), ['Letter: An IOU in a familiar hand', 'Relic: An empty Brood egg-case']);
-    assert.match(M.items('journal')[0].label, /1 of 9 letters.*1 of 5 relics/);
+    assert.match(M.items('journal')[0].label, /1 of 12 letters.*1 of 8 relics/);
     rows[1].run();
     assert.equal(g.Lore.open, 'eggcase');
   });

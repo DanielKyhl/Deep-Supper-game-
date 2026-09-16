@@ -5,7 +5,8 @@
    in the journal, read on a page of their own.
    ======================================================================== */
 
-/* where 'bottle': fished up, in this order, now and then
+/* where 'bottle': fished up, in this order, now and then (a bottle with
+                   `after` waits until that is true)
    where 'dive':   lying in the water at (x, y), found by swimming to it    */
 const LORE = [
   { id: 'meg', kind: 'letter', where: 'bottle', title: 'A letter to Meg',
@@ -32,6 +33,14 @@ const LORE = [
     from: 'Wrapped in oilskin, twice',
     text: "Meg. I'm going down after it in the suit tomorrow. Ysolde says the Old One isn't the worst of it: there is a mother at the bottom of the trench, and that thing is only the first of her young. If I come back up, I'll stop. If I don't, keep the Margaret, keep her name on her, and don't let the boys fish deep water. Some of them won't listen. The best ones never do. — Tobias" },
 
+  { id: 'reply', kind: 'letter', where: 'bottle', title: "Meg's reply, never sent",
+    from: 'Sealed with candle wax, and a curl of grey hair',
+    text: "T. They say you went over the side in the suit and the sea closed over you like a door. They say it kindly, as if I don't know the sea. I have put the big pot on every night for a year. Our boy asks where the lights under the boat went. I tell him they are still on. If this finds you down there, come up for supper. — M." },
+
+  { id: 'nerys', kind: 'letter', where: 'bottle', title: 'A green Lanthorne bottle', after: () => Player.girlMet,
+    from: 'Stoppered with wax, written in a hurry',
+    text: "To the boy on the fishing boat who does not talk. My mother says it is rude to write to someone who fished you up by the hair. But you did not scream, and you did not run, and you did not say anything at all, which is nearly polite. The Brood are thick in the Drop this month. Swim fast, and come down anyway. — N." },
+
   { id: 'tin', kind: 'letter', where: 'dive', x: 330, y: 900, title: 'A tin of hooks, and a note',
     from: 'Wedged in the rocks of the Shelf',
     text: "For the Lanthorne market, if the current is kind. Sixty good hooks, dry. I am out of coats. Ysolde, if you are reading this, you were right about the maps and I was wrong, and I will say so to your face next time I'm down, if you give me back my lamp. — T." },
@@ -39,6 +48,10 @@ const LORE = [
   { id: 'log', kind: 'letter', where: 'dive', x: 900, y: 1884, title: "A warden's log, cut in shell",
     from: 'Lying on the ledge above the Drowned Halls',
     text: "Warden's log, outer halls. Day forty of the rising. The Brood came through the east door again; we lost two lamps and the old bridge. The surface man fought beside us with a harpoon that should not work underwater, and it did. He does not say a word while he fights. I am told his family are all like that. — Ysolde" },
+
+  { id: 'census', kind: 'letter', where: 'dive', x: 2050, y: 1480, title: 'A census slate',
+    from: 'Wedged in a crack in the Drop',
+    text: "LANTHORNE, OUTER HALLS. A COUNT OF THE LIVING. Lamplighters: 40. Wardens: 12. Children: 61. Surface men: 1 (T., a trader, who does not live here but will not stop visiting). Below, in a different hand: Lamplighters: 31. Wardens: 9. Children: 61, still. Keep it that way. — Y." },
 
   { id: 'order', kind: 'letter', where: 'dive', x: 4250, y: 3920, title: "Ysolde's last order",
     from: 'Nailed to a post outside the city, in a lead case',
@@ -59,6 +72,18 @@ const LORE = [
   { id: 'crown', kind: 'relic', where: 'dive', x: 700, y: 2520, title: 'The coral crown',
     from: 'In the throne room of the old city',
     text: "A circlet of white coral set with black pearls. Lanthorne has not had a king for two hundred years. It keeps a warden instead, because a warden can be told no." },
+
+  { id: 'figurehead', kind: 'relic', where: 'dive', x: 1150, y: 640, title: "The Margaret's figurehead",
+    from: 'Lying face up on the Shelf',
+    text: "A woman's face in oak, worn smooth by a hundred years of looking at the sea. Somebody has carved MEG under her chin with a knife, carefully, the way you would write it on a letter. The boat above you still has her name, if not her face." },
+
+  { id: 'musicbox', kind: 'relic', where: 'dive', x: 2650, y: 2350, title: 'A salt-silvered music box',
+    from: 'On a shelf in the Drowned Halls, as if somebody put it there',
+    text: "Brass, no bigger than your fist. When you turn the key it plays the first bars of the song your mother hums over the pot. A Lanthorne price is scratched on the base: three bell-glass lenses. Somebody down here wanted it very much." },
+
+  { id: 'lamp', kind: 'relic', where: 'dive', x: 4250, y: 3480, title: "Tobias's lamp",
+    from: 'Hanging from a spike by the eastern wall, still lit',
+    text: "A brass deck lamp with the Margaret's stamp on it, burning with a cold green flame that nobody has filled. So Ysolde never did give it back. She hung it out here, where a man coming home from the trench would see it first." },
 
   { id: 'harpoonhead', kind: 'relic', where: 'dive', x: 520, y: 3935, title: 'A broken harpoon head',
     from: 'On the seabed, far from the gate',
@@ -88,7 +113,7 @@ const Lore = {
   total(kind) { return LORE.filter(l => !kind || l.kind === kind).length; },
 
   // the next letter a bottle can bring up, in order, or null when they are all found
-  nextBottle() { return LORE.find(l => l.where === 'bottle' && !this.known(l.id)) || null; },
+  nextBottle() { return LORE.find(l => l.where === 'bottle' && !this.known(l.id) && (!l.after || l.after())) || null; },
   // what still lies somewhere below
   unfound() { return LORE.filter(l => l.where === 'dive' && !this.known(l.id)); },
 
@@ -190,7 +215,10 @@ const LORE_COLORS = {
   bellglass:   { BODY: '#3f9a7a', GLOW: '#9ff0c8', METAL: '#6a6a60', WHITE: '#e8fff4' },
   eggcase:     { SHELL: '#6a4a6a', BODY: '#4a3048', BELLY: '#a882a0', GLOW: '#d8a0ff', WHITE: '#ffe0ff' },
   crown:       { BONE: '#efe8e0', DARK: '#141018', METAL: '#8a8aa0', WHITE: '#ffffff', GLOW: '#dff0ff' },
-  harpoonhead: { METAL: '#8a8f96', WOOD: '#6b4a2a', BONE: '#c4b49a', WHITE: '#eef4ff', GLOW: '#cfe8ff' }
+  harpoonhead: { METAL: '#8a8f96', WOOD: '#6b4a2a', BONE: '#c4b49a', WHITE: '#eef4ff', GLOW: '#cfe8ff' },
+  figurehead:  { WOOD: '#8a6844', SHELL: '#5c4430', BONE: '#d8c49a', DARK: '#2a1e14', WHITE: '#fff0d0', GLOW: '#ffe0b0' },
+  musicbox:    { METAL: '#b8944a', DARK: '#2a2018', BONE: '#e8dcc0', SHELL: '#7a6a8a', WHITE: '#fff6d0', GLOW: '#ffe9a8' },
+  lamp:        { METAL: '#b08a4a', DARK: '#1c1810', GLOW: '#8ff0b0', BODY: '#4fbf7a', WHITE: '#e8fff0' }
 };
 
 // each find, drawn at the workbench: (0, 0) is its middle, `k` whole pixels per unit
@@ -231,6 +259,37 @@ const RELIC_ART = {
       Spr.blob(cx, .5 * k, .8 * k, .8 * k, MAT.DARK, { lit: .3 });
     }
     if (gleam < 2) Spr.plot(-3 * k, 0, MAT.WHITE, 1);
+  },
+  figurehead(gleam, k) {
+    // a carved bust looking out to sea: her face in profile, hair swept back in waves
+    const P = pts => pts.map(([x, y]) => [x * k, (y - 1.5) * k * .9]);
+    Spr.poly(P([[-10, -4], [-6, -8], [-1, -8], [2, -6], [0, -3], [-1, 1], [-2, 5], [-5, 8], [-9, 7], [-11, 3]]), MAT.SHELL, (x, y) => .42 - y / (9 * k) * .12);
+    Spr.poly(P([[0, -7], [2, -6], [3, -4], [3.5, -2.5], [5, -1], [4, 0], [4.5, 1.5], [3.5, 2.5], [4, 3.5], [2.5, 4.5], [0, 5], [-1.5, 3], [-1.5, -3]]), MAT.WOOD, (x, y) => .55 + x / (6 * k) * .15);
+    Spr.poly(P([[-3, 4], [1.5, 4.5], [3, 9], [-5, 9]]), MAT.WOOD, .38);
+    for (const w of [[-9, -2, -4, -5], [-9, 1, -3, -2], [-8, 4, -3, 1]]) Spr.stroke(P([[w[0], w[1]], [(w[0] + w[2]) / 2, w[1] - 1.5], [w[2], w[3]]]), .45 * k, .35 * k, MAT.DARK, .25);
+    Spr.plot(2.2 * k, -2 * k, MAT.DARK, .05);
+    Spr.stroke(P([[1, -3.2], [3, -3.4]]), .35 * k, .3 * k, MAT.DARK, .2);
+    Spr.plot(3.4 * k, 2.4 * k, MAT.DARK, .2);
+    Spr.stroke(P([[-2.5, 7.5], [1.5, 7.5]]), .35 * k, .3 * k, MAT.BONE, .8);
+    if (gleam < 2) Spr.plot(3.5 * k, -1 * k, MAT.WHITE, 1);
+  },
+  musicbox(gleam, k) {
+    Spr.poly([[-6 * k, -2 * k], [6 * k, -2 * k], [6 * k, 5 * k], [-6 * k, 5 * k]], MAT.METAL, (x, y) => .55 - y / (6 * k) * .2);
+    Spr.poly([[-6 * k, -4 * k], [6 * k, -4 * k], [6 * k, -2 * k], [-6 * k, -2 * k]], MAT.SHELL, .6);
+    Spr.poly([[-4 * k, 0], [4 * k, 0], [4 * k, 3 * k], [-4 * k, 3 * k]], MAT.DARK, .15);
+    Spr.stroke([[6 * k, 1 * k], [9 * k, 1 * k]], .5 * k, .4, MAT.METAL, .7);
+    Spr.stroke([[9 * k, -1 * k], [9 * k, 3 * k]], .6 * k, .5, MAT.METAL, .75);
+    if (gleam < 3) Spr.plot((-2 + (gleam % 3)) * k, 1.5 * k, MAT.BONE, .9);
+  },
+  lamp(gleam, k) {
+    Spr.stroke([[0, -9 * k], [0, -7 * k]], .5 * k, .5, MAT.METAL, .6);
+    Spr.poly([[-4 * k, -7 * k], [4 * k, -7 * k], [3 * k, -5 * k], [-3 * k, -5 * k]], MAT.METAL, .6);
+    Spr.poly([[-3 * k, -5 * k], [3 * k, -5 * k], [3 * k, 4 * k], [-3 * k, 4 * k]], MAT.BODY, .5);
+    Spr.blob(0, 0, 2 * k, 3 * k, MAT.GLOW, { lit: .75 + (gleam < 6 ? gleam : 12 - gleam) * .03 });
+    Spr.poly([[-4 * k, 4 * k], [4 * k, 4 * k], [4 * k, 6 * k], [-4 * k, 6 * k]], MAT.METAL, .45);
+    Spr.stroke([[-3 * k, -5 * k], [-3 * k, 4 * k]], .4 * k, .4, MAT.DARK, .2);
+    Spr.stroke([[3 * k, -5 * k], [3 * k, 4 * k]], .4 * k, .4, MAT.DARK, .2);
+    Spr.emit.push({ x: 0, y: 0, r: 8 * k, col: '#8ff0b0', a: .22 });
   },
   harpoonhead(gleam, k) {
     Spr.poly([[-7 * k, -1 * k], [3 * k, -1 * k], [8 * k, 0], [3 * k, 1 * k], [-7 * k, 1 * k]], MAT.METAL, .55);
