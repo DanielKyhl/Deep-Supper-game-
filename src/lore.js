@@ -73,7 +73,7 @@ const LORE = [
     from: 'In the throne room of the old city',
     text: "A circlet of white coral set with black pearls. Lanthorne has not had a king for two hundred years. It keeps a warden instead, because a warden can be told no." },
 
-  { id: 'figurehead', kind: 'relic', where: 'dive', x: 1150, y: 640, title: "The Margaret's figurehead",
+  { id: 'figurehead', kind: 'relic', where: 'dive', x: 4420, y: 420, title: "The Margaret's figurehead",
     from: 'Lying face up on the Shelf',
     text: "A woman's face in oak, worn smooth by a hundred years of looking at the sea. Somebody has carved MEG under her chin with a knife, carefully, the way you would write it on a letter. The boat above you still has her name, if not her face." },
 

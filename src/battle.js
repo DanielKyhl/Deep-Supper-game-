@@ -419,6 +419,7 @@ const Battle = {
     Player.totalKills++;
     Bestiary.landed(trophy);
     Bestiary.settle();
+    if (Weather.raging() && typeof Achievements !== 'undefined') Achievements.event('stormCatch');
     if (this.lastBlowHeavy && Player.attackDone && Player.heavy && typeof Achievements !== 'undefined') Achievements.event('heavyKill');
     this.banner = { text: 'DEFEATED', t: 0, dur: 3, color: '#8ce0a4' };
   },

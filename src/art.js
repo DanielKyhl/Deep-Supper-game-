@@ -299,9 +299,10 @@ const Art = {
       g.restore();
     }
 
-    this._band(g, camX, t, HORIZON_Y + 12, 3, 130, .7, .012, css(shade(c.mid, .10)), css(c.foam, .12));
-    this._band(g, camX, t, HORIZON_Y + 34, 5, 180, .9, .03,  css(shade(c.mid, .02)), css(c.foam, .10));
-    this._band(g, camX, t, HORIZON_Y + 66, 8, 240, 1.1, .06, css(shade(c.mid, -.10)), css(c.foam, .12));
+    const sw = Weather.swell();
+    this._band(g, camX, t, HORIZON_Y + 12, 3 * sw, 130, .7, .012, css(shade(c.mid, .10)), css(c.foam, .12));
+    this._band(g, camX, t, HORIZON_Y + 34, 5 * sw, 180, .9, .03,  css(shade(c.mid, .02)), css(c.foam, .10));
+    this._band(g, camX, t, HORIZON_Y + 66, 8 * sw, 240, 1.1, .06, css(shade(c.mid, -.10)), css(c.foam, .12));
   },
 
   /* The water column you drop a line into. Drawn in water-space (the caller
@@ -451,9 +452,10 @@ const Art = {
   // drawn in front of the hull so the boat sits *in* the water
   seaFront(g, camX, t, night) {
     const c = this._seaCols(night);
-    this._band(g, camX, t, 458, 11, 260, 1.25, .10, css(shade(c.deep, .12)), css(c.foam, .18));
-    this._band(g, camX, t, 492, 15, 210, 1.6, .16, css(shade(c.deep, .02)), css(c.foam, .22));
-    this._band(g, camX, t, 524, 13, 170, 2.0, .24, css(shade(c.deep, -.25)), null);
+    const sw = Weather.swell();
+    this._band(g, camX, t, 458, 11 * sw, 260, 1.25, .10, css(shade(c.deep, .12)), css(c.foam, .18));
+    this._band(g, camX, t, 492, 15 * sw, 210, 1.6, .16, css(shade(c.deep, .02)), css(c.foam, .22));
+    this._band(g, camX, t, 524, 13 * sw, 170, 2.0, .24, css(shade(c.deep, -.25)), null);
   },
 
   // shadowy shapes gliding under the surface
@@ -547,7 +549,7 @@ const Art = {
   beginBoat(g, t) {
     // the boat bobs in whole pixels and no longer rolls: rotating a 1900px
     // hull re-steps every edge on it each frame, which reads as shimmer
-    const bob = snap(Math.sin(t * 0.9) * 3.4 + Math.sin(t * 1.7) * 1.1);
+    const bob = snap((Math.sin(t * 0.9) * 3.4 + Math.sin(t * 1.7) * 1.1) * Weather.swell());
     g.save();
     g.translate(0, bob);
     return { ang: 0, bob };

@@ -522,6 +522,13 @@ const DORRAN = {
   ],
   // called out from behind the counter while the boy is about the deck
   deck: {
+    // when something has just happened out there that he'd rather it hadn't
+    omen: [
+      "...Did you hear that? No. Me neither. *hic*",
+      "Don't look at the water, nephew. Look at me. Better.",
+      "That's just the boat settling. Boats settle. Settle down, boat.",
+      "I've stopped drinking. Just for a minute. Just now."
+    ],
     near: [
       "Oi! Nephew! Come here. No, go away. No, come here.",
       "Buying? Selling? Just looking at me?",

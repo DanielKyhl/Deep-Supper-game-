@@ -164,7 +164,7 @@ const Fishing = {
     if (this.hook.depth >= this.targetDepth) {
       this.hook.depth = this.targetDepth;
       this.phase = 'deep'; this.t = 0;
-      this.waitFor = (this.intro ? 1.4 : rand(1.8, 5.0)) * (Player.lantern ? .55 : 1);
+      this.waitFor = (this.intro ? 1.4 : rand(1.8, 5.0)) * (Player.lantern ? .55 : 1) * Weather.biteWait();
       Sfx.reel();
     }
   },
@@ -191,7 +191,7 @@ const Fishing = {
 
     if (this.t >= this.waitFor) {
       this.phase = 'bite'; this.t = 0;
-      this.target = this.intro ? MINNOW : this.girlDue() ? GIRL : this.special ? this._specialCatch() : rollCatch(RODS[Player.rod].depth, Player.luck);
+      this.target = this.intro ? MINNOW : this.girlDue() ? GIRL : this.special ? this._specialCatch() : rollCatch(RODS[Player.rod].depth, Player.luck || Weather.luckyWater());
       Sfx.bite();
       this.hook.tug = 22;
       Cam.kick(this.target.gentle ? 1 : 4);

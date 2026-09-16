@@ -383,8 +383,9 @@ Object.assign(Art, {
     Sprite.draw(g, 'ship-props', st && st.crateOpen ? 'open' : 'shut', X(950), DECK_Y - 70, {
       w: 980, h: 150, face: 1, pal: shipPalette('props'), paint: () => Ship.props(st && st.crateOpen)
     });
-    Sprite.draw(g, 'ship-bell', String(q(Math.sin(t * 1.2) * .06, .03)), X(64), DECK_Y - 80, {
-      w: 40, h: 40, face: 1, pal: shipPalette('props'), paint: () => Ship.bell(Math.round(Math.sin(t * 1.2) * 2) * .03)
+    const bellSway = Math.sin(t * 1.2) * .06 + Omens.bellSwing();
+    Sprite.draw(g, 'ship-bell', String(q(bellSway, .03)), X(64), DECK_Y - 80, {
+      w: 40, h: 40, face: 1, pal: shipPalette('props'), paint: () => Ship.bell(Math.round(bellSway / .03) * .03)
     });
     Sprite.draw(g, 'ship-line', String(q(Math.sin(t * 1.4), .5)), X(669), DECK_Y - 80, {
       w: 70, h: 40, face: 1, pal: shipPalette('line' + nightStep, { C5: hex(mix([166, 158, 130], [96, 102, 118], nightStep / 5)) }),
@@ -413,7 +414,7 @@ Object.assign(Art, {
       stepGlow(g, X(201), DECK_Y - 65, 64, 'rgb(255,190,110)', .22 * night, { steps: 2 });
       for (const [lx, ly, s] of [[812, DECK_Y - 122, 1], [1452, DECK_Y - 128, .8], [1766, DECK_Y - 118, .9]]) {
         const flick = .82 + Math.sin(t * 11 + lx) * .06 + Math.sin(t * 5.3) * .09;
-        stepGlow(g, X(lx), ly + 12 * s, 84 * s, 'rgb(255,180,100)', .26 * night * flick, { steps: 3 });
+        stepGlow(g, X(lx), ly + 12 * s, 84 * s, 'rgb(255,180,100)', .26 * night * flick * (1 - Omens.dim(lx)), { steps: 3 });
       }
       for (const lx of [156, 812, 1452, 1766]) {
         if (X(lx) > -200 && X(lx) < VIEW_W + 200) stepGlow(g, X(lx), DECK_Y - 4, 110, 'rgb(255,180,100)', .12 * night, { steps: 2, squash: 36 / 110 });

@@ -14,6 +14,7 @@ const CHOICE_LABELS = {
   quality:    { auto: 'Auto', high: 'High', low: 'Low' },
   shake:      { 0: 'Off', .5: 'Low', 1: 'Full' },
   particles:  { low: 'Low', high: 'High' },
+  flashes:    { full: 'Full', soft: 'Soft', off: 'Off' },
   textSpeed:  { slow: 'Slow', normal: 'Normal', fast: 'Fast', instant: 'Instant' }
 };
 
@@ -131,6 +132,7 @@ const Menu = {
         { kind: 'slider', label: 'Brightness', key: 'brightness' },
         { kind: 'choice', label: 'Screen shake', key: 'shake' },
         { kind: 'choice', label: 'Particles', key: 'particles' },
+        { kind: 'choice', label: 'Lightning flashes', key: 'flashes' },
         { kind: 'toggle', label: 'Show FPS', key: 'showFps' },
         { kind: 'gap' },
         { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
@@ -158,6 +160,7 @@ const Menu = {
       case 'gameplay': return [
         { kind: 'choice', label: 'Text speed', key: 'textSpeed' },
         { kind: 'toggle', label: 'Damage numbers', key: 'damageNumbers' },
+        { kind: 'toggle', label: 'Strange things at night', key: 'unease' },
         { kind: 'gap' },
         { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
       ];

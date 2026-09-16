@@ -94,6 +94,7 @@ const SETTINGS_SPEC = {
   shake:         { type: 'enum', def: 1, values: [0, .5, 1] },
   particles:     { type: 'enum', def: 'high', values: ['low', 'high'] },
   showFps:       { type: 'bool', def: false },
+  flashes:       { type: 'enum', def: 'full', values: ['full', 'soft', 'off'] },
   // audio
   master:        { type: 'num', def: .8, min: 0, max: 1, step: .1 },
   music:         { type: 'num', def: .7, min: 0, max: 1, step: .1 },
@@ -103,7 +104,8 @@ const SETTINGS_SPEC = {
   muteUnfocused: { type: 'bool', def: true },
   // gameplay
   textSpeed:     { type: 'enum', def: 'normal', values: ['slow', 'normal', 'fast', 'instant'] },
-  damageNumbers: { type: 'bool', def: true }
+  damageNumbers: { type: 'bool', def: true },
+  unease:        { type: 'bool', def: true }
 };
 
 const TEXT_CPS = { slow: 24, normal: 42, fast: 84, instant: 9999 };
@@ -272,7 +274,8 @@ const SAVE_FIELDS = {
   diveWeapon: { type: 'int', min: -1, max: DIVE_WEAPONS.length - 1 },
   beatMother: { type: 'bool' },
   excalibur:  { type: 'bool' },
-  sawEnding:  { type: 'bool' }
+  sawEnding:  { type: 'bool' },
+  omens:      { type: 'int', min: 0, max: 9999999 }
 };
 
 const SaveGame = {

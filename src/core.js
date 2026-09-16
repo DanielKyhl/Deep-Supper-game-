@@ -514,7 +514,26 @@ const Sfx = {
   reelOut() { [0, 40, 80, 120].forEach(d => setTimeout(() => this.tone({ f: 900, dur: .02, type: 'square', vol: .05 }), d)); },
   reelIn()  { this.tone({ f: 260, f2: 140, dur: .08, type: 'square', vol: .14 }); },
   zapUnder() { this.noise({ f: 5000, f2: 900, dur: .25, filter: 'highpass', vol: .14 }); this.tone({ f: 80, f2: 60, dur: .2, type: 'sawtooth', vol: .1 }); },
-  dashUnder() { this.noise({ f: 400, f2: 1600, dur: .3, filter: 'bandpass', vol: .18 }); this.bubbles(4, 250); }
+  dashUnder() { this.noise({ f: 400, f2: 1600, dur: .3, filter: 'bandpass', vol: .18 }); this.bubbles(4, 250); },
+
+  /* ------------------------ weather, and the night ------------------------ */
+  // thunder: a crack when it is close, a long low roll either way
+  thunder(near) {
+    if (near > .6) this.noise({ f: 2400, f2: 300, dur: .35, vol: .16 });
+    this.noise({ f: 260, f2: 60, dur: 2.4, vol: .22 + near * .12 });
+    this.tone({ f: 48, f2: 30, dur: 1.8, type: 'sine', vol: .16 });
+  },
+  rain(level) { this.noise({ f: 5200, f2: 3000, dur: .45, filter: 'highpass', vol: .035 * level }); },
+  // the ship's bell, once, softly
+  bellToll() {
+    this.tone({ f: 587, dur: 2.2, type: 'sine', vol: .07, atk: .01 });
+    this.tone({ f: 1480, dur: 1.2, type: 'sine', vol: .025, atk: .01 });
+  },
+  knock() { this.tone({ f: 90, f2: 55, dur: .16, type: 'triangle', vol: .16 }); this.noise({ f: 300, f2: 80, dur: .1, vol: .08 }); },
+  // voices a long way off
+  choir() {
+    for (const f of [220, 277, 330]) this.tone({ f, f2: f * .98, dur: 4.2, type: 'sine', vol: .018, atk: 1.4 });
+  }
 };
 
 /* -------------------------------- camera -------------------------------- */

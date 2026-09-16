@@ -19,6 +19,7 @@ const Player = {
   excalibur: false, lore: [],                    // what the sea gave back
   sawEnding: false,                              // sailed home and watched the credits
   records: {}, chapters: [],                     // the heaviest of each kind landed; bestiary chapters paid for
+  omens: 0,                                      // strange things seen at night
   // battle scratch
   attackT: 0, attackDur: .32, attackDone: false, combo: 0, comboBuffer: false,
   chargeT: 0, heavy: false,          // holding the attack key for a heavy blow, and whether this one is
@@ -34,7 +35,7 @@ const Player = {
     this.suit = -1; this.diveWeapon = -1; this.beatMother = false;
     this.excalibur = false; this.lore = [];
     this.sawEnding = false;
-    this.records = {}; this.chapters = [];
+    this.records = {}; this.chapters = []; this.omens = 0;
     this.attackT = 0; this.rollT = 0; this.invuln = 0; this.knock = 0;
     this.state = 'idle'; this.bState = 'idle';
   }
@@ -106,6 +107,7 @@ const Game = {
     Dialogue.hide();
     Particles.clear(); Floaters.clear();
     Lore.open = null; Bestiary.book = null;
+    Weather.reset(); Omens.reset();
     this.hushDorran();
     const o = buildOpening();
     this.state = 'cutscene';
@@ -232,6 +234,7 @@ const Game = {
   atSea() {
     this.endingRun = false;
     this.toldHomeward = false;
+    Weather.reset(); Omens.reset();
     this._toldStart = true;
     this.night = 1;
     this.viewY = 0;
@@ -419,6 +422,8 @@ const Game = {
 
   // the voyage home, then the credits; afterwards the sea is still there to play in
   startFinale() {
+    // the weather clears for the voyage home
+    Weather.reset(); Omens.reset();
     const f = buildFinale();
     this.endingRun = true;
     this.bark.text = '';
@@ -509,6 +514,9 @@ const Game = {
       case 'shop':     Shop.update(dt); break;
       case 'pause':    Menu.update(dt); break;
     }
+
+    // weather and the night keep their own time, but not while the game is paused
+    if (this.state !== 'pause' && this.state !== 'menu') { Weather.update(dt); Omens.update(dt); }
 
     Cam.update(dt);
     Particles.update(dt);
@@ -762,13 +770,17 @@ const Game = {
     }
 
     Art.sky(g, night, t);
+    Weather.drawSky(g, t);
     Art.harbour(g, CUT.harbourX, night, t);
     Art.sea(g, Cam.x, t, night);
     if (CUT.allowShadows > 0 && night > .5) Art.shadows(g, t, Cam.x, 3);
+    Omens.drawSea(g, t);
+    Weather.drawFar(g, t);
 
     // ---- the boat (rocks as one piece) ----
     Art.beginBoat(g, t);
     Art.boatBack(g, Cam.x, t, night, { crateOpen: this.crateOpen });
+    Omens.drawDeck(g, Cam.x);
 
     // actors on deck
     if (CUT.drops.visible) Art.drops(g, CUT.drops.x - Cam.x, DECK_Y, this.t);
@@ -794,6 +806,8 @@ const Game = {
     Art.endBoat(g);
 
     Art.seaFront(g, Cam.x, t, night);
+    Omens.drawFront(g, Cam.x, t);
+    Weather.drawRain(g, t);
 
     // everything below the surface, once a line is down there
     if (scene === 'fish' && (this.viewY > 1 || Fishing.hook.depth > 0)) {
@@ -828,6 +842,7 @@ const Game = {
 
     Particles.draw(g, scene === 'fish' ? 0 : Cam.x);
 
+    Weather.drawNear(g);
     Art.nightTint(g, night * .5);
     Art.vignette(g, night);
 
