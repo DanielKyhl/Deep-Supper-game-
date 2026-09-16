@@ -305,7 +305,7 @@ const Battle = {
     const sw = deckWeapon();
     const heavy = Player.heavy, hv = (heavy && sw.heavy) || null;
     const crit = (hv && hv.crit) || chance(.14);
-    let dmg = Math.round(sw.dmg * rand(.88, 1.12) * (crit ? 1.75 : 1) * (Player.combo === 2 && !heavy ? 1.35 : 1) * (hv ? hv.mult : 1));
+    let dmg = Math.round(sw.dmg * rand(.88, 1.12) * (crit ? 1.75 : 1) * (Player.combo === 2 && !heavy ? 1.35 : 1) * (hv ? hv.mult : 1) * Bestiary.edge(this.def));
     if (m.state === 'recover') dmg = Math.round(dmg * (this.parried > 0 ? 1.8 : 1.35));
     const windingUp = m.state === 'tele' && m.atk !== 'roar';
     this.lastBlowHeavy = heavy;
@@ -417,6 +417,8 @@ const Battle = {
     Player.catches.push(trophy);
     Player.kills[this.def.id] = (Player.kills[this.def.id] || 0) + 1;
     Player.totalKills++;
+    Bestiary.landed(trophy);
+    Bestiary.settle();
     if (this.lastBlowHeavy && Player.attackDone && Player.heavy && typeof Achievements !== 'undefined') Achievements.event('heavyKill');
     this.banner = { text: 'DEFEATED', t: 0, dur: 3, color: '#8ce0a4' };
   },

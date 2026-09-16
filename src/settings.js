@@ -289,6 +289,8 @@ const SaveGame = {
     }));
     d.kills = Object.assign({}, Player.kills);
     d.lore = Player.lore.slice();
+    d.records = Object.assign({}, Player.records);
+    d.chapters = Player.chapters.slice();
     return d;
   },
 
@@ -325,6 +327,16 @@ const SaveGame = {
         if (typeof v === 'number' && v > 0) d.kills[m.id] = Math.floor(v);
       }
     }
+    // the heaviest of each kind landed, and the bestiary chapters already paid for
+    d.records = {};
+    if (raw.records && typeof raw.records === 'object') {
+      for (const m of allMonsters()) {
+        const v = raw.records[m.id];
+        if (typeof v === 'number' && isFinite(v) && v > 0) d.records[m.id] = clamp(Math.round(v), 1, 100000);
+      }
+    }
+    d.chapters = [];
+    if (Array.isArray(raw.chapters)) for (const id of raw.chapters) if (BESTIARY_CHAPTERS.some(c => c.id === id) && d.chapters.indexOf(id) < 0) d.chapters.push(id);
     // letters and relics found: only ones that exist, each once
     d.lore = [];
     if (Array.isArray(raw.lore)) for (const id of raw.lore) if (loreDef(id) && d.lore.indexOf(id) < 0) d.lore.push(id);
@@ -390,6 +402,8 @@ const SaveGame = {
     for (const c of d.catches) Player.catches.push(c);
     Player.kills = Object.assign({}, d.kills);
     Player.lore = (d.lore || []).slice();
+    Player.records = Object.assign({}, d.records);
+    Player.chapters = (d.chapters || []).slice();
     Game.crateOpen = d.crateOpen;
     return true;
   },

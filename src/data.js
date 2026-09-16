@@ -624,6 +624,7 @@ function rollCatch(depth, luck) {
 
 function makeTrophy(m) {
   const weight = Math.round(m.len * rand(.45, .8) + rand(0, 24));
-  const value = Math.round(m.value * rand(.85, 1.3));
+  // a full bestiary knows what everything is worth
+  const value = Math.round(m.value * rand(.85, 1.3) * Bestiary.valueBonus());
   return { id: m.id, name: m.name, weight, value, body: m.body, belly: m.belly, len: m.len };
 }

@@ -724,7 +724,7 @@ const Credits = {
   rows() {
     const P = Player, rows = [];
     const add = (kind, h, o) => rows.push(Object.assign({ kind, h }, o));
-    const seen = d => (P.kills[d.id] || 0) > 0 || (d.id === 'leviathan' && P.beatBoss) || (d.id === 'mother' && P.beatMother);
+    const seen = d => Bestiary.met(d);
     const crowd = (list, seed) => {
       for (let i = 0; i < list.length; i += 3) {
         add('crowd', 150, {

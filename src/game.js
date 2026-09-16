@@ -18,6 +18,7 @@ const Player = {
   suit: -1, diveWeapon: -1, beatMother: false,   // the second half: diving
   excalibur: false, lore: [],                    // what the sea gave back
   sawEnding: false,                              // sailed home and watched the credits
+  records: {}, chapters: [],                     // the heaviest of each kind landed; bestiary chapters paid for
   // battle scratch
   attackT: 0, attackDur: .32, attackDone: false, combo: 0, comboBuffer: false,
   chargeT: 0, heavy: false,          // holding the attack key for a heavy blow, and whether this one is
@@ -33,6 +34,7 @@ const Player = {
     this.suit = -1; this.diveWeapon = -1; this.beatMother = false;
     this.excalibur = false; this.lore = [];
     this.sawEnding = false;
+    this.records = {}; this.chapters = [];
     this.attackT = 0; this.rollT = 0; this.invuln = 0; this.knock = 0;
     this.state = 'idle'; this.bState = 'idle';
   }
@@ -103,7 +105,7 @@ const Game = {
     this.msgs = [];
     Dialogue.hide();
     Particles.clear(); Floaters.clear();
-    Lore.open = null;
+    Lore.open = null; Bestiary.book = null;
     this.hushDorran();
     const o = buildOpening();
     this.state = 'cutscene';
@@ -239,7 +241,7 @@ const Game = {
     this.cutKind = null;
     CUT.allowShadows = 1; CUT.wake = 1; CUT.bigShadow = 0; CUT.titleCard = null;
     Particles.clear(); Floaters.clear(); Dialogue.hide();
-    Lore.open = null;
+    Lore.open = null; Bestiary.book = null;
     this.hushDorran();
     Dive.reset();
     Player.state = 'idle'; Player.bState = 'idle'; Player.y = DECK_Y; Player.vy = 0;
@@ -332,7 +334,7 @@ const Game = {
       this.endingRun = false;
       Cam.locked = false;
       Particles.clear(); Floaters.clear();
-      Lore.open = null;
+      Lore.open = null; Bestiary.book = null;
       Dive.reset();
       this.night = .88;
       CUT.harbourX = 300;
@@ -496,6 +498,7 @@ const Game = {
     }
 
     if (Lore.open) Lore.update(dt);
+    else if (Bestiary.book) Bestiary.update(dt);
     else switch (this.state) {
       case 'menu':     this.updateMenu(dt); break;
       case 'cutscene': CUT.update(dt); break;
@@ -706,6 +709,7 @@ const Game = {
       g.restore();
     }
 
+    if (Bestiary.book) Bestiary.draw(g);
     if (Lore.open) Lore.draw(g);
 
     if (this.fade.a > 0) {

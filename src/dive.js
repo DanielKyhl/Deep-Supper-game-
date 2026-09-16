@@ -483,7 +483,7 @@ const Dive = {
 
   hitMob(m, w, kx, ky) {
     const crit = chance(.12);
-    const dmg = Math.round(w.dmg * rand(.9, 1.1) * (crit ? 1.7 : 1));
+    const dmg = Math.round(w.dmg * rand(.9, 1.1) * (crit ? 1.7 : 1) * Bestiary.edge(m.def));
     m.hp -= dmg;
     m.flash = 1;
     const heft = m.def.boss ? .08 : 1;
@@ -527,6 +527,8 @@ const Dive = {
     Player.catches.push(trophy);
     Player.kills[m.def.id] = (Player.kills[m.def.id] || 0) + 1;
     Player.totalKills++;
+    Bestiary.landed(trophy);
+    Bestiary.settle();
     Sfx.creatureDie(m.def.len); Cam.kick(7);
     Floaters.add(m.x, m.y - 60, m.def.name, { color: '#9ff0ff', size: 20, life: 1.6, vy: -30 });
     Particles.burst(m.x, m.y, 40, { color: chance(.5) ? '#ffe9a8' : '#c4e6f2', vx: rand(-260, 260), vy: rand(-260, 260), g: 0, drag: 2.5, size: rand(2, 7), life: rand(.6, 1.2) });
@@ -1102,6 +1104,8 @@ const Dive = {
     Player.catches.push(trophy);
     Player.kills.mother = (Player.kills.mother || 0) + 1;
     Player.totalKills++;
+    Bestiary.landed(trophy);
+    Bestiary.settle();
     // her young go with her
     for (const m of this.mobs) if (m.def.spawnOnly && !m.dead) { m.dead = true; m.state = 'dead'; m.t = 0; }
     this.rings.length = 0; this.globs.length = 0;

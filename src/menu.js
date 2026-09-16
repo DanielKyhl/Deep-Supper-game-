@@ -106,6 +106,7 @@ const Menu = {
         { kind: 'action', label: 'Save game', id: 'save', run: () => this.push('saveSlots') },
         { kind: 'action', label: 'Load game', id: 'load', hidden: !SaveGame.anySlot(), run: () => this.push('loadSlots') },
         { kind: 'action', label: 'Journal  (' + Player.lore.length + '/' + LORE.length + ')', id: 'journal', run: () => this.push('journal') },
+        { kind: 'action', label: 'Bestiary  (' + Bestiary.count() + '/' + Bestiary.total() + ')', id: 'bestiary', run: () => Bestiary.open() },
         { kind: 'action', label: 'Options', id: 'options', run: () => this.push('options') },
         { kind: 'action', label: 'Save and return to title', id: 'title', run: () => Game.quitToTitle() },
         { kind: 'action', label: 'Save and quit game', id: 'quit', hidden: !isApp, run: () => Game.quitApp() },
