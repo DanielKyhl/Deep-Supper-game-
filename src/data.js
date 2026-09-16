@@ -550,7 +550,19 @@ const NARRATION = {
     "A sword. Bright as the day it went into the water, without a speck of rust on it.",
     "It hums in your hand. Nothing on this boat is going to survive it."
   ],
-  bottle: "A bottle, corked and sealed, with a page rolled up inside."
+  bottle: "A bottle, corked and sealed, with a page rolled up inside.",
+  homeward: [
+    "Lanthorne is lit, down there in the dark. There is nothing below that needs him now.",
+    "The wheel is in the wheelhouse, at the stern. The Margaret can take him home."
+  ]
+};
+
+/* The voyage home, and the credits after it. They come once the last boss
+   of the story so far is beaten. If the story goes on past her, change
+   `ready` and nothing else.                                                */
+const FINALE = {
+  ready: () => Player.beatMother,
+  helmX: 210             // the wheel, through the wheelhouse window
 };
 
 // what it costs to be fished out: a quarter of what you carry, rounded down

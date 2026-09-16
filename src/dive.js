@@ -1125,7 +1125,11 @@ const Dive = {
     Cam.locked = false;
     Cam.snap(Player.x);
     Game.toast(message);
-    if (dorran) Game.dorranShouts(dorranPick(dorran));
+    // the last boss is beaten: time to go home, said once, then left to the objective
+    if (FINALE.ready() && !Player.sawEnding && !Game.toldHomeward) {
+      Game.toldHomeward = true;
+      Game.narrate('homeward');
+    } else if (dorran) Game.dorranShouts(dorranPick(dorran));
     Game.autosave();
   },
 

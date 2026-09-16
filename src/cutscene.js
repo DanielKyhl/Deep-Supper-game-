@@ -96,6 +96,8 @@ const CUT = {
   girl: { x: 0, y: DECK_Y, face: 1, pose: 'stand', rot: 0, visible: false },
   drops: { x: 0, visible: false },
   harbourX: -1200, bigShadow: 0, titleCard: null, wake: 0, allowShadows: 0,
+  signal: { x: 560, a: 0 },     // a light in the water, blinking up from far below
+  credits: null,                // the credits roll, while it runs
 
   play(steps, opts) {
     opts = opts || {};
@@ -125,6 +127,8 @@ const CUT = {
     this.steps = null;
     Dialogue.hide();
     this.tweens.length = 0;
+    this.credits = null;
+    this.signal.a = 0;
   },
 
   skip() {
@@ -186,6 +190,11 @@ const CUT = {
       g.fillRect(0, 0, VIEW_W, h);
       g.fillRect(0, VIEW_H - h, VIEW_W, h);
     }
+
+    // a light far down in the water, glowing up past the bottom of the frame
+    if (this.signal.a > 0) stepGlow(g, this.signal.x, VIEW_H + 10, 130, 'rgb(140,236,200)', .5 * this.signal.a, { steps: 4, op: 'lighter' });
+
+    if (this.credits) Credits.draw(g, this.credits);
 
     Dialogue.draw(g);
 
@@ -605,3 +614,246 @@ function buildEnding() {
     ]
   };
 }
+
+/* ============================== FINALE ================================= */
+
+// the voyage home, the harbour at dawn, and the credits
+function buildFinale() {
+  const helm = FINALE.helmX;
+  const hasWatch = Player.lore.indexOf('watch') >= 0;
+  const finalize = () => {
+    Game.night = 0.12;
+    CUT.harbourX = 300;
+    CUT.wake = 0; CUT.signal.a = 0; CUT.credits = null;
+    CUT.dad.visible = false;
+    Cam.locked = false;
+    Object.assign(Player, { x: 640, face: 1, state: 'idle', sawEnding: true });
+  };
+  return {
+    finalize,
+    steps: [
+      sAct(() => {
+        Dialogue.hide();
+        Object.assign(Player, { x: helm, face: 1, state: 'idle', y: DECK_Y, vy: 0 });
+        Cam.locked = true;
+        Cam.snap(helm);
+        Object.assign(CUT, { harbourX: -1400, wake: 1 });
+        CUT.dad.visible = false;
+        CUT.bgTween(30, p => { Game.night = lerp(1, 0.12, p); }, ease);
+      }),
+      sWait(1.0),
+      sNarrate('He takes the wheel, and the Margaret turns for home.'),
+      sHideText(),
+      sWait(1.4),
+
+      // Lanthorne says goodbye the only way it can from down there
+      sTween(3.4, p => { CUT.signal.a = Math.max(0, Math.sin(p * Math.PI * 3)); }),
+      sAct(() => { CUT.signal.a = 0; }),
+      sNarrate('Far below the stern, a green light blinks three times, and goes out.'),
+      sNarrate("Eighty fathoms down, the outer halls of Lanthorne are lit for the first time since his great-grandfather's day."),
+      sNarrate('Nobody on the quay can see that. They see a small boat coming in on the morning tide, very late.'),
+      sHideText(),
+
+      sAct(() => { CUT.bgTween(9, p => { CUT.harbourX = lerp(-1400, 300, p); }, ease); }),
+      sWait(5.0),
+      sNarrate('The harbour wall. The lighthouse. Smoke from his own chimney.'),
+      sHideText(),
+      sWait(4.2),
+
+      // tied up; Dad comes aboard from the quay
+      sAct(() => {
+        CUT.wake = 0;
+        Object.assign(CUT.dad, { visible: true, x: -30, face: 1, state: 'walk', pipe: true });
+        Player.face = -1;
+        Sfx.thud();
+      }),
+      sTween(2.2, p => { CUT.dad.x = lerp(-30, 120, p); }),
+      sAct(() => { CUT.dad.state = 'idle'; }),
+      sSay('Dad', 'Four days.'),
+      sSay('Dad', 'Four days, and half the harbour out in boats looking for you, and your mother—'),
+      sHideText(),
+      sWait(1.2),
+      sSay('Dad', '...You went down.'),
+      sNarrate('He nods.'),
+      sSay('Dad', 'All the way down?'),
+      sNarrate('He nods again.'),
+      sSay('Dorran', 'Found a whole city down there. And a girl. Out of the sea. Happens.'),
+      sSay('Dad', 'Dorran, how much have you had.'),
+      sSay('Dorran', "Enough to know a hero when I've sold him a harpoon. *hic*"),
+      ...(hasWatch ? [
+        sNarrate('The boy holds out a brass pocket watch, full of sand, stopped at twelve minutes past four.'),
+        sSay('Dad', '...'),
+        sSay('Dad', "'T. Keep time, and come home. M.'"),
+        sSay('Dad', "That's Grandad Tobias's watch. Great-gran Meg gave him that."),
+        sSay('Dad', 'He kept time, then. He just never got to come home.')
+      ] : [
+        sSay('Dad', "The old man's suit. The old man's suit, with my boy inside it, and the both of you came back up.")
+      ]),
+      sSay('Dad', 'Everyone said he was mad. Lights under the boat. A city.'),
+      sSay('Dad', '...'),
+      sSay('Dad', "Come on. Your mother's had the big pot on since Tuesday."),
+      sSay('Dorran', 'Supper!'),
+      sSay('Dad', 'And tomorrow you are telling me everything. Every single thing.'),
+      sHideText(),
+      sWait(1.4),
+      sNarrate("He doesn't, of course."),
+      sHideText(),
+      sWait(1.0),
+      sTitle('THE END', 'Not one word.', 5.0),
+      sCredits()
+    ]
+  };
+}
+
+// the credits roll as one cutscene step; it ends when they have rolled and settled
+function sCredits() {
+  return {
+    enter() { Dialogue.hide(); CUT.credits = Credits.start(); },
+    update(dt) { return !CUT.credits || Credits.update(CUT.credits, dt); }
+  };
+}
+
+/* ------------------------------- credits -------------------------------- */
+
+const Credits = {
+  SPEED: 46,          // pixels a second
+  FAST: 7,            // times faster while a read-on key is held
+  HOLD: 4,            // seconds the last line stays up before it ends
+
+  // who was in it, what came up, and how the voyage went
+  rows() {
+    const P = Player, rows = [];
+    const add = (kind, h, o) => rows.push(Object.assign({ kind, h }, o));
+    const seen = d => (P.kills[d.id] || 0) > 0 || (d.id === 'leviathan' && P.beatBoss) || (d.id === 'mother' && P.beatMother);
+    const crowd = (list, seed) => {
+      for (let i = 0; i < list.length; i += 3) {
+        add('crowd', 150, {
+          items: list.slice(i, i + 3).map((d, k) => ({
+            def: d, n: P.kills[d.id] || 0, seen: seen(d), fit: false,
+            pose: { x: 0, y: 0, face: 1, rot: 0, len: 100, def: d, gape: .35, flash: 0, seed: seed + i + k, thrashAmt: 1, noShadow: true }
+          }))
+        });
+      }
+    };
+
+    add('gap', 60);
+    add('title', 110, { text: 'DEEP SUPPER' });
+    add('line', 40, { text: 'Made by Daniel Kyhl' });
+    add('gap', 70);
+    add('head', 56, { text: 'THE CREW' });
+    add('person', 104, { who: 'boy', text: 'The boy', sub: 'who said nothing' });
+    add('person', 104, { who: 'dad', text: 'Dad', sub: 'who waited on the quay' });
+    add('person', 104, { who: 'dorran', text: 'Uncle Dorran', sub: '*hic*' });
+    add('person', 104, { who: 'nerys', text: 'Nerys of Lanthorne', sub: 'who asked who he was' });
+    add('gap', 50);
+    add('head', 56, { text: 'WHAT CAME UP ON THE LINE' });
+    crowd(MONSTERS, 71);
+    add('gap', 30);
+    add('head', 56, { text: 'WHAT LIVES BELOW' });
+    crowd(DIVE_MONSTERS, 131);
+    add('gap', 50);
+    add('head', 56, { text: 'THE VOYAGE' });
+    add('stat', 34, { text: 'Lines cast', value: String(P.casts) });
+    add('stat', 34, { text: 'Monsters killed', value: String(P.totalKills) });
+    add('stat', 34, { text: 'Catches sold to Dorran', value: String(P.sold) });
+    add('stat', 34, { text: 'Letters found', value: Lore.count('letter') + ' of ' + Lore.total('letter') });
+    add('stat', 34, { text: 'Relics found', value: Lore.count('relic') + ' of ' + Lore.total('relic') });
+    add('stat', 34, { text: 'Excalibur', value: P.excalibur ? 'pulled from the sea' : 'still down there' });
+    add('stat', 34, { text: 'Coins to your name', value: P.coins + '§' });
+    add('gap', 70);
+    add('line', 40, { text: 'Every pixel drawn, and every note played, while you watch.' });
+    add('line', 40, { text: 'No fish were harmed. Several monsters were.' });
+    add('gap', 150);
+    add('end', 120, { text: 'Thank you for playing.' });
+    return rows;
+  },
+
+  // size a creature to its slot in the parade: no wider than 210, no taller than 100
+  fit(it) {
+    const [w, h] = Beast.measure(it.pose);
+    const k = w > 0 && h > 0 ? Math.min(210 / w, 100 / h) : 1;
+    it.pose.len = Math.max(24, Math.min(it.def.len, Math.round(it.pose.len * k)));
+    it.fit = true;
+  },
+
+  start() {
+    const rows = this.rows();
+    let y = 0;
+    for (const r of rows) { r.y = y; y += r.h; }
+    const last = rows[rows.length - 1];
+    // it stops with the last line in the middle of the screen
+    return { rows, y: 0, stop: VIEW_H / 2 + last.y + last.h / 2, hold: 0, fade: 0, t: 0 };
+  },
+
+  // true once it has rolled all the way and been read
+  update(c, dt) {
+    c.t += dt;
+    c.fade = approach(c.fade, 1, dt * .8);
+    const fast = Input.held('confirm') || Input.held('interact');
+    if (c.y < c.stop) {
+      c.y = Math.min(c.stop, c.y + this.SPEED * (fast ? this.FAST : 1) * dt);
+      return false;
+    }
+    c.hold += dt * (fast ? this.FAST : 1);
+    return c.hold >= this.HOLD;
+  },
+
+  draw(g, c) {
+    const cx = VIEW_W / 2;
+    g.save();
+    g.fillStyle = 'rgba(4,6,14,' + (.84 * c.fade).toFixed(3) + ')';
+    g.fillRect(0, 0, VIEW_W, VIEW_H);
+    g.globalAlpha = c.fade;
+    const serif = 'Georgia, serif';
+    for (const r of c.rows) {
+      const top = Math.round(VIEW_H + r.y - c.y);
+      if (top > VIEW_H + 20 || top + r.h < -120) continue;
+      switch (r.kind) {
+        case 'title':
+          Text.draw(g, r.text, cx, top + 62, { size: 60, align: 'center', color: '#f2e2bd', weight: 'bold', font: serif, shadow: 'rgba(0,0,0,.8)', sdx: 3, sdy: 4 });
+          g.fillStyle = 'rgba(200,164,92,.75)';
+          g.fillRect(cx - 180, top + 84, 360, 3);
+          break;
+        case 'line':
+          Text.draw(g, r.text, cx, top + 26, { size: 20, align: 'center', color: '#d8d0bc', font: serif });
+          break;
+        case 'head':
+          Text.draw(g, r.text, cx, top + 34, { size: 16, align: 'center', color: '#c8a45c', weight: 'bold', font: 'Verdana, sans-serif' });
+          g.fillStyle = 'rgba(200,164,92,.4)';
+          g.fillRect(cx - 60, top + 44, 120, 2);
+          break;
+        case 'person': {
+          const fx = cx - 150, fy = top + 90, t = c.t;
+          if (r.who === 'boy') Art.boy(g, fx, fy, { face: 1, t, state: 'idle' });
+          else if (r.who === 'dad') Art.dad(g, fx, fy, { face: 1, t });
+          else if (r.who === 'dorran') Art.dorran(g, fx, fy, { t });
+          else Art.girl(g, fx, fy, { face: 1, t, pose: 'stand' });
+          Text.draw(g, r.text, cx - 80, top + 52, { size: 24, color: '#e8e3d6', font: serif });
+          Text.draw(g, r.sub, cx - 80, top + 80, { size: 16, color: '#a8b4cf', italic: true, font: serif });
+          break;
+        }
+        case 'crowd':
+          r.items.forEach((it, k) => {
+            const x = cx + (k - (r.items.length - 1) / 2) * 250;
+            // what he met is drawn; what he never met stays a question
+            if (it.seen) {
+              if (!it.fit) this.fit(it);
+              Object.assign(it.pose, { x, y: top + 60 });
+              Art.monster(g, it.pose, c.t);
+            }
+            const label = it.seen ? it.def.name + (it.n > 1 ? '  ×' + it.n : '') : '???';
+            Text.draw(g, label, x, top + 134, { size: 15, align: 'center', color: it.seen ? '#d8d0bc' : '#5a6380', font: serif });
+          });
+          break;
+        case 'stat':
+          Text.draw(g, r.text, cx - 200, top + 24, { size: 18, color: '#a8b4cf', font: serif });
+          Text.draw(g, r.value, cx + 200, top + 24, { size: 18, align: 'right', color: '#e8e3d6', font: serif });
+          break;
+        case 'end':
+          Text.draw(g, r.text, cx, top + 60, { size: 34, align: 'center', color: '#f2e2bd', font: serif, italic: true });
+          break;
+      }
+    }
+    g.restore();
+  }
+};

@@ -17,6 +17,7 @@ const Player = {
   beatBoss: false,
   suit: -1, diveWeapon: -1, beatMother: false,   // the second half: diving
   excalibur: false, lore: [],                    // what the sea gave back
+  sawEnding: false,                              // sailed home and watched the credits
   // battle scratch
   attackT: 0, attackDur: .32, attackDone: false, combo: 0, comboBuffer: false,
   rollT: 0, rollCd: 0, invuln: 0, knock: 0, healT: 0,
@@ -30,6 +31,7 @@ const Player = {
     this.beatBoss = false;
     this.suit = -1; this.diveWeapon = -1; this.beatMother = false;
     this.excalibur = false; this.lore = [];
+    this.sawEnding = false;
     this.attackT = 0; this.rollT = 0; this.invuln = 0; this.knock = 0;
     this.state = 'idle'; this.bState = 'idle';
   }
@@ -38,6 +40,7 @@ const Player = {
 const STALL_X = 742;     // Dorran's stall, amidships
 
 const SPOTS = [
+  { id: 'helm',  x: FINALE.helmX, r: 64 },
   { id: 'crate', x: 392, r: 70 },
   { id: 'stall', x: STALL_X, r: 118 },
   { id: 'fish',  x: FISH_X, r: 104 }
@@ -208,9 +211,24 @@ const Game = {
     });
   },
 
+  // everything beaten, standing at the wheel: straight into the voyage home and the credits
+  devFinale() {
+    Sfx.select();
+    this.fadeOut(() => {
+      Player.reset();
+      this.giveFishingGear();
+      Object.assign(Player, { beatBoss: true, beatMother: true, suit: SUITS.length - 1, diveWeapon: DIVE_WEAPONS.length - 1 });
+      Player.x = FINALE.helmX;
+      this.atSea();
+      this.state = 'play';
+      this.startFinale();
+    });
+  },
+
   // out on the water at night with nothing going on: the state every load starts from
   atSea() {
     this.endingRun = false;
+    this.toldHomeward = false;
     this._toldStart = true;
     this.night = 1;
     this.viewY = 0;
@@ -395,6 +413,29 @@ const Game = {
     });
   },
 
+  // the voyage home, then the credits; afterwards the sea is still there to play in
+  startFinale() {
+    const f = buildFinale();
+    this.endingRun = true;
+    this.bark.text = '';
+    this.state = 'cutscene';
+    CUT.play(f.steps, {
+      finalize: f.finalize,
+      onEnd: () => {
+        this.fadeOut(() => {
+          f.finalize();
+          this.endingRun = false;
+          CUT.letterbox = 0;
+          CUT.titleCard = null;
+          Cam.snap(Player.x);
+          this.state = 'play';
+          this.toast('The Margaret is still yours. So is the sea.');
+          this.autosave();
+        });
+      }
+    });
+  },
+
   /* -------------------------------- modal ------------------------------ */
 
   say(...lines) {
@@ -497,6 +538,7 @@ const Game = {
   },
 
   spotLabel(s) {
+    if (s.id === 'helm')  return FINALE.ready() ? 'Sail home' : null;
     if (s.id === 'crate') return Player.weapon < 0 ? 'Open the crate' : null;
     if (s.id === 'stall') return 'Talk to Dorran';
     if (s.id === 'fish')  return Player.suit >= 0 ? 'Dive' : 'Cast your line';
@@ -504,6 +546,7 @@ const Game = {
   },
 
   useSpot(s) {
+    if (s.id === 'helm') { if (FINALE.ready()) this.startFinale(); return; }
     if (s.id === 'crate') {
       if (Player.weapon >= 0) return;
       Player.weapon = 0;
@@ -951,6 +994,7 @@ const Game = {
     if (Player.weapon < 0) return 'Find some gear in the crate by the cabin';
     if (Player.catches.length) return 'Sell your catch to Dorran at the stall';
     if (Player.totalKills === 0) return 'Cast a line at the bow';
+    if (FINALE.ready() && !Player.sawEnding) return 'Take the Margaret home: the wheel is in the wheelhouse';
     if (Player.beatMother) return 'Lanthorne is lit again. The sea is yours.';
     if (Player.suit >= 0) {
       if (Player.suit < SUITS.length - 1) return 'Dive at the bow. A better suit goes deeper.';

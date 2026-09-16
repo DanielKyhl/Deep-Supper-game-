@@ -271,7 +271,8 @@ const SAVE_FIELDS = {
   suit:       { type: 'int', min: -1, max: SUITS.length - 1 },
   diveWeapon: { type: 'int', min: -1, max: DIVE_WEAPONS.length - 1 },
   beatMother: { type: 'bool' },
-  excalibur:  { type: 'bool' }
+  excalibur:  { type: 'bool' },
+  sawEnding:  { type: 'bool' }
 };
 
 const SaveGame = {

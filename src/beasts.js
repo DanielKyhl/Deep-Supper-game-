@@ -995,6 +995,17 @@ const Beast = {
     if (baked) Spr.blit(g, snap(m.x), snap(m.y), baked);
   },
 
+  // how big a creature comes out, in game pixels [w, h], without drawing it anywhere
+  measure(m) {
+    const cache = this.cache, blit = Spr.blit;
+    let size = [0, 0];
+    this.cache = false;
+    Spr.blit = (g, x, y, b) => { size = [b.cw * PIX, b.ch * PIX]; };
+    try { this.draw(null, Object.assign({}, m, { x: 0, y: 0, noShadow: true }), 0); }
+    finally { Spr.blit = blit; this.cache = cache; }
+    return size;
+  },
+
   // let go of creatures that haven't been drawn in a while
   _forget() {
     for (const [who, held] of this._held) if (this._calls - held.last > 600) this._held.delete(who);

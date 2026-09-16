@@ -217,6 +217,7 @@ const Menu = {
         { kind: 'action', label: 'Fight the Old One, fully geared', id: 'devOldOne', run: () => Game.devFinalBoss() },
         { kind: 'action', label: 'Start diving, with the first suit', id: 'devDiving', run: () => Game.devDiving() },
         { kind: 'action', label: 'Swim to the Mother Below, fully geared', id: 'devMother', run: () => Game.devMother() },
+        { kind: 'action', label: 'Sail home: the ending and the credits', id: 'devFinale', run: () => Game.devFinale() },
         { kind: 'gap' },
         { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
       ];
