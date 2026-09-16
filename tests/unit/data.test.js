@@ -135,7 +135,6 @@ describe('goods', () => {
 
 describe('monsters', () => {
   const PLANS = ['eel', 'angler', 'tentacle', 'ray', 'crustacean', 'bloom', 'husk', 'maw', 'leviathan'];
-  const ATTACKS = ['lunge', 'slam', 'spit', 'spew', 'sweep'];
 
   test('there is real variety: many monsters over every body plan', () => {
     assert.ok(MONSTERS.length >= 16);
@@ -155,7 +154,6 @@ describe('monsters', () => {
       assert.ok(isRgb(m.body) && isRgb(m.belly) && isRgb(m.fin), m.id + ' colours');
       assert.match(m.eye, /^#[0-9a-f]{6}$/i);
       assert.ok(m.glow === null || /^#[0-9a-f]{6}$/i.test(m.glow), m.id + ' glow');
-      assert.ok(m.atk.length && m.atk.every(a => ATTACKS.includes(a)), m.id + ' attacks');
       assert.ok(m.flavour.length > 10);
     }
   });
@@ -172,12 +170,18 @@ describe('monsters', () => {
     }
   });
 
-  test('only the deepest monsters sweep or spew', () => {
-    for (const m of MONSTERS) {
-      const hard = m.atk.includes('sweep') || m.atk.includes('spew');
-      if (m.depth < 4) assert.equal(hard, false, m.id);
+  test('every monster has the same two attacks, and a third that belongs to its body', () => {
+    const own = new Set();
+    for (const m of MONSTERS.filter(m => !m.boss)) {
+      const a = plain(g.attacksOf(m));
+      assert.equal(a.length, 3, m.id);
+      assert.deepEqual(a.slice(0, 2), ['lunge', 'slam'], m.id);
+      assert.equal(a[2], g.DECK_UNIQUE[m.plan], m.id);
+      own.add(a[2]);
     }
-    assert.ok(MONSTERS.filter(m => m.depth === 4 && !m.boss).every(m => m.atk.includes('sweep') || m.atk.includes('spew')));
+    assert.equal(own.size, 8, 'eight body plans, eight attacks of their own');
+    const old = plain(g.attacksOf(MONSTERS.find(m => m.boss)));
+    for (const s of ['jaw', 'breach', 'drag']) assert.ok(old.includes(s), 'the Old One: ' + s);
   });
 
   test('exactly one boss: the Old One, the biggest and hardest thing in the sea', () => {
@@ -221,7 +225,7 @@ describe('the Brood below', () => {
     assert.equal(M.plan, 'mother');
     assert.ok(M.hp > old.hp * 2, 'hp');
     assert.ok(M.len > old.len, 'size');
-    assert.deepEqual(plain(M.atk).sort(), ['brood', 'inhale', 'maw', 'pulse', 'sweep']);
+    assert.deepEqual(plain(g.attacksOf(M)).sort(), ['brood', 'coil', 'maw', 'pulse', 'stare', 'sweep', 'whirlpool']);
     assert.match(M.flavour, /Old One/);
   });
 
@@ -237,7 +241,9 @@ describe('the Brood below', () => {
       assert.ok(m.hp > 0 && m.len > 0 && m.value > 0 && m.dmg >= 1 && m.speed > 0 && m.aggro > 100, m.id + ' stats');
       assert.ok(m.girth > 0 && m.girth < 1);
       assert.ok(isRgb(m.body) && isRgb(m.belly) && isRgb(m.fin), m.id + ' colours');
-      assert.ok(m.atk.length && m.atk.every(a => ['bite', 'charge', 'ink', 'pulse'].includes(a)), m.id + ' attacks');
+      const a = plain(g.attacksOf(m));
+      assert.deepEqual(a.slice(0, 2), ['bite', 'charge'], m.id);
+      assert.equal(a[2], g.DIVE_UNIQUE[m.plan], m.id + ' attacks');
       assert.ok(m.flavour.length > 10);
     }
   });

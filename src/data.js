@@ -132,6 +132,47 @@ const GOODS = [
     desc: 'Barnacled and cold. Bigger things take the bait.' }
 ];
 
+/* -------------------------------- attacks --------------------------------
+   Every creature has the two attacks all its kind share, and one that is its
+   body's own. The two bosses have lists of their own, and on top of those,
+   attacks you have to answer rather than dodge (see skill.js).            */
+
+const DECK_GENERIC = ['lunge', 'slam'];
+const DECK_UNIQUE = {
+  eel: 'coil',          // springs over you and lashes down behind
+  angler: 'lure',       // the lure flares, and it lunges out of the glare
+  tentacle: 'grasp',    // arms burst up through the deck where you stand
+  crustacean: 'shell',  // tucks in and bowls across the deck
+  bloom: 'sting',       // hangs overhead and lets down curtains of stingers
+  ray: 'swoop',         // up out of sight; its shadow finds you; then down
+  maw: 'gulp',          // breathes in the whole deck, then bites
+  husk: 'shards'        // flings splinters of bone that stick in the boards
+};
+const DIVE_GENERIC = ['bite', 'charge'];
+const DIVE_UNIQUE = {
+  eel: 'lash',          // three quick darts, each from a new angle
+  angler: 'lure',       // the lure draws you in toward the teeth
+  tentacle: 'ink',      // a spray of ink
+  crustacean: 'snap',   // a claw-snap that fires a shock of bubbles
+  bloom: 'pulse',       // a ring of stinging force
+  ray: 'glide',         // a wide curve round and through you
+  maw: 'gulp',          // suction, then a bite
+  husk: 'volley'        // a fan of bone shards
+};
+const OLD_ONE_SKILLS = ['jaw', 'breach', 'drag'];
+const MOTHER_SKILLS = ['stare', 'whirlpool', 'coil'];
+
+function attacksOf(def) {
+  if (def.id === 'mother') return ['maw', 'pulse', 'sweep', 'brood'].concat(MOTHER_SKILLS);
+  if (def.boss) return ['lunge', 'slam', 'spit', 'sweep', 'spew'].concat(OLD_ONE_SKILLS);
+  return def.zone ? DIVE_GENERIC.concat(DIVE_UNIQUE[def.plan]) : DECK_GENERIC.concat(DECK_UNIQUE[def.plan]);
+}
+// the body's own attack comes up a little more often than the other two
+function pickAttack(list) {
+  const r = Math.random() * 3.5;
+  return r < 1 ? list[0] : r < 2 ? list[1] : list[2];
+}
+
 /* ------------------------------- monsters -------------------------------- */
 /* plan  : which body Art draws it with — eel, angler, tentacle, ray,
            crustacean, bloom, husk, maw, leviathan
@@ -146,25 +187,21 @@ const MONSTERS = [
   { id: 'gnashfin', name: 'Gnashfin', depth: 1, plan: 'eel',
     hp: 58, len: 240, girth: .13, value: 44, dmg: 1, speed: 84, eyes: 2,
     body: [86, 130, 122], belly: [188, 214, 198], fin: [60, 96, 96], eye: '#ffd76a', glow: null,
-    atk: ['lunge', 'lunge', 'spit'],
     flavour: 'Far too many teeth for a thing that size. They keep going back.' },
 
   { id: 'bristlejaw', name: 'Bristlejaw', depth: 1, plan: 'angler',
     hp: 76, len: 230, girth: .30, value: 58, dmg: 1, speed: 78, eyes: 2,
     body: [120, 96, 132], belly: [210, 190, 206], fin: [84, 62, 100], eye: '#ff8f5a', glow: '#ffb05a',
-    atk: ['lunge', 'spit', 'slam'],
     flavour: 'The little light on its head is doing an impression of a friend.' },
 
   { id: 'palefinger', name: 'Palefinger', depth: 1, plan: 'tentacle',
     hp: 66, len: 210, girth: .34, value: 52, dmg: 1, speed: 92, eyes: 3,
     body: [206, 196, 188], belly: [236, 230, 222], fin: [170, 156, 150], eye: '#4a3b52', glow: null,
-    atk: ['lunge', 'slam', 'spit'],
     flavour: 'It has hands. Small ones. Rather a lot of them.' },
 
   { id: 'netbiter', name: 'Netbiter', depth: 1, plan: 'crustacean',
     hp: 92, len: 226, girth: .28, value: 66, dmg: 1, speed: 70, eyes: 4,
     body: [150, 88, 64], belly: [214, 168, 130], fin: [110, 60, 44], eye: '#f2e2bd', glow: null,
-    atk: ['slam', 'lunge', 'slam'],
     flavour: 'Every net on this coast has a piece missing. Here it all is.' },
 
   /* ------------------------------ depth 2 ------------------------------ */
@@ -172,25 +209,21 @@ const MONSTERS = [
   { id: 'glasseye', name: 'Glasseye Lurker', depth: 2, plan: 'angler',
     hp: 148, len: 286, girth: .33, value: 122, dmg: 1, speed: 96, eyes: 1,
     body: [72, 108, 148], belly: [176, 206, 226], fin: [48, 74, 112], eye: '#c9f6ff', glow: '#8fe6ff',
-    atk: ['lunge', 'slam', 'spit', 'spit'],
     flavour: 'The eye does not blink. It has not blinked in a very long time.' },
 
   { id: 'nettlejack', name: 'Nettlejack', depth: 2, plan: 'bloom',
     hp: 132, len: 264, girth: .42, value: 136, dmg: 1, speed: 104, eyes: 6,
     body: [92, 134, 88], belly: [196, 214, 162], fin: [62, 96, 58], eye: '#ffe066', glow: '#b6ff8a',
-    atk: ['spit', 'spit', 'slam', 'lunge'],
     flavour: 'Stinging threads trail off it like cut rigging. They are still growing.' },
 
   { id: 'ropethroat', name: 'Rope-Throat', depth: 2, plan: 'eel',
     hp: 170, len: 320, girth: .11, value: 158, dmg: 1, speed: 118, eyes: 2,
     body: [64, 70, 96], belly: [162, 170, 196], fin: [42, 46, 70], eye: '#ff6a6a', glow: null,
-    atk: ['lunge', 'lunge', 'slam'],
     flavour: 'Knotted three times around itself and still longer than the boat.' },
 
   { id: 'shalebank', name: 'Shalebank Crawler', depth: 2, plan: 'crustacean',
     hp: 196, len: 272, girth: .30, value: 176, dmg: 1, speed: 74, eyes: 6,
     body: [98, 104, 92], belly: [172, 178, 158], fin: [66, 72, 62], eye: '#ffcf4a', glow: null,
-    atk: ['slam', 'slam', 'lunge', 'spit'],
     flavour: 'It wears the seabed. Some of the seabed is other crawlers.' },
 
   /* ------------------------------ depth 3 ------------------------------ */
@@ -198,25 +231,21 @@ const MONSTERS = [
   { id: 'tidemaw', name: 'Tidemaw', depth: 3, plan: 'maw',
     hp: 310, len: 300, girth: .44, value: 288, dmg: 2, speed: 112, eyes: 8,
     body: [58, 74, 116], belly: [150, 168, 208], fin: [38, 48, 84], eye: '#ff6a6a', glow: '#7a9cff',
-    atk: ['lunge', 'slam', 'slam', 'spit'],
     flavour: 'Mostly mouth. The eyes are arranged around it like an audience.' },
 
   { id: 'gallowsgill', name: 'Gallowsgill', depth: 3, plan: 'ray',
     hp: 356, len: 360, girth: .26, value: 336, dmg: 2, speed: 124, eyes: 2,
     body: [104, 62, 62], belly: [206, 168, 154], fin: [70, 40, 44], eye: '#ffcf4a', glow: null,
-    atk: ['lunge', 'slam', 'spit', 'lunge'],
     flavour: 'Rope scars ring its throat. Somebody tried this before you.' },
 
   { id: 'weepingbell', name: 'The Weeping Bell', depth: 3, plan: 'bloom',
     hp: 288, len: 330, girth: .48, value: 352, dmg: 2, speed: 96, eyes: 0,
     body: [122, 96, 150], belly: [216, 198, 236], fin: [88, 68, 118], eye: '#ffffff', glow: '#d6a8ff',
-    atk: ['spit', 'spit', 'slam', 'spit'],
     flavour: 'It makes a sound underwater. Dorran says not to describe it.' },
 
   { id: 'hookhand', name: 'Hookhand', depth: 3, plan: 'tentacle',
     hp: 400, len: 318, girth: .36, value: 404, dmg: 2, speed: 116, eyes: 5,
     body: [72, 92, 84], belly: [166, 190, 174], fin: [48, 64, 58], eye: '#a8ff9e', glow: '#6effc4',
-    atk: ['lunge', 'slam', 'lunge', 'spit'],
     flavour: 'Four of the arms end in hooks. One of them is holding a hook.' },
 
   /* ------------------------------ depth 4 ------------------------------ */
@@ -224,25 +253,21 @@ const MONSTERS = [
   { id: 'hollow', name: 'The Hollow Trawler', depth: 4, plan: 'husk',
     hp: 620, len: 380, girth: .34, value: 700, dmg: 2, speed: 126, eyes: 4,
     body: [64, 68, 74], belly: [158, 164, 170], fin: [40, 44, 50], eye: '#9effc4', glow: '#9effc4',
-    atk: ['lunge', 'slam', 'spit', 'sweep'],
     flavour: 'There are planks in its belly. Painted ones. You know the colour.' },
 
   { id: 'cathedral', name: 'Cathedral Ray', depth: 4, plan: 'ray',
     hp: 700, len: 440, girth: .28, value: 780, dmg: 2, speed: 134, eyes: 3,
     body: [46, 56, 92], belly: [140, 152, 200], fin: [30, 38, 66], eye: '#ffe9a8', glow: '#8fa8ff',
-    atk: ['lunge', 'sweep', 'spit', 'lunge', 'slam'],
     flavour: 'It passes over you slowly, the way weather does.' },
 
   { id: 'penance', name: 'Nine-Eyed Penance', depth: 4, plan: 'maw',
     hp: 780, len: 360, girth: .46, value: 850, dmg: 3, speed: 128, eyes: 9,
     body: [88, 48, 62], belly: [198, 150, 160], fin: [58, 30, 42], eye: '#ffd257', glow: '#ff7a5a',
-    atk: ['lunge', 'slam', 'spew', 'sweep', 'lunge'],
     flavour: 'Nine eyes and all of them apologetic. That is somehow worse.' },
 
   { id: 'choir', name: 'The Drowned Choir', depth: 4, plan: 'bloom',
     hp: 660, len: 400, girth: .50, value: 820, dmg: 2, speed: 118, eyes: 12,
     body: [70, 84, 118], belly: [186, 200, 226], fin: [48, 58, 86], eye: '#e8f4ff', glow: '#a8d8ff',
-    atk: ['spit', 'spew', 'slam', 'sweep', 'spit'],
     flavour: 'Every face in it is roughly the same face, and it is nearly yours.' },
 
   /* -------------------------------- boss ------------------------------- */
@@ -250,7 +275,6 @@ const MONSTERS = [
   { id: 'leviathan', name: 'The Old One', depth: 4, boss: true, plan: 'leviathan',
     hp: 2400, len: 560, girth: .30, value: 2600, dmg: 3, speed: 140, eyes: 7,
     body: [38, 44, 78], belly: [128, 140, 186], fin: [24, 28, 54], eye: '#ff4d4d', glow: '#ff4d4d',
-    atk: ['lunge', 'slam', 'spit', 'lunge', 'slam'],
     flavour: 'The sea went flat and quiet, the way a room does when you walk in.' }
 ];
 
@@ -267,25 +291,21 @@ const DIVE_MONSTERS = [
   { id: 'kelpstrangler', name: 'Kelp Strangler', zone: 1, plan: 'eel',
     hp: 90, len: 200, girth: .12, value: 110, dmg: 1, speed: 110, eyes: 2, aggro: 280,
     body: [70, 110, 70], belly: [170, 200, 150], fin: [50, 80, 50], eye: '#e8f06a', glow: null,
-    atk: ['bite', 'bite', 'charge'],
     flavour: 'It looks like kelp right up until it has you by the ankle.' },
 
   { id: 'reefgnasher', name: 'Reef Gnasher', zone: 1, plan: 'angler',
     hp: 110, len: 170, girth: .32, value: 130, dmg: 1, speed: 90, eyes: 2, aggro: 300,
     body: [150, 100, 80], belly: [220, 190, 160], fin: [110, 70, 60], eye: '#ffcf4a', glow: '#ffb05a',
-    atk: ['bite', 'ink'],
     flavour: 'Lives in the shipwrecks. Built most of them.' },
 
   { id: 'bladderjelly', name: 'Bladder Jelly', zone: 1, plan: 'bloom',
     hp: 80, len: 160, girth: .45, value: 120, dmg: 1, speed: 60, eyes: 0, aggro: 240,
     body: [150, 120, 190], belly: [220, 200, 240], fin: [110, 90, 150], eye: '#ffffff', glow: '#d6a8ff',
-    atk: ['pulse'],
     flavour: 'Drifts toward warmth. You are warmth.' },
 
   { id: 'shelfcrab', name: 'Shelf Crab', zone: 1, plan: 'crustacean',
     hp: 140, len: 180, girth: .3, value: 150, dmg: 1, speed: 70, eyes: 2, aggro: 260,
     body: [170, 80, 60], belly: [230, 170, 130], fin: [130, 60, 40], eye: '#f2e2bd', glow: null,
-    atk: ['charge', 'bite'],
     flavour: 'A crab the size of a rowing boat, and just as keen to be in the water with you.' },
 
   /* ------------------------------ The Drop ------------------------------- */
@@ -293,25 +313,21 @@ const DIVE_MONSTERS = [
   { id: 'clifflamprey', name: 'Cliff Lamprey', zone: 2, plan: 'eel',
     hp: 220, len: 260, girth: .1, value: 300, dmg: 1, speed: 150, eyes: 2, aggro: 340,
     body: [80, 80, 100], belly: [170, 170, 190], fin: [55, 55, 75], eye: '#ff6a6a', glow: null,
-    atk: ['charge', 'bite', 'bite'],
     flavour: 'Hangs off the cliff by its mouth, waiting for something with blood in it.' },
 
   { id: 'hollowshell', name: 'Hollowshell', zone: 2, plan: 'crustacean',
     hp: 320, len: 230, girth: .34, value: 360, dmg: 2, speed: 80, eyes: 4, aggro: 280,
     body: [96, 104, 92], belly: [172, 178, 158], fin: [66, 72, 62], eye: '#9effc4', glow: null,
-    atk: ['charge', 'pulse'],
     flavour: 'Something else lives inside the shell. It has never come out to be introduced.' },
 
   { id: 'gulperwidow', name: 'Gulper Widow', zone: 2, plan: 'maw',
     hp: 260, len: 240, girth: .42, value: 340, dmg: 2, speed: 110, eyes: 6, aggro: 320,
     body: [60, 40, 70], belly: [150, 120, 160], fin: [40, 26, 50], eye: '#ff8f5a', glow: '#ff7a5a',
-    atk: ['bite', 'ink', 'bite'],
     flavour: 'All mouth and mourning. It wears the nets of every boat it has emptied.' },
 
   { id: 'sootwing', name: 'Sootwing', zone: 2, plan: 'ray',
     hp: 240, len: 300, girth: .24, value: 320, dmg: 1, speed: 130, eyes: 2, aggro: 360,
     body: [40, 44, 60], belly: [130, 136, 160], fin: [28, 30, 44], eye: '#c9f6ff', glow: null,
-    atk: ['ink', 'charge'],
     flavour: 'Leaves a cloud of black behind it, and whatever it was chasing inside the cloud.' },
 
   /* --------------------------- The Drowned Halls ------------------------- */
@@ -319,25 +335,21 @@ const DIVE_MONSTERS = [
   { id: 'hallwarden', name: 'Hall Warden', zone: 3, plan: 'husk',
     hp: 560, len: 320, girth: .32, value: 680, dmg: 2, speed: 110, eyes: 4, aggro: 360,
     body: [70, 74, 80], belly: [160, 166, 172], fin: [44, 48, 54], eye: '#9effc4', glow: '#9effc4',
-    atk: ['bite', 'pulse', 'charge'],
     flavour: 'It still walks its old rounds. The hall it guards has no roof any more.' },
 
   { id: 'lanternthief', name: 'Lantern Thief', zone: 3, plan: 'angler',
     hp: 480, len: 280, girth: .33, value: 620, dmg: 2, speed: 130, eyes: 1, aggro: 400,
     body: [50, 70, 110], belly: [150, 180, 220], fin: [34, 48, 80], eye: '#c9f6ff', glow: '#8fe6ff',
-    atk: ['bite', 'ink', 'ink'],
     flavour: "The light on its head was somebody's front door lamp." },
 
   { id: 'palechoir', name: 'Pale Choir-Ray', zone: 3, plan: 'ray',
     hp: 520, len: 360, girth: .25, value: 700, dmg: 2, speed: 140, eyes: 3, aggro: 380,
     body: [200, 196, 210], belly: [236, 232, 240], fin: [150, 146, 160], eye: '#4a3b52', glow: null,
-    atk: ['charge', 'pulse', 'ink'],
     flavour: 'Sings as it comes for you. Beautifully. That is the worst part.' },
 
   { id: 'brinetongue', name: 'Brinetongue', zone: 3, plan: 'tentacle',
     hp: 600, len: 300, girth: .36, value: 760, dmg: 2, speed: 115, eyes: 5, aggro: 350,
     body: [110, 60, 70], belly: [200, 150, 160], fin: [80, 40, 50], eye: '#ffd257', glow: '#ff7a5a',
-    atk: ['bite', 'charge', 'bite'],
     flavour: 'Tastes the water for you from three halls away.' },
 
   /* ------------------------------ Lanthorne ------------------------------ */
@@ -345,25 +357,21 @@ const DIVE_MONSTERS = [
   { id: 'broodsister', name: 'Brood Sister', zone: 4, plan: 'tentacle',
     hp: 900, len: 360, girth: .36, value: 1150, dmg: 2, speed: 140, eyes: 7, aggro: 420,
     body: [60, 40, 62], belly: [160, 120, 160], fin: [40, 26, 44], eye: '#c46bff', glow: '#c46bff',
-    atk: ['bite', 'charge', 'pulse'],
     flavour: 'The Old One had siblings. This is one of the small ones.' },
 
   { id: 'trenchmaw', name: 'Trench Maw', zone: 4, plan: 'maw',
     hp: 1100, len: 380, girth: .44, value: 1300, dmg: 3, speed: 120, eyes: 9, aggro: 400,
     body: [40, 50, 80], belly: [140, 150, 190], fin: [26, 32, 56], eye: '#ff6a6a', glow: '#7a9cff',
-    atk: ['bite', 'ink', 'pulse'],
     flavour: 'It came up out of the trench with its mouth already open.' },
 
   { id: 'gatecrawler', name: 'Gate Crawler', zone: 4, plan: 'crustacean',
     hp: 1200, len: 340, girth: .3, value: 1250, dmg: 2, speed: 100, eyes: 6, aggro: 380,
     body: [90, 96, 120], belly: [170, 176, 200], fin: [60, 64, 84], eye: '#ffcf4a', glow: null,
-    atk: ['charge', 'charge', 'pulse'],
     flavour: "Has been trying to get through Lanthorne's gate for a hundred years. Patient." },
 
   { id: 'drownedwarden', name: 'Drowned Warden', zone: 4, plan: 'husk',
     hp: 1000, len: 360, girth: .34, value: 1200, dmg: 2, speed: 130, eyes: 4, aggro: 420,
     body: [64, 68, 74], belly: [158, 164, 170], fin: [40, 44, 50], eye: '#9ff0ff', glow: '#9ff0ff',
-    atk: ['bite', 'pulse', 'ink', 'charge'],
     flavour: "One of Lanthorne's own, once. It doesn't remember which side it was on." },
 
   /* ------------------------ hers, and her ------------------------------ */
@@ -371,13 +379,11 @@ const DIVE_MONSTERS = [
   { id: 'broodling', name: 'Broodling', zone: 4, plan: 'eel', spawnOnly: true,
     hp: 70, len: 120, girth: .14, value: 40, dmg: 1, speed: 170, eyes: 2, aggro: 2000,
     body: [70, 40, 72], belly: [170, 130, 170], fin: [50, 26, 52], eye: '#ff4d7a', glow: '#c46bff',
-    atk: ['bite', 'bite', 'charge'],
     flavour: 'Newly hatched. Already hungry. Already hers.' },
 
   { id: 'mother', name: 'The Mother Below', zone: 4, plan: 'mother', boss: true,
     hp: 5200, len: 860, girth: .2, value: 9000, dmg: 2, speed: 150, eyes: 12, aggro: 5000,
     body: [52, 34, 60], belly: [170, 130, 170], fin: [36, 22, 44], eye: '#ff4d7a', glow: '#c46bff',
-    atk: ['maw', 'pulse', 'sweep', 'brood', 'inhale'],
     flavour: 'The Old One was hers.' }
 ];
 

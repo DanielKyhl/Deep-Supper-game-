@@ -89,6 +89,31 @@ function landIntroCatch(h) {
   assert.ok(h.until(() => h.g.Game.state === 'battle', 4), 'no fight after landing');
 }
 
+/* Answer whatever skill check is up, the way a steady player would: press as
+   the ring meets its mark, press each key as it comes up, and hold against a
+   pull. Returns true while one is up (the bot should do nothing else then).
+   Pass { fail: true } to get it wrong on purpose. */
+function answerSkill(h, opts) {
+  const S = h.g.Skill, A = S.active;
+  const held = h.__skillHeld || (h.__skillHeld = new Set());
+  const release = () => { for (const k of held) h.keyUp(k); held.clear(); };
+  if (!A) { release(); return false; }
+  const key = action => h.g.ACTIONS[action][0];
+  const fail = opts && opts.fail;
+  if (A.result === null) {
+    if (A.kind === 'ring') {
+      const off = A.local - A.shrink;
+      if (fail ? (A.local > .1 && A.local < A.shrink - .4) : Math.abs(off) < .02 && A.local >= 0) h.press(key(A.action));
+    } else if (A.kind === 'keys') {
+      if (A.local > .12) h.press(key(fail ? (A.seq[A.i] === 'left' ? 'right' : 'left') : A.seq[A.i]));
+    } else {
+      const k = key(fail ? A.keys[1] : A.keys[0]);
+      if (!held.has(k)) { h.keyDown(k); held.add(k); }
+    }
+  }
+  return true;
+}
+
 /* A simple, decent fighter: close the distance, face the thing, swing when
    in reach, and roll out from under anything telegraphed at close range.
    Returns true on a win. */
@@ -102,6 +127,7 @@ function fightBot(h, maxSeconds) {
   const frames = Math.round((maxSeconds || 90) * 60);
   for (let i = 0; i < frames; i++) {
     if (g.Game.state !== 'battle' || B.phase === 'win' || B.phase === 'lose') break;
+    if (answerSkill(h)) { hold('KeyA', false); hold('KeyD', false); h.frame(); continue; }
     const m = B.m;
     const dx = m.x - P.x;
     const reach = 64 * g.WEAPONS[Math.max(0, P.weapon)].reach + B.len * .42;
@@ -133,5 +159,5 @@ function openStall(h) {
 
 module.exports = {
   selectMenu, chooseMenu, waitFade, newVoyageFromMenu, skipOpening, readDialogue,
-  walkTo, openCrate, castLine, waitForBite, setHook, landIntroCatch, fightBot, openStall
+  walkTo, openCrate, castLine, waitForBite, setHook, landIntroCatch, answerSkill, fightBot, openStall
 };

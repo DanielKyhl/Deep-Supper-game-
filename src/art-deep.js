@@ -472,9 +472,30 @@ Object.assign(Art, {
     }
 
     for (const b of D.globs) {
-      g.fillStyle = 'rgba(40,20,60,.95)';
-      g.beginPath(); g.arc(b.x, b.y, b.r, 0, 6.2832); g.fill();
-      g.fillStyle = 'rgba(160,110,200,.6)'; g.fillRect(snap(b.x - 4), snap(b.y - 4), 4, 4);
+      if (b.kind === 'bubble') {
+        // a shock of bubbles off a snapping claw
+        g.fillStyle = 'rgba(210,240,255,.75)';
+        for (let k = 0; k < 5; k++) g.fillRect(snap(b.x - k * b.vx * .012 - 3), snap(b.y - k * b.vy * .012 - 3 + (k % 2) * 4), 6 - k, 6 - k);
+        g.strokeStyle = 'rgba(240,252,255,.9)'; g.lineWidth = 2;
+        g.beginPath(); g.arc(b.x, b.y, b.r, 0, 6.2832); g.stroke();
+      } else if (b.kind === 'bone') {
+        g.fillStyle = '#e8dcc0';
+        g.fillRect(snap(b.x - 6), snap(b.y - 2), 12, 4);
+        g.fillStyle = '#9a8a6a'; g.fillRect(snap(b.x - 6), snap(b.y), 12, 2);
+      } else {
+        g.fillStyle = 'rgba(40,20,60,.95)';
+        g.beginPath(); g.arc(b.x, b.y, b.r, 0, 6.2832); g.fill();
+        g.fillStyle = 'rgba(160,110,200,.6)'; g.fillRect(snap(b.x - 4), snap(b.y - 4), 4, 4);
+      }
+    }
+    // an angler's lure, drawing you in
+    for (const m of D.mobs) {
+      if (m.state === 'lure' || (m.state === 'tele' && m.atk === 'lure')) {
+        const lx = m.x + m.face * m.def.len * .45, ly = m.y - m.def.len * (m.def.girth || .3) * 1.3;
+        g.save(); g.globalCompositeOperation = 'lighter';
+        stepGlow(g, lx, ly, 30 + Math.sin(t * 12) * 6 + (m.state === 'lure' ? 40 : 0), 'rgb(255,240,180)', .45, { steps: 3 });
+        g.restore();
+      }
     }
 
     // the boy, and what he has fired that you can see without it glowing
@@ -562,7 +583,7 @@ Object.assign(Art, {
     }
     stepGlow(g, p.x + p.face * 26, p.y - 2, 10, 'rgb(255,236,190)', .6 * depth, { steps: 2 });
     if (G.visible) stepGlow(g, G.x + G.face * 6, G.y + 6, 16, 'rgb(150,240,255)', .6, { steps: 2 });
-    if (B && B.state === 'inhale') {
+    if (B && B.state === 'whirlpool') {
       const mo = D._mouth();
       stepGlow(g, mo.x, mo.y, 90, 'rgb(200,120,255)', .5, { steps: 3 });
     }

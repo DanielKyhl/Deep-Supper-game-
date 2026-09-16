@@ -242,6 +242,13 @@ const Dive = {
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     const p = this.p;
     p.animT += dt;
+    if (Skill.active) {
+      Skill.update(dt);
+      this._skillPose(dt);
+      if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.dur) this.banner = null; }
+      this._camera(dt);
+      return;
+    }
     this._player(dt);
     if (this.phase !== 'swim') return;
     for (const m of this.mobs) {
@@ -557,7 +564,7 @@ const Dive = {
         if (dist > keep) toward(spd, 2.4); else toward(-spd, 1.2);
         m.cool -= dt;
         if (m.cool <= 0 && dist < def.aggro * 1.2) {
-          m.atk = choice(def.atk); m.state = 'tele'; m.t = 0;
+          m.atk = pickAttack(attacksOf(def)); m.state = 'tele'; m.t = 0;
           const lv = this._near(m);
           if (lv > .05) Sfx.growl(def.len, lv);
         }
@@ -565,7 +572,7 @@ const Dive = {
         break;
       }
       case 'tele': {
-        const dur = { bite: .45, charge: .6, ink: .5, pulse: .7 }[m.atk] || .5;
+        const dur = { bite: .45, charge: .6, ink: .5, pulse: .7, lash: .45, lure: .6, snap: .55, glide: .5, gulp: .55, volley: .5 }[m.atk] || .5;
         m.vx *= 1 - Math.min(1, dt * 5); m.vy *= 1 - Math.min(1, dt * 5);
         m.thrash = 1 + m.t / dur * 2;
         m.gape = m.t / dur * (m.atk === 'ink' ? .95 : .6);
@@ -615,6 +622,90 @@ const Dive = {
       case 'pulse':
         if (m.t > .4) this._recover(m, .8);
         break;
+
+      /* ------------------------ each body's own attack ------------------------ */
+
+      // three quick darts, each from a fresh angle
+      case 'lash': {
+        const every = .24;
+        const k = Math.floor(m.t / every);
+        if (k !== m.shots && k < 3) {
+          m.shots = k;
+          const a = Math.atan2(dy, dx) + (k === 1 ? .55 : -.55);
+          m.dirX = Math.cos(a); m.dirY = Math.sin(a);
+          const lv = this._near(m);
+          if (lv > .05) Sfx.rush(lv * .6);
+        }
+        const s = spd * 4.4;
+        m.vx = m.dirX * s; m.vy = m.dirY * s;
+        m.gape = .9; m.thrash = 3;
+        const hx = m.x + m.dirX * def.len * .4, hy = m.y + m.dirY * def.len * .4;
+        if (Math.hypot(p.x - hx, p.y - hy) < Math.max(22, def.len * .12) + 16) this.hurtPlayer(def.dmg, m.x, m.y);
+        if (m.t > every * 3) this._recover(m, .8);
+        break;
+      }
+      // the lure draws you in toward the teeth
+      case 'lure': {
+        const mx = m.x + m.face * def.len * .4, my = m.y;
+        const ax = mx - p.x, ay = my - p.y, ad = Math.hypot(ax, ay) || 1;
+        m.gape = Math.min(1, .5 + m.t * .4); m.thrash = 1.5;
+        if (m.t < 1.3) {
+          if (p.dashT <= 0) { p.vx += ax / ad * 520 * dt; p.vy += ay / ad * 520 * dt; }
+          if (chance(dt * 30)) Particles.add(p.x + rand(-100, 100), p.y + rand(-80, 80), { vx: ax / ad * 240, vy: ay / ad * 240, g: 0, drag: 0, size: 2, life: .5, color: 'rgba(255,240,180,.55)' });
+          if (ad < def.len * .2 + 34) { m.gape = 1; this.hurtPlayer(def.dmg, mx, my); this._recover(m, .9); }
+        } else this._recover(m, .9);
+        break;
+      }
+      // a claw snaps shut and fires a shock of bubbles
+      case 'snap': {
+        if (m.shots === 0) {
+          m.shots = 1;
+          const a = Math.atan2(dy, dx);
+          this.globs.push({ x: m.x + Math.cos(a) * def.len * .4, y: m.y + Math.sin(a) * def.len * .2, vx: Math.cos(a) * 760, vy: Math.sin(a) * 760, r: 13, t: 0, dmg: def.dmg, kind: 'bubble' });
+          const lv = this._near(m);
+          if (lv > .05) Sfx.pulseBoom(lv * .5);
+        }
+        if (m.t > .4) this._recover(m, .7);
+        break;
+      }
+      // a wide curve out, round, and back through you
+      case 'glide': {
+        const side = m.seed % 2 ? 1 : -1;
+        const a = Math.atan2(m.dirY, m.dirX) + (1 - clamp(m.t / 1.1, 0, 1)) * 1.3 * side;
+        const s = spd * 3.6;
+        m.vx = Math.cos(a) * s; m.vy = Math.sin(a) * s;
+        m.thrash = 2;
+        if (this._inMob(m, p.x, p.y, 12)) this.hurtPlayer(def.dmg, m.x, m.y);
+        if (m.t > 1.2) this._recover(m, .9);
+        break;
+      }
+      // suction, then a bite
+      case 'gulp': {
+        const mx = m.x + m.face * def.len * .42, my = m.y;
+        const ax = mx - p.x, ay = my - p.y, ad = Math.hypot(ax, ay) || 1;
+        m.gape = 1; m.thrash = 1.4;
+        if (m.t < 1.2) {
+          if (p.dashT <= 0) { p.vx += ax / ad * 460 * dt; p.vy += ay / ad * 460 * dt; }
+          if (chance(dt * 40)) Particles.add(p.x + rand(-120, 120), p.y + rand(-90, 90), { vx: ax / ad * 260, vy: ay / ad * 260, g: 0, drag: 0, size: 2, life: .5, color: 'rgba(200,220,230,.5)' });
+          if (ad < def.len * .22 + 30) { this.hurtPlayer(def.dmg + 1, mx, my); this._recover(m, 1); }
+        } else this._recover(m, .9);
+        break;
+      }
+      // a fan of bone shards
+      case 'volley': {
+        if (m.shots === 0) {
+          m.shots = 1;
+          const a0 = Math.atan2(dy, dx);
+          for (let k = -2; k <= 2; k++) {
+            const a = a0 + k * .22;
+            this.globs.push({ x: m.x + Math.cos(a0) * def.len * .3, y: m.y, vx: Math.cos(a) * 430, vy: Math.sin(a) * 430, r: 8, t: 0, dmg: 1, kind: 'bone' });
+          }
+          const lv = this._near(m);
+          if (lv > .05) Sfx.inkSquirt(lv);
+        }
+        if (m.t > .45) this._recover(m, .8);
+        break;
+      }
       case 'recover':
         m.thrash = approach(m.thrash, 1, dt * 3);
         m.gape = approach(m.gape, .1, dt * 2);
@@ -632,7 +723,7 @@ const Dive = {
     }
 
     // swim
-    const drag = m.state === 'bite' || m.state === 'charge' ? 0 : Math.min(1, dt * 2.2);
+    const drag = m.state === 'bite' || m.state === 'charge' || m.state === 'lash' || m.state === 'glide' ? 0 : Math.min(1, dt * 2.2);
     m.vx -= m.vx * drag; m.vy -= m.vy * drag;
     m.x += m.vx * dt; m.y += m.vy * dt;
     // creatures keep to their own band of water
@@ -715,9 +806,92 @@ const Dive = {
   // attacks she can reach for, by phase
   motherPool() {
     const B = this.boss;
-    if (B.phase >= 3) return ['maw', 'inhale', 'sweep', 'pulse', 'brood', 'maw', 'pulse'];
-    if (B.phase === 2) return ['maw', 'sweep', 'brood', 'pulse', 'inhale'];
-    return ['maw', 'pulse', 'sweep', 'maw'];
+    if (B.phase >= 3) return ['maw', 'sweep', 'pulse', 'brood', 'stare', 'whirlpool', 'coil'];
+    if (B.phase === 2) return ['maw', 'sweep', 'brood', 'pulse', 'stare', 'whirlpool'];
+    return ['maw', 'pulse', 'sweep', 'stare'];
+  },
+
+  // she never asks you to answer two things back to back
+  _motherPick() {
+    const B = this.boss;
+    const fresh = this.t - (B.lastSkill === undefined ? -99 : B.lastSkill) > 6;
+    return choice(this.motherPool().filter(a => fresh || MOTHER_SKILLS.indexOf(a) < 0));
+  },
+
+  // her great eye, on screen
+  _eyeScreen() {
+    const B = this.boss, len = B.def.len, girth = B.def.girth || .2;
+    return { x: B.x + B.face * len * .23 - this.cam.x, y: B.y - len * girth * .26 - this.cam.y };
+  },
+
+  // the eye opens and something gathers in it: shoot it as the ring closes
+  _skillStare() {
+    const B = this.boss;
+    B.lastSkill = this.t;
+    Skill.start({
+      kind: 'ring', label: 'SHOOT THE EYE', action: 'attack', count: B.phase >= 3 ? 2 : 1, shrink: .9, window: .12,
+      at: () => this._eyeScreen()
+    }, ok => {
+      if (ok) {
+        B.flash = 1; Cam.kick(10); Sfx.hitWet(true);
+        B.hp = Math.max(1, B.hp - Math.round(B.maxHp * .05));
+        if (Prefs.damageNumbers) Floaters.add(this.p.x, this.p.y - 60, 'RIGHT IN THE EYE', { color: '#f0cf6a', size: 22, life: 1.2 });
+        this._bossRest(2.0);
+        this._bossPhase();
+      } else {
+        this.hurtPlayer(2, B.x, B.y, true);
+        this._bossRest(.9);
+      }
+    });
+  },
+
+  // the whole sea turns toward her mouth: swim against it
+  _skillWhirl() {
+    const B = this.boss, p = this.p;
+    B.lastSkill = this.t;
+    const pull = B.x > p.x ? 1 : -1;
+    this.whirlFrom = { x: p.x, y: p.y };
+    Sfx.inhale();
+    Skill.start({
+      kind: 'hold', label: 'SWIM AGAINST IT', dur: B.phase >= 3 ? 3.6 : 3.1, pull,
+      strength: B.phase >= 3 ? 2.7 : 2.3, keys: pull > 0 ? ['left', 'right'] : ['right', 'left']
+    }, ok => {
+      p.x = this.whirlFrom.x; p.y = this.whirlFrom.y; p.vx = 0; p.vy = 0;
+      if (ok) { B.flash = 1; this._bossRest(1.8); }
+      else { const m = this._mouth(); this.hurtPlayer(2, m.x, m.y, true); p.vx = -pull * 700; this._bossRest(1.0); }
+    });
+  },
+
+  // her arms close in from every side: slip out between them
+  _skillCoil() {
+    const B = this.boss;
+    B.lastSkill = this.t;
+    const dirs = ['up', 'down', 'left', 'right'], seq = [];
+    for (let i = 0; i < (B.phase >= 3 ? 5 : 4); i++) {
+      let k;
+      do { k = choice(dirs); } while (k === seq[seq.length - 1]);
+      seq.push(k);
+    }
+    Skill.start({ kind: 'keys', label: 'SLIP THE COILS', seq, per: B.phase >= 3 ? .7 : .82, alias: { jump: 'up' } }, ok => {
+      if (ok) { B.flash = 1; this._bossRest(1.5); }
+      else { this.hurtPlayer(2, this.p.x + 1, this.p.y, true); this._bossRest(.9); }
+    });
+  },
+
+  // how she moves while you answer her
+  _skillPose(dt) {
+    const B = this.boss, A = Skill.active, p = this.p;
+    if (!B) return;
+    B.t += dt;
+    B.flash = Math.max(0, B.flash - dt * 3);
+    B.face = p.x < B.x ? -1 : 1;
+    if (B.state === 'stare') { B.gape = .25; B.thrash = 1.2; }
+    if (B.state === 'whirlpool') {
+      B.gape = 1; B.thrash = 2.4;
+      if (A && A.kind === 'hold') p.x = this.whirlFrom.x + A.pos * A.pull * 90;
+      if (chance(dt * 50)) Particles.add(p.x + rand(-260, 260), p.y + rand(-160, 160), { vx: (B.x - p.x) > 0 ? 380 : -380, vy: rand(-60, 60), g: 0, drag: 0, size: 2, life: .5, color: 'rgba(200,170,230,.55)' });
+    }
+    if (B.state === 'coil') { B.thrash = 3; if (chance(dt * 5)) Cam.kick(3); }
   },
 
   _bossPhase() {
@@ -760,12 +934,12 @@ const Dive = {
         B.face = dx < 0 ? -1 : 1;
         B.gape = approach(B.gape, .15, dt); B.thrash = approach(B.thrash, 1, dt);
         B.cool -= dt * rage;
-        if (B.cool <= 0) { B.atk = choice(this.motherPool()); B.state = 'tele'; B.t = 0; }
+        if (B.cool <= 0) { B.atk = this._motherPick(); B.state = 'tele'; B.t = 0; }
         break;
       }
 
       case 'tele': {
-        const dur = ({ maw: .95, pulse: .8, sweep: 1.1, brood: .7, inhale: .6, roar: 1.3 }[B.atk] || .8) / rage;
+        const dur = ({ maw: .95, pulse: .8, sweep: 1.1, brood: .7, stare: 1.0, whirlpool: .6, coil: .8, roar: 1.3 }[B.atk] || .8) / rage;
         B.vx *= 1 - Math.min(1, dt * 4); B.vy *= 1 - Math.min(1, dt * 4);
         B.face = dx < 0 ? -1 : 1;
         B.thrash = 1 + B.t / dur * 2.4;
@@ -780,7 +954,9 @@ const Dive = {
           if (B.atk === 'sweep') { B.sweepX = CITY_X - B.sweepDir * (MOTHER_ARENA.w / 2 + 120); Sfx.rush(1); }
           if (B.atk === 'pulse') { B.pulses = 0; }
           if (B.atk === 'brood') this._brood();
-          if (B.atk === 'inhale') Sfx.inhale();
+          if (B.atk === 'stare') this._skillStare();
+          if (B.atk === 'whirlpool') this._skillWhirl();
+          if (B.atk === 'coil') this._skillCoil();
         }
         break;
       }
@@ -818,16 +994,9 @@ const Dive = {
         if (B.t > .6) this._bossRest(.8);
         break;
 
-      case 'inhale': {
-        const m = this._mouth();
-        const ax = m.x - p.x, ay = m.y - p.y, ad = Math.hypot(ax, ay) || 1;
-        p.vx += ax / ad * 620 * dt; p.vy += ay / ad * 620 * dt;
-        B.gape = 1;
-        if (chance(dt * 40)) Particles.add(p.x + rand(-200, 200), p.y + rand(-150, 150), { vx: ax / ad * 300, vy: ay / ad * 300, g: 0, drag: 0, size: 2, life: .6, color: 'rgba(200,170,230,.6)' });
-        if (ad < 120) { this.hurtPlayer(def.dmg + 1, m.x, m.y); this._bossRest(1.0); }
-        else if (B.t > 1.8) this._bossRest(1.0);
+      // held while you answer her: see _skillPose
+      case 'stare': case 'whirlpool': case 'coil':
         break;
-      }
 
       case 'rest':
         B.gape = approach(B.gape, .15, dt * 2); B.thrash = approach(B.thrash, 1, dt * 2);
@@ -982,6 +1151,7 @@ const Dive = {
     this.drawHUD(g);
     this._drawBoss(g);
     if (this.phase === 'scene') { CUT.drawOverlay(g); return; }
+    Skill.draw(g);
     const p = this.p, suit = this.suit();
     if (this.phase !== 'swim') return;
     let tip = null, col = '#dfe4f0';

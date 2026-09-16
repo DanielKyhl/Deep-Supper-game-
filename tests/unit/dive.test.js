@@ -512,7 +512,7 @@ describe('what lives down there', () => {
     m.cool = .01;
     s.D._mob(m, .05);
     assert.equal(m.state, 'tele');
-    assert.ok(m.def.atk.includes(m.atk));
+    assert.ok(s.g.attacksOf(m.def).includes(m.atk));
     const n = alone(s, 'gulperwidow', 1700, 1300, 'hunt');
     s.p.x = 1700 - n.def.aggro * 2.5;
     s.D._mob(n, .05);
@@ -698,7 +698,7 @@ describe('the Mother Below', () => {
     B.hp = B.maxHp * .6; s.D._bossPhase();
     assert.equal(B.phase, 2);
     assert.equal(s.D.banner.text, 'SHE IS NOT PLAYING');
-    assert.ok(s.D.motherPool().includes('inhale'));
+    assert.ok(s.D.motherPool().includes('whirlpool'));
     B.hp = B.maxHp * .2; s.D._bossPhase();
     assert.equal(B.phase, 3);
     assert.equal(s.D.banner.text, 'LANTHORNE GOES DARK');
@@ -747,13 +747,15 @@ describe('the Mother Below', () => {
     assert.ok(brood.every(m => m.state === 'hunt'));
   });
 
-  test('she breathes in and drags him toward her mouth', () => {
+  test('her whirlpool drags him toward her mouth until he swims against it', () => {
     const s = fighting();
     const B = s.B;
-    Object.assign(B, { state: 'inhale', t: 0, face: -1, x: s.p.x + 700, y: s.p.y });
-    s.p.vx = 0;
-    for (let i = 0; i < 20; i++) s.D._boss(1 / 60);
-    assert.ok(s.p.vx > 50, 'pulled toward her');
+    Object.assign(B, { state: 'whirlpool', t: 0, face: -1, x: s.p.x + 700, y: s.p.y });
+    const x = s.p.x;
+    s.D._skillWhirl();
+    s.h.frames(.8);
+    assert.ok(s.p.x > x + 10, 'pulled toward her: ' + (s.p.x - x));
+    assert.equal(s.g.Skill.active.kind, 'hold');
   });
 
   test('every weapon can hurt her, but nothing moves her much, and the eel cannot stun her', () => {

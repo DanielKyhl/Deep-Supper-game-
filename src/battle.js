@@ -6,7 +6,8 @@
 const Battle = {
   def: null, m: null, phase: 'intro', t: 0,
   arenaL: 0, arenaR: 0,
-  waves: [], globs: [],
+  waves: [], globs: [], spikes: [], curtains: [], shards: [],
+  glare: 0, lastSkill: -99, parried: 0,
   hitstop: 0, banner: null, reward: null,
   rage: false,
 
@@ -16,6 +17,9 @@ const Battle = {
     this.t = 0;
     this.waves.length = 0;
     this.globs.length = 0;
+    this.spikes.length = 0; this.curtains.length = 0; this.shards.length = 0;
+    this.glare = 0; this.lastSkill = -99; this.parried = 0;
+    Skill.active = null;
     this.hitstop = 0;
     this.banner = null;
     this.reward = null;
@@ -108,6 +112,15 @@ const Battle = {
     }
 
     /* ------------------------------ fighting --------------------------- */
+    // something you have to answer: everything else waits for it
+    if (Skill.active) {
+      Skill.update(dt);
+      this._skillPose(dt);
+      if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.dur) this.banner = null; }
+      return;
+    }
+    this.glare = Math.max(0, this.glare - dt * 2.2);
+    this.parried = Math.max(0, this.parried - dt);
     this._updatePlayer(dt, false);
     this._updateMonster(dt);
     this._updateProjectiles(dt, true);
@@ -242,7 +255,7 @@ const Battle = {
     const sw = deckWeapon();
     const crit = chance(.14);
     let dmg = Math.round(sw.dmg * rand(.88, 1.12) * (crit ? 1.75 : 1) * (Player.combo === 2 ? 1.35 : 1));
-    if (m.state === 'recover') dmg = Math.round(dmg * 1.35);
+    if (m.state === 'recover') dmg = Math.round(dmg * (this.parried > 0 ? 1.8 : 1.35));
     // one blow, whatever it is
     if (Player.excalibur) dmg = Math.max(dmg, m.hp);
     m.x += Player.face * 6 * (sw.knock || 1);
@@ -295,9 +308,9 @@ const Battle = {
     this.banner = { text: 'DEFEATED', t: 0, dur: 3, color: '#8ce0a4' };
   },
 
-  _hurtPlayer(dmg, fromX) {
+  _hurtPlayer(dmg, fromX, force) {
     const P = Player;
-    if (P.invuln > 0 || this.phase !== 'fight') return;
+    if ((P.invuln > 0 && !force) || this.phase !== 'fight') return;
     P.hp -= dmg;
     P.invuln = 1.05;
     P.knock = (P.x < fromX ? -1 : 1) * 340;
@@ -323,10 +336,19 @@ const Battle = {
   // which attacks are on the table right now
   _atkPool() {
     const d = this.def;
-    if (!d.boss) return d.atk;
-    if (this.bossPhase >= 3) return ['lunge', 'slam', 'sweep', 'spew', 'lunge', 'sweep', 'slam', 'spew'];
-    if (this.bossPhase === 2) return ['lunge', 'slam', 'spit', 'sweep', 'lunge', 'spew'];
-    return ['lunge', 'slam', 'spit', 'lunge'];
+    if (!d.boss) return attacksOf(d);
+    if (this.bossPhase >= 3) return ['lunge', 'sweep', 'spew', 'jaw', 'breach', 'drag'];
+    if (this.bossPhase === 2) return ['lunge', 'slam', 'sweep', 'spew', 'jaw', 'breach'];
+    return ['lunge', 'slam', 'spit', 'jaw'];
+  },
+
+  // what comes next: a boss never asks you to answer two things back to back
+  _chooseAttack() {
+    const pool = this._atkPool();
+    if (!this.def.boss) return pickAttack(pool);
+    const fresh = this.t - this.lastSkill > 6;
+    const options = pool.filter(a => fresh || OLD_ONE_SKILLS.indexOf(a) < 0);
+    return choice(options);
   },
 
   // the boss gets worse in two clear steps
@@ -348,15 +370,22 @@ const Battle = {
     });
   },
 
+  _recover(dur) { const m = this.m; m.state = 'recover'; m.t = 0; m.recDur = dur; },
+
+  // where its mouth is, on the deck side
+  _mouthX() { return this.m.x + this.m.face * this.len * .38; },
+
   _updateMonster(dt) {
     const m = this.m, d = this.def;
     m.t += dt;
     m.flash = Math.max(0, m.flash - dt * 4);
     const rageMul = this.bossPhase >= 3 ? 1.7 : (this.rage ? 1.35 : 1);
     const restY = this.restY;
+    const P = Player;
+    const pb = { x: P.x - 13, y: P.y - 52, w: 26, h: 52 };
 
     // always face the player
-    const wantFace = Player.x < m.x ? -1 : 1;
+    const wantFace = P.x < m.x ? -1 : 1;
 
     switch (m.state) {
 
@@ -367,46 +396,67 @@ const Battle = {
         m.gape = approach(m.gape, .12 + Math.sin(m.t * 3) * .1, dt * 2);
         m.thrashAmt = 1;
         // drift toward the player
-        const dx = Player.x - m.x;
+        const dx = P.x - m.x;
         if (Math.abs(dx) > 190) m.x += sign(dx) * d.speed * .55 * rageMul * dt;
         else if (Math.abs(dx) < 120) m.x -= sign(dx) * d.speed * .4 * dt;
         m.cool -= dt * rageMul;
         if (m.cool <= 0) {
-          m.atk = choice(this._atkPool());
+          m.atk = this._chooseAttack();
           m.state = 'tele'; m.t = 0;
-          m.target = Player.x;
+          m.target = P.x;
         }
         break;
       }
 
       case 'tele': {
         m.face = wantFace;
-        const dur = (m.atk === 'roar' ? 1.1 : (m.atk === 'slam' ? .68 :
-                    (m.atk === 'sweep' ? .78 : .62))) / rageMul;
+        const base = { roar: 1.1, slam: .68, sweep: .78, coil: .62, lure: .95, grasp: .5, shell: .6, sting: .7, swoop: .5, gulp: .55, shards: .55, jaw: 1.0, breach: .9, drag: .8 }[m.atk] || .62;
+        const dur = base / rageMul;
         const p = clamp(m.t / dur, 0, 1);
         m.thrashAmt = 1 + p * 2.2;
-        m.gape = (m.atk === 'spit' || m.atk === 'spew') ? p * .95 : p * .5;
+        m.gape = (m.atk === 'spit' || m.atk === 'spew' || m.atk === 'gulp' || m.atk === 'jaw') ? p * .95 : p * .5;
         if (m.atk === 'lunge') { m.x -= m.face * 70 * dt; m.rot = -m.face * p * .12; }
         if (m.atk === 'slam') { m.y = approach(m.y, restY - 140, dt * 320); m.rot = -m.face * p * .3; }
         if (m.atk === 'sweep') { m.y = approach(m.y, restY - 90, dt * 260); m.rot = approach(m.rot, -m.face * .4, dt * 3); }
         if (m.atk === 'roar') { m.y = approach(m.y, restY - 70, dt * 200); m.gape = .9; }
+        if (m.atk === 'coil') { m.y = approach(m.y, restY + 24, dt * 160); m.thrashAmt = 3.2; }
+        if (m.atk === 'sting' || m.atk === 'swoop') m.y = approach(m.y, restY - 110, dt * 260);
+        if (m.atk === 'jaw') { m.y = approach(m.y, restY - 130, dt * 260); m.rot = -m.face * p * .35; }
+        if (m.atk === 'breach') m.y = approach(m.y, DECK_Y + 260, dt * 520);
+        if (m.atk === 'shards') m.rot = -m.face * p * .3;
+        m.lure = m.atk === 'lure' ? p : 0;
         if (chance(dt * 24)) {
           Particles.burst(m.x + rand(-this.len / 3, this.len / 3), m.y + rand(-20, 26), 1,
             { color: 'rgba(255,120,120,.7)', vy: -60, g: -30, size: rand(2, 5), life: .5 });
         }
         if (p >= 1) {
-          m.t = 0;
-          m.target = Player.x;
-          if (m.atk === 'lunge') { m.state = 'lunge'; m.vx = m.face * (520 + d.speed * 1.9) * rageMul; Sfx.roar(); }
-          else if (m.atk === 'slam') { m.state = 'slam'; Sfx.whoosh(); }
-          else if (m.atk === 'spit') { m.state = 'spit'; m.shots = 0; }
-          else if (m.atk === 'spew') { m.state = 'spew'; m.shots = 0; Sfx.roar(); }
-          else if (m.atk === 'sweep') {
-            m.state = 'sweep';
-            m.sweepDir = (m.x > (this.arenaL + this.arenaR) / 2) ? -1 : 1;
-            m.face = m.sweepDir;
-            Sfx.roar(); Cam.kick(6);
-          } else { m.state = 'recover'; m.recDur = .5; Sfx.roar(); Cam.kick(10); }
+          m.t = 0; m.shots = 0;
+          m.target = P.x;
+          m.state = m.atk;
+          switch (m.atk) {
+            case 'lunge': m.vx = m.face * (520 + d.speed * 1.9) * rageMul; Sfx.roar(); break;
+            case 'slam': Sfx.whoosh(); break;
+            case 'spew': Sfx.roar(); break;
+            case 'sweep':
+              m.sweepDir = (m.x > (this.arenaL + this.arenaR) / 2) ? -1 : 1;
+              m.face = m.sweepDir;
+              Sfx.roar(); Cam.kick(6);
+              break;
+            case 'coil':
+              m.fromX = m.x;
+              m.toX = clamp(P.x + m.face * 170, this.arenaL + 40, this.arenaR - 40);
+              Sfx.whoosh();
+              break;
+            case 'lure': this.glare = 1; m.lureX = P.x; Sfx.tone({ f: 1400, f2: 2400, dur: .3, type: 'sine', vol: .14 }); break;
+            case 'shell': m.vx = m.face * (560 + d.speed * 2) * rageMul; m.bounces = 0; Sfx.whoosh(); break;
+            case 'sting': this._curtains(); break;
+            case 'swoop': m.shadowX = P.x; Sfx.whoosh(); break;
+            case 'gulp': Sfx.roar(); break;
+            case 'jaw': this._skillJaw(); break;
+            case 'breach': this._skillBreach(); break;
+            case 'drag': this._skillDrag(); break;
+            case 'roar': this._recover(.5); Sfx.roar(); Cam.kick(10); break;
+          }
         }
         break;
       }
@@ -420,13 +470,12 @@ const Battle = {
         // the head is the danger, and it is low
         const hx = m.x + m.face * this.len * .34;
         const hb = { x: hx - 50, y: DECK_Y - 78, w: 100, h: 78 };
-        const pb = { x: Player.x - 13, y: Player.y - 52, w: 26, h: 52 };
         if (overlaps(hb, pb)) this._hurtPlayer(d.dmg, m.x);
         if (chance(dt * 30)) {
           Particles.burst(hx, DECK_Y - 6, 1, { color: 'rgba(190,220,236,.6)', vx: -m.face * 160, vy: -60, g: 500, size: rand(2, 5), life: .4 });
         }
         if (m.t > .52 || m.x < this.arenaL - 40 || m.x > this.arenaR + 40) {
-          m.state = 'recover'; m.t = 0; m.recDur = .85 / rageMul;
+          this._recover(.85 / rageMul);
           m.x = clamp(m.x, this.arenaL - 20, this.arenaR + 20);
           Cam.kick(4);
         }
@@ -448,9 +497,8 @@ const Battle = {
             vx: rand(-380, 380), vy: rand(-420, -60), g: 900, size: rand(3, 7), life: rand(.4, .9)
           });
           const hb = { x: m.x - 110, y: DECK_Y - 90, w: 220, h: 90 };
-          const pb = { x: Player.x - 13, y: Player.y - 52, w: 26, h: 52 };
           if (overlaps(hb, pb)) this._hurtPlayer(d.dmg + 1, m.x);
-          m.state = 'recover'; m.t = 0; m.recDur = 1.0 / rageMul;
+          this._recover(1.0 / rageMul);
         }
         break;
       }
@@ -464,16 +512,12 @@ const Battle = {
           m.shots++;
           const hx = m.x + m.face * this.len * .36;
           const hy = m.y + 6;
-          const dx = (Player.x + rand(-70, 70)) - hx;
-          this.globs.push({
-            x: hx, y: hy,
-            vx: dx * 1.05, vy: -290 - Math.abs(dx) * .12,
-            r: 12, t: 0
-          });
+          const dx = (P.x + rand(-70, 70)) - hx;
+          this.globs.push({ x: hx, y: hy, vx: dx * 1.05, vy: -290 - Math.abs(dx) * .12, r: 12, t: 0 });
           Sfx.noise({ f: 900, f2: 200, dur: .16, vol: .16 });
           Particles.burst(hx, hy, 6, { color: '#9fd4e4', vx: m.face * rand(60, 200), vy: rand(-90, 20), g: 500, size: 3, life: .4 });
         }
-        if (m.t > .62) { m.state = 'recover'; m.t = 0; m.recDur = .78 / rageMul; }
+        if (m.t > .62) this._recover(.78 / rageMul);
         break;
       }
 
@@ -486,14 +530,13 @@ const Battle = {
         m.gape = .6;
         m.thrashAmt = 3.4;
         const hb = { x: m.x - this.len * .5, y: DECK_Y - 52, w: this.len, h: 52 };
-        const pb = { x: Player.x - 13, y: Player.y - 46, w: 26, h: 46 };
-        if (overlaps(hb, pb)) this._hurtPlayer(d.dmg, m.x);
+        if (overlaps(hb, { x: P.x - 13, y: P.y - 46, w: 26, h: 46 })) this._hurtPlayer(d.dmg, m.x);
         if (chance(dt * 40)) {
           Particles.burst(m.x + rand(-this.len / 2, this.len / 2), DECK_Y - 4, 1,
             { color: 'rgba(200,224,240,.6)', vx: -dir * 200, vy: -70, g: 500, size: rand(2, 5), life: .45 });
         }
         if ((dir > 0 && m.x > this.arenaR + 20) || (dir < 0 && m.x < this.arenaL - 20) || m.t > 1.5) {
-          m.state = 'recover'; m.t = 0; m.recDur = .9 / rageMul;
+          this._recover(.9 / rageMul);
           Cam.kick(6);
         }
         break;
@@ -510,16 +553,147 @@ const Battle = {
           const hx = m.x + m.face * this.len * .36;
           const hy = m.y + 6;
           const spread = (k / 7 - .5) * 2;
-          const dx = (Player.x - hx) + spread * 300;
-          this.globs.push({
-            x: hx, y: hy, vx: dx * 1.0,
-            vy: -330 - Math.abs(dx) * .1, r: 13, t: 0
-          });
+          const dx = (P.x - hx) + spread * 300;
+          this.globs.push({ x: hx, y: hy, vx: dx * 1.0, vy: -330 - Math.abs(dx) * .1, r: 13, t: 0 });
           Sfx.noise({ f: 800, f2: 180, dur: .14, vol: .12 });
         }
-        if (m.t > 1.2) { m.state = 'recover'; m.t = 0; m.recDur = .8 / rageMul; }
+        if (m.t > 1.2) this._recover(.8 / rageMul);
         break;
       }
+
+      /* ----------------------- each body's own attack ----------------------- */
+
+      // springs in a high arc over the boy and lashes down behind him
+      case 'coil': {
+        const dur = .85 / Math.sqrt(rageMul);
+        const p = clamp(m.t / dur, 0, 1);
+        m.x = lerp(m.fromX, m.toX, p);
+        m.y = restY - Math.sin(p * Math.PI) * 230;
+        m.rot = m.face * (p - .5) * 1.1;
+        m.thrashAmt = 2.6; m.gape = .7;
+        if (p > .55) {
+          const hb = { x: m.x - this.len * .32, y: m.y - 30, w: this.len * .64, h: 60 };
+          if (overlaps(hb, pb)) this._hurtPlayer(d.dmg, m.x);
+        }
+        if (p >= 1) {
+          this.waves.push({ x: m.x, dir: -1, t: 0, life: .75 });
+          this.waves.push({ x: m.x, dir: 1, t: 0, life: .75 });
+          Sfx.thud(); Cam.kick(8);
+          m.face = wantFace;
+          this._recover(.8 / rageMul);
+        }
+        break;
+      }
+
+      // the lure flares in your eyes, and it lunges for where you stood
+      case 'lure': {
+        m.lure = Math.max(0, 1 - m.t * 3);
+        const goal = m.lureX - m.face * this.len * .34;
+        if (m.t > .12 && m.t < .42) {
+          m.x = approach(m.x, goal, 2600 * dt);
+          m.gape = .95; m.thrashAmt = 3;
+          const hx = this._mouthX();
+          if (overlaps({ x: hx - 55, y: DECK_Y - 90, w: 110, h: 90 }, pb)) this._hurtPlayer(d.dmg, m.x);
+        }
+        if (m.t > .65) this._recover(.9 / rageMul);
+        break;
+      }
+
+      // arms burst up through the deck where you are standing, one after another
+      case 'grasp': {
+        const every = .55 / rageMul;
+        const want = Math.min(3, Math.floor(m.t / every) + 1);
+        while (m.shots < want) {
+          m.shots++;
+          this.spikes.push({ x: P.x, t: 0, warn: .45 / rageMul, up: .35 });
+          Sfx.noise({ f: 300, f2: 80, dur: .2, vol: .12 });
+        }
+        m.gape = .4; m.thrashAmt = 2.4;
+        if (m.t > every * 3 + .5) this._recover(.8 / rageMul);
+        break;
+      }
+
+      // tucks into its shell and bowls across the deck: jump it
+      case 'shell': {
+        m.x += m.vx * dt;
+        m.y = approach(m.y, DECK_Y - this.len * this.girth * .7, dt * 400);
+        m.rot = Math.sin(m.t * 18) * .25;
+        m.thrashAmt = 0; m.gape = 0;
+        const hb = { x: m.x - this.len * .34, y: DECK_Y - 60, w: this.len * .68, h: 60 };
+        if (overlaps(hb, pb)) this._hurtPlayer(d.dmg, m.x);
+        if (chance(dt * 30)) Particles.burst(m.x - sign(m.vx) * this.len * .3, DECK_Y - 4, 1, { color: 'rgba(200,180,140,.6)', vx: -m.vx * .2, vy: -60, g: 500, size: rand(2, 4), life: .4 });
+        if ((m.x < this.arenaL && m.vx < 0) || (m.x > this.arenaR && m.vx > 0)) {
+          m.vx = -m.vx; m.bounces++; Cam.kick(6); Sfx.thud();
+        }
+        if (m.bounces >= 2 || m.t > 2.6) { m.face = wantFace; this._recover(1.0 / rageMul); }
+        break;
+      }
+
+      // hangs overhead and lets down curtains of stingers: stand in the gap
+      case 'sting': {
+        m.y = approach(m.y, restY - 130, dt * 200);
+        m.gape = .3; m.thrashAmt = 2;
+        if (m.t > 1.7) this._recover(.8 / rageMul);
+        break;
+      }
+
+      // up out of sight; its shadow finds you, stops, and then it comes down
+      case 'swoop': {
+        const rise = .5, track = 1.5 / Math.sqrt(rageMul), lock = track + .35, fall = lock + .28;
+        if (m.t < rise) { m.y -= 1100 * dt; }
+        else if (m.t < track) { m.y = -260; m.shadowX = approach(m.shadowX, P.x, 620 * dt); m.x = m.shadowX; }
+        else if (m.t < lock) { m.y = -260; m.x = m.shadowX; }
+        else if (m.t < fall) {
+          m.y = lerp(-260, restY + 30, (m.t - lock) / (fall - lock));
+          m.x = m.shadowX;
+          const hb = { x: m.x - this.len * .36, y: DECK_Y - 100, w: this.len * .72, h: 100 };
+          if (m.y > DECK_Y - 200 && overlaps(hb, pb)) this._hurtPlayer(d.dmg + 1, m.x);
+        } else {
+          m.y = restY + 30;
+          Sfx.thud(); Cam.kick(12);
+          this.waves.push({ x: m.x, dir: -1, t: 0, life: .6 });
+          this.waves.push({ x: m.x, dir: 1, t: 0, life: .6 });
+          this._recover(1.1 / rageMul);
+        }
+        m.rot = m.t > lock ? m.face * .4 : 0;
+        m.thrashAmt = 2;
+        break;
+      }
+
+      // breathes in the whole deck; walk against it or get swallowed
+      case 'gulp': {
+        const mx = this._mouthX();
+        m.gape = 1; m.thrashAmt = 1.6;
+        if (m.t < 1.4) {
+          if (P.rollT <= 0) P.x += sign(mx - P.x) * 200 * rageMul * dt;
+          if (chance(dt * 40)) Particles.burst(P.x + rand(-160, 160), DECK_Y - rand(10, 90), 1, { color: 'rgba(210,230,240,.6)', vx: sign(mx - P.x) * 420, vy: 0, g: 0, size: 2, life: .4 });
+          if (Math.abs(P.x - mx) < 50) { this._hurtPlayer(d.dmg + 1, m.x); this._recover(.9 / rageMul); }
+        } else if (m.t < 1.6) {
+          if (overlaps({ x: mx - 50, y: DECK_Y - 100, w: 100, h: 100 }, pb)) this._hurtPlayer(d.dmg, m.x);
+        } else this._recover(.9 / rageMul);
+        break;
+      }
+
+      // flings splinters of bone that stick in the boards
+      case 'shards': {
+        const want = Math.min(5, Math.floor(m.t / .08) + 1);
+        while (m.shots < want) {
+          const k = m.shots++;
+          const hx = this._mouthX(), hy = m.y - 10;
+          const dx = (P.x - hx) + (k - 2) * 90;
+          this.shards.push({ x: hx, y: hy, vx: dx * 1.1, vy: -360 - k * 20, t: 0, stuck: false });
+          Sfx.noise({ f: 1400, f2: 500, dur: .08, vol: .1 });
+        }
+        m.gape = .8;
+        if (m.t > .55) this._recover(.8 / rageMul);
+        break;
+      }
+
+      /* ------------------- the Old One: things to answer ------------------- */
+
+      case 'jaw': case 'breach': case 'drag':
+        // held by the skill check; see _skillPose
+        break;
 
       case 'recover': {
         m.face = wantFace;
@@ -529,18 +703,195 @@ const Battle = {
         m.y = approach(m.y, restY, dt * 150);
         if (m.t > m.recDur) {
           m.state = 'idle'; m.t = 0;
-          m.cool = (rand(.75, 1.45) + (4 - d.depth) * .16) / rageMul;
+          m.cool = (rand(.75, 1.45) + (4 - (d.depth || 4)) * .16) / rageMul;
         }
         break;
       }
     }
 
-    m.x = clamp(m.x, this.arenaL - 30, this.arenaR + 30);
+    if (m.state !== 'swoop') m.x = clamp(m.x, this.arenaL - 30, this.arenaR + 30);
 
     // dripping
-    if (chance(dt * 10)) {
+    if (chance(dt * 10) && m.y > 0) {
       Particles.burst(m.x + rand(-this.len / 2, this.len / 2), m.y + this.len * .15, 1,
         { color: 'rgba(160,210,230,.7)', vx: 0, vy: 10, g: 600, size: 2.5, life: .6 });
+    }
+  },
+
+  // four curtains of stingers across the deck, and one gap
+  _curtains() {
+    const n = 5, w = (this.arenaR - this.arenaL) / n;
+    const safe = Math.floor(Math.random() * n);
+    for (let i = 0; i < n; i++) {
+      if (i === safe) continue;
+      this.curtains.push({ x: this.arenaL + w * (i + .5), w: w * .86, t: 0, warn: .8, on: .55 });
+    }
+    Sfx.noise({ f: 2000, f2: 900, dur: .3, vol: .08 });
+  },
+
+  _updateHazards(dt, live) {
+    const P = Player;
+    const pb = { x: P.x - 13, y: P.y - 50, w: 26, h: 50 };
+    for (let i = this.spikes.length - 1; i >= 0; i--) {
+      const s = this.spikes[i];
+      s.t += dt;
+      if (live && s.t > s.warn && s.t < s.warn + s.up && overlaps({ x: s.x - 26, y: DECK_Y - 112, w: 52, h: 112 }, pb)) this._hurtPlayer(1, s.x);
+      if (s.t > s.warn && s.t - dt <= s.warn) { Cam.kick(5); Sfx.thud(); Particles.burst(s.x, DECK_Y, 12, { color: '#b89a70', vx: rand(-200, 200), vy: rand(-300, -80), g: 800, size: rand(2, 5), life: .5 }); }
+      if (s.t > s.warn + s.up + .25) this.spikes.splice(i, 1);
+    }
+    for (let i = this.curtains.length - 1; i >= 0; i--) {
+      const c = this.curtains[i];
+      c.t += dt;
+      if (live && c.t > c.warn && c.t < c.warn + c.on && overlaps({ x: c.x - c.w / 2, y: 0, w: c.w, h: DECK_Y }, pb)) this._hurtPlayer(1, c.x);
+      if (c.t > c.warn + c.on + .2) this.curtains.splice(i, 1);
+    }
+    for (let i = this.shards.length - 1; i >= 0; i--) {
+      const s = this.shards[i];
+      s.t += dt;
+      if (!s.stuck) {
+        s.vy += 900 * dt; s.x += s.vx * dt; s.y += s.vy * dt;
+        if (live && overlaps({ x: s.x - 6, y: s.y - 6, w: 12, h: 12 }, pb)) { this._hurtPlayer(1, s.x); this.shards.splice(i, 1); continue; }
+        if (s.y >= DECK_Y - 2) { s.y = DECK_Y - 2; s.stuck = true; s.t = 0; Sfx.noise({ f: 500, f2: 200, dur: .06, vol: .08 }); }
+      } else {
+        // stuck in the boards: don't stand on them
+        if (live && P.y >= DECK_Y - 4 && Math.abs(P.x - s.x) < 12) this._hurtPlayer(1, s.x);
+        if (s.t > 2.8) this.shards.splice(i, 1);
+      }
+    }
+  },
+
+  /* --------------------- the Old One's skill checks --------------------- */
+
+  // its jaws come down on you: press as the ring closes, and you parry them
+  _skillJaw() {
+    const m = this.m;
+    this.lastSkill = this.t;
+    Skill.start({
+      kind: 'ring', label: 'PARRY THE JAW', action: 'attack',
+      count: this.bossPhase >= 3 ? 2 : 1, shrink: .95 / (this.rage ? 1.12 : 1), window: .12,
+      at: () => ({ x: Player.x - Cam.x, y: Player.y - 64 })
+    }, ok => {
+      if (ok) {
+        this.parried = 2.4;
+        m.flash = 1; Cam.kick(12); Sfx.crit();
+        if (Prefs.damageNumbers) Floaters.add(Player.x, Player.y - 90, 'PARRIED', { color: '#f0cf6a', size: 26, life: 1 });
+        m.x -= m.face * 60;
+        this._recover(2.4);
+      } else {
+        Cam.kick(14); Sfx.thud();
+        this._hurtPlayer(this.def.dmg - 1, m.x, true);
+        this._recover(.9);
+      }
+    });
+  },
+
+  // it goes under the boat and comes up through it: keep your feet
+  _skillBreach() {
+    const m = this.m;
+    this.lastSkill = this.t;
+    const keys = ['left', 'right', 'jump'];
+    const seq = [];
+    for (let i = 0; i < (this.bossPhase >= 3 ? 5 : 4); i++) {
+      let k;
+      do { k = choice(keys); } while (k === seq[seq.length - 1]);
+      seq.push(k);
+    }
+    Skill.start({ kind: 'keys', label: 'KEEP YOUR FEET', seq, per: this.bossPhase >= 3 ? .72 : .85 }, ok => {
+      m.y = this.restY + 40;
+      m.x = clamp(Player.x + (Player.x < (this.arenaL + this.arenaR) / 2 ? 240 : -240), this.arenaL, this.arenaR);
+      Particles.burst(m.x, DECK_Y, 50, { color: '#b7d8e6', vx: rand(-400, 400), vy: rand(-520, -120), g: 900, size: rand(3, 8), life: 1 });
+      Cam.kick(16); Sfx.roar();
+      if (ok) { m.flash = 1; this._recover(1.6); }
+      else { this._hurtPlayer(this.def.dmg - 1, m.x, true); this._recover(.8); }
+    });
+  },
+
+  // a barbel round your ankle, dragging you in: hold against it
+  _skillDrag() {
+    const m = this.m;
+    this.lastSkill = this.t;
+    const pull = m.x > Player.x ? 1 : -1;
+    this.dragFrom = Player.x;
+    Skill.start({
+      kind: 'hold', label: 'PULL FREE', dur: this.bossPhase >= 3 ? 3.4 : 3,
+      pull, strength: this.bossPhase >= 3 ? 2.7 : 2.3, keys: pull > 0 ? ['left', 'right'] : ['right', 'left']
+    }, ok => {
+      Player.x = this.dragFrom;
+      if (ok) { m.flash = 1; Sfx.thud(); this.parried = 1.6; this._recover(1.8); }
+      else { Player.x = this._mouthX() - m.face * 30; this._hurtPlayer(this.def.dmg - 1, m.x, true); this._recover(.9); }
+    });
+  },
+
+  // what the boss looks like while you answer it
+  _skillPose(dt) {
+    const m = this.m, A = Skill.active;
+    m.t += dt;
+    m.flash = Math.max(0, m.flash - dt * 4);
+    m.face = Player.x < m.x ? -1 : 1;
+    if (m.state === 'jaw') { m.gape = .7 + Math.sin(m.t * 9) * .25; m.y = approach(m.y, this.restY - 110, dt * 120); m.thrashAmt = 2.4; }
+    if (m.state === 'breach') { if (A && A.kind === 'keys' && chance(dt * 6)) Cam.kick(5); }
+    if (m.state === 'drag') {
+      m.gape = 1; m.thrashAmt = 2.8;
+      if (A && A.kind === 'hold') Player.x = this.dragFrom + A.pos * A.pull * 70;
+    }
+    Player.bState = 'idle';
+  },
+
+  _drawHazards(g) {
+    const camX = Cam.x, m = this.m;
+    // arms about to come up through the boards
+    for (const s of this.spikes) {
+      const sx = snap(s.x - camX);
+      if (s.t < s.warn) {
+        g.fillStyle = 'rgba(40,20,20,' + (.4 + (s.t / s.warn) * .5) + ')';
+        for (let k = -2; k <= 2; k++) g.fillRect(sx + k * 8 - 2, DECK_Y - 4 - Math.abs(k) * 2, 4, 6 + (2 - Math.abs(k)) * 2);
+      } else {
+        const p = clamp((s.t - s.warn) / .12, 0, 1) * clamp((s.warn + s.up + .25 - s.t) / .2, 0, 1);
+        const h = snap(112 * p);
+        const col = css(this.def.body);
+        g.fillStyle = col; g.fillRect(sx - 12, DECK_Y - h, 24, h);
+        g.fillStyle = css(shade(this.def.body, .25)); g.fillRect(sx - 12, DECK_Y - h, 6, h);
+        g.fillStyle = css(this.def.belly || shade(this.def.body, .3));
+        for (let y = DECK_Y - h + 10; y < DECK_Y - 6; y += 16) g.fillRect(sx + 6, y, 6, 6);
+        g.fillStyle = col; g.fillRect(sx - 6, DECK_Y - h - 12, 12, 12);
+      }
+    }
+    // curtains of stingers: first the drip, then the fall
+    for (const c of this.curtains) {
+      const x0 = snap(c.x - c.w / 2 - camX), w = snap(c.w);
+      if (c.t < c.warn) {
+        g.fillStyle = 'rgba(255,90,90,' + (.12 + Math.sin(c.t * 30) * .06) + ')';
+        g.fillRect(x0, DECK_Y - 8, w, 8);
+        g.fillStyle = css(this.def.glow ? hexRgb(this.def.glow) : [200, 220, 255], .7);
+        for (let k = 0; k < 4; k++) g.fillRect(x0 + ((k * 37 + Math.floor(c.t * 60)) % w), snap((m.y + 40 + ((c.t * 300 + k * 50) % 200))), 2, 6);
+      } else if (c.t < c.warn + c.on) {
+        const col = this.def.glow ? hexRgb(this.def.glow) : [190, 200, 255];
+        g.fillStyle = css(col, .28); g.fillRect(x0, 0, w, DECK_Y);
+        g.fillStyle = css(col, .8);
+        for (let x = x0 + 4; x < x0 + w; x += 10) g.fillRect(x, 0, 2, DECK_Y);
+      }
+    }
+    // the ray's shadow, looking for you
+    if (m.state === 'swoop' && m.t > .5) {
+      const locked = m.t > 1.5;
+      const r = this.len * .36;
+      g.fillStyle = locked && Math.floor(this.t * 16) % 2 ? 'rgba(160,20,30,.55)' : 'rgba(0,0,0,.45)';
+      g.fillRect(snap(m.shadowX - camX - r), DECK_Y - 6, snap(r * 2), 6);
+      g.fillRect(snap(m.shadowX - camX - r * .7), DECK_Y - 10, snap(r * 1.4), 4);
+    }
+    // bone in the boards
+    for (const s of this.shards) {
+      const sx = snap(s.x - camX), sy = snap(s.y);
+      g.fillStyle = '#e8dcc0';
+      if (s.stuck) { g.fillRect(sx - 2, sy - 16, 4, 16); g.fillStyle = '#9a8a6a'; g.fillRect(sx, sy - 16, 2, 16); }
+      else { g.fillRect(sx - 6, sy - 2, 12, 4); }
+    }
+    // the angler's lure, swelling before it goes off
+    if (m.lure > 0 && this.def.plan === 'angler') {
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      stepGlow(g, this._mouthX() - camX + m.face * 30, m.y - this.len * this.girth * 1.4, 20 + m.lure * 90, 'rgb(255,240,180)', .25 + m.lure * .45, { steps: 3 });
+      g.restore();
     }
   },
 
@@ -558,8 +909,9 @@ const Battle = {
       if (chance(dt * 40)) {
         Particles.burst(w.x, DECK_Y - 4, 1, { color: 'rgba(200,224,240,.7)', vy: -80, g: 500, size: 3, life: .35 });
       }
-      if (w.t > 1.7 || w.x < this.arenaL - 60 || w.x > this.arenaR + 60) this.waves.splice(i, 1);
+      if (w.t > (w.life || 1.7) || w.x < this.arenaL - 60 || w.x > this.arenaR + 60) this.waves.splice(i, 1);
     }
+    this._updateHazards(dt, live);
     // globs
     for (let i = this.globs.length - 1; i >= 0; i--) {
       const b = this.globs[i];
@@ -658,6 +1010,8 @@ const Battle = {
       g.restore();
     }
 
+    this._drawHazards(g);
+
     // the player
     this.drawPlayer(g);
   },
@@ -751,6 +1105,13 @@ const Battle = {
 
   drawUI(g) {
     const m = this.m;
+
+    // the angler's lure going off in your eyes
+    if (this.glare > 0) {
+      g.fillStyle = 'rgba(255,250,228,' + (this.glare * .85).toFixed(3) + ')';
+      g.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+    Skill.draw(g);
 
     /* monster health */
     if (this.phase !== 'lose') {

@@ -324,7 +324,7 @@ describe('monster behaviour', () => {
     m.cool = .01;
     B._updateMonster(.05);
     assert.equal(m.state, 'tele');
-    assert.ok(B.def.atk.includes(m.atk));
+    assert.ok(B.def && ['lunge', 'slam', 'shell'].includes(m.atk), m.atk);
     assert.equal(m.target, P.x);
   });
 
@@ -346,9 +346,9 @@ describe('monster behaviour', () => {
     assert.equal(B.waves.length, 2);
   });
 
-  test('ordinary monsters only use their own attacks', () => {
+  test('ordinary monsters use the two shared attacks and their body plan\'s own', () => {
     const { B } = fight('glasseye');
-    assert.deepEqual([...B._atkPool()], [...B.def.atk]);
+    assert.deepEqual([...B._atkPool()], ['lunge', 'slam', 'lure']);
   });
 });
 

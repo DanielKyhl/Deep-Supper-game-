@@ -39,6 +39,7 @@ function beatDownTo(h, frac, seconds) {
   const D = h.g.Dive, B = D.boss, p = D.p;
   for (let i = 0; i < (seconds || 60) * 60 && !B.dead && B.hp > B.maxHp * frac && D.phase === 'swim'; i++) {
     p.invuln = 1; h.g.Player.hp = h.g.Player.maxHp; p.air = 999;    // this test is about her, not him
+    if (F.answerSkill(h)) { for (const k of ['KeyA', 'KeyD', 'KeyW', 'KeyS']) h.keyUp(k); h.frame(); continue; }
     const dx = B.x - p.x, dy = B.y - p.y, d = Math.hypot(dx, dy);
     const want = { KeyD: dx > 0 && d > 260, KeyA: dx < 0 && d > 260, KeyS: dy > 30, KeyW: dy < -30 };
     for (const k of Object.keys(want)) want[k] ? h.keyDown(k) : h.keyUp(k);
