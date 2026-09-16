@@ -59,8 +59,16 @@ describe('the desktop app', () => {
     assert.equal(env.isApp, true);
   });
 
-  test('there is no menu bar', async () => {
-    assert.equal(await app.evaluate(({ Menu }) => Menu.getApplicationMenu()), null);
+  test('there is no menu bar, except the least a Mac needs: Quit and fullscreen, and no dev tools', async () => {
+    const menu = await app.evaluate(({ Menu }) => {
+      const m = Menu.getApplicationMenu();
+      return m && m.items.map(i => ({ label: i.label, roles: (i.submenu ? i.submenu.items : []).map(s => String(s.role || '').toLowerCase()) }));
+    });
+    if (process.platform !== 'darwin') { assert.equal(menu, null); return; }
+    assert.equal(menu.length, 2, JSON.stringify(menu));
+    const roles = menu.flatMap(i => i.roles);
+    for (const want of ['quit', 'hide', 'togglefullscreen']) assert.ok(roles.includes(want), want + ' in ' + roles);
+    for (const never of ['reload', 'forcereload', 'toggledevtools']) assert.ok(!roles.includes(never), never);
   });
 
   test('the game loop is running on its own', async () => {

@@ -6,6 +6,17 @@ const assert = require('node:assert/strict');
 const A = require('../helpers/app');
 
 const isFullScreen = app => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isFullScreen());
+// a Mac animates into and out of fullscreen, so wait for the window to get there
+async function fullScreenIs(app, want) {
+  for (let i = 0; i < 80; i++) {
+    if (await isFullScreen(app) === want) {
+      if (process.platform === 'darwin') await new Promise(r => setTimeout(r, 1000));   // let the animation finish
+      return true;
+    }
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return false;
+}
 
 describe('settings in the app', () => {
   let profile, app, page;
@@ -36,11 +47,19 @@ describe('settings in the app', () => {
   test('F11 takes the window fullscreen and back', async () => {
     await page.keyboard.press('F11');
     await A.until(page, () => Settings.get('fullscreen') === true);
-    await page.waitForTimeout(600);
-    assert.equal(await isFullScreen(app), true);
+    assert.ok(await fullScreenIs(app, true), 'went fullscreen');
     await page.keyboard.press('F11');
-    await page.waitForTimeout(600);
-    assert.equal(await isFullScreen(app), false);
+    assert.ok(await fullScreenIs(app, false), 'came back');
+    assert.equal(await page.evaluate(() => Settings.get('fullscreen')), false);
+  });
+
+  test("leaving fullscreen with the window itself, like a Mac's green button, turns the option off too", async () => {
+    await page.keyboard.press('F11');
+    await A.until(page, () => Settings.get('fullscreen') === true);
+    assert.ok(await fullScreenIs(app, true));
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setFullScreen(false));
+    await A.until(page, () => Settings.get('fullscreen') === false, null, 8000);
+    assert.ok(await fullScreenIs(app, false));
   });
 
   test('M mutes', async () => {
@@ -55,8 +74,7 @@ describe('settings in the app', () => {
     ({ app, page } = await A.launch(profile));
     const s = await page.evaluate(() => ({ master: Settings.get('master'), attack: Settings.data.bindings.attack[0], muted: Settings.get('muted'), sfxMuted: Sfx.muted }));
     assert.deepEqual(s, { master: .5, attack: 'KeyL', muted: true, sfxMuted: true });
-    await page.waitForTimeout(800);
-    assert.equal(await isFullScreen(app), true, 'reopens fullscreen');
+    assert.ok(await fullScreenIs(app, true), 'reopens fullscreen');
   });
 
   test('Reset all settings puts the defaults back, windowed', async () => {
@@ -66,7 +84,7 @@ describe('settings in the app', () => {
     await page.waitForTimeout(600);
     const s = await page.evaluate(() => ({ master: Settings.get('master'), attack: Settings.data.bindings.attack[0], muted: Settings.get('muted') }));
     assert.deepEqual(s, { master: .8, attack: 'KeyJ', muted: false });
-    assert.equal(await isFullScreen(app), false);
+    assert.ok(await fullScreenIs(app, false), 'windowed again');
   });
 });
 

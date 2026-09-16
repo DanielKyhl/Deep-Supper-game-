@@ -249,6 +249,21 @@ describe('Settings: pushing into the engine', () => {
     assert.deepEqual(calls, [false, true, false]);
   });
 
+  test('in the app, the window going in or out of fullscreen by itself is written back to settings', () => {
+    const calls = [];
+    const { h, g } = loadGame({ draw: false, native: { isApp: true, setFullscreen: on => calls.push(on) } });
+    g.Settings.set('fullscreen', true);
+    const asked = calls.length;
+    h.emit('nativefullscreenchange', { detail: false });      // a Mac's green button
+    assert.equal(g.Settings.get('fullscreen'), false);
+    assert.equal(stored(h).fullscreen, false);
+    g.Settings.set('master', .4);
+    assert.equal(calls.length, asked, 'and the game does not put the window back');
+    h.emit('nativefullscreenchange', { detail: true });
+    assert.equal(g.Settings.get('fullscreen'), true);
+    assert.equal(stored(h).fullscreen, true);
+  });
+
   test('in a browser, leaving fullscreen with ESC is written back to settings', () => {
     const { h, g } = loadGame({ draw: false });
     g.Settings.data.fullscreen = true;
