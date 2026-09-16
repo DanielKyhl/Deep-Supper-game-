@@ -56,7 +56,7 @@ const Shop = {
         r.push({
           kind: 'diveweapon', idx: i, name: w.name, sub: w.desc, price: w.price,
           owned: i <= Player.diveWeapon, locked: i > Player.diveWeapon + 1,
-          stat: 'damage ' + w.dmg + '  ·  ' + w.style
+          stat: 'damage ' + w.dmg + '  ·  ' + FIRE_STYLES[w.style]
         });
       });
       return r;

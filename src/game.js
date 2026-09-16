@@ -393,6 +393,9 @@ const Game = {
     this.toastT = Math.max(0, this.toastT - dt);
 
     this.draw();
+    // underwater, the crosshair stands in for the mouse pointer
+    const cursor = this.state === 'dive' && Dive.underwater && Dive.mouseAim ? 'none' : 'default';
+    if (canvas.style.cursor !== cursor) canvas.style.cursor = cursor;
     Input.endFrame();
   },
 

@@ -205,7 +205,7 @@ const Input = (function () {
   const tapped = new Set();
   let anyTapped = false;
   let capture = null;                   // a pending "press a key" request
-  const mouse = { x: -1, y: -1, moved: false, click: false, inside: false };
+  const mouse = { x: -1, y: -1, moved: false, click: false, down: false, inside: false };
 
   function toGame(e) {
     const r = canvas.getBoundingClientRect();
@@ -229,12 +229,13 @@ const Input = (function () {
     anyTapped = true;
   });
   addEventListener('keyup', e => held.delete(e.code));
-  addEventListener('blur', () => { held.clear(); });
+  addEventListener('blur', () => { held.clear(); mouse.down = false; });
+  addEventListener('mouseup', e => { if (e.button === 0) mouse.down = false; });
   canvas.addEventListener('mousemove', e => { toGame(e); mouse.moved = true; });
   canvas.addEventListener('mousedown', e => {
     Sfx.unlock();
     toGame(e);
-    if (e.button === 0) mouse.click = true;
+    if (e.button === 0) { mouse.click = true; mouse.down = true; }
   });
 
   return {
@@ -334,7 +335,40 @@ const Sfx = {
   thud()   { this.tone({ f: 70, f2: 40, dur: .28, type: 'sine', vol: .34 }); this.noise({ f: 300, f2: 60, dur: .3, vol: .22 }); },
   whoosh() { this.noise({ f: 700, f2: 2400, dur: .25, filter: 'bandpass', vol: .14 }); },
   heal()   { [660, 880, 990].forEach((f, i) => setTimeout(() => this.tone({ f, dur: .18, type: 'sine', vol: .16 }), i * 90)); },
-  text()   { this.tone({ f: 520 + Math.random() * 120, dur: .018, type: 'square', vol: .035 }); }
+  text()   { this.tone({ f: 520 + Math.random() * 120, dur: .018, type: 'square', vol: .035 }); },
+
+  /* ------------------------------ underwater ------------------------------ */
+
+  // each launcher sounds like what it is
+  fireUnder(style) {
+    switch (style) {
+      case 'harpoon':
+        this.tone({ f: 190, f2: 60, dur: .14, type: 'square', vol: .22 });
+        this.noise({ f: 900, f2: 2600, dur: .18, filter: 'bandpass', vol: .16 });
+        break;
+      case 'spread':
+        this.tone({ f: 240, f2: 120, dur: .1, type: 'square', vol: .12 });
+        [0, 45, 90].forEach(d => setTimeout(() => this.noise({ f: 1800, f2: 600, dur: .08, filter: 'bandpass', vol: .14 }), d));
+        break;
+      case 'chain':
+        this.tone({ f: 1600, f2: 220, dur: .22, type: 'sawtooth', vol: .12 });
+        this.noise({ f: 4000, f2: 1200, dur: .2, filter: 'highpass', vol: .1 });
+        break;
+      case 'pierce':
+        this.tone({ f: 110, f2: 45, dur: .3, type: 'triangle', vol: .3 });
+        this.noise({ f: 600, f2: 3000, dur: .22, filter: 'bandpass', vol: .18 });
+        break;
+      case 'wave':
+        for (const [f, v] of [[392, 1], [930, .4], [1860, .18]]) this.tone({ f, dur: 1.4, type: 'sine', vol: .22 * v, atk: .005 });
+        this.tone({ f: 70, f2: 40, dur: .6, type: 'sine', vol: .3 });
+        break;
+    }
+  },
+  // the line paying out, and the harpoon clunking home
+  reelOut() { [0, 40, 80, 120].forEach(d => setTimeout(() => this.tone({ f: 900, dur: .02, type: 'square', vol: .05 }), d)); },
+  reelIn()  { this.tone({ f: 260, f2: 140, dur: .08, type: 'square', vol: .14 }); },
+  zapUnder() { this.noise({ f: 5000, f2: 900, dur: .25, filter: 'highpass', vol: .14 }); this.tone({ f: 80, f2: 60, dur: .2, type: 'sawtooth', vol: .1 }); },
+  dashUnder() { this.noise({ f: 400, f2: 1600, dur: .3, filter: 'bandpass', vol: .18 }); }
 };
 
 /* -------------------------------- camera -------------------------------- */

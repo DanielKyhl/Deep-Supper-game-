@@ -78,7 +78,8 @@ const Dive = {
   suited: false,       // on deck: has he got the suit on yet
   deck: { x: 0, y: DECK_Y, rot: 0, visible: true },
   p: null,             // the swimmer
-  mobs: [], globs: [], rings: [], zaps: [], respawns: [],
+  mobs: [], globs: [], rings: [], zaps: [], respawns: [], shots: [],
+  mouseT: -99, mouseAim: false,
   cam: { x: 0, y: 0 },
   haulStart: 0,
   hitstop: 0,
@@ -97,7 +98,7 @@ const Dive = {
     this.suited = false;
     this.p = null;
     this.mobs.length = 0; this.globs.length = 0; this.rings.length = 0;
-    this.zaps.length = 0; this.respawns.length = 0;
+    this.zaps.length = 0; this.respawns.length = 0; this.shots.length = 0;
     this._fading = false;
     this.boss = null;
     this.camFocus = null;
@@ -180,7 +181,7 @@ const Dive = {
     const suit = this.suit();
     this.p = {
       x: DIVE_LADDER_X - 40, y: 70, vx: 0, vy: 40, face: 1, aim: 0,
-      atk: null, cd: 0, dashT: 0, dashCd: 0, invuln: 1, healT: 0,
+      cd: 0, fireT: 0, harpoonOut: false, dashT: 0, dashCd: 0, invuln: 1, healT: 0,
       air: suit.air, pressureT: 0, drownT: 0, bubbleT: 0, animT: 0
     };
     this.deepest = 0;
@@ -245,6 +246,7 @@ const Dive = {
     for (let i = this.mobs.length - 1; i >= 0; i--) if (this.mobs[i].gone) this.mobs.splice(i, 1);
     if (this.boss) this._boss(dt);
     else this._checkMother();
+    this._shots(dt);
     this._projectiles(dt);
     this._respawn(dt);
     this._camera(dt);
@@ -267,19 +269,30 @@ const Dive = {
   /* --------------------------------- the boy ------------------------------- */
 
   _player(dt) {
-    const P = Player, p = this.p, suit = this.suit(), w = this.weapon();
+    const P = Player, p = this.p, suit = this.suit();
     p.invuln = Math.max(0, p.invuln - dt);
     p.cd = Math.max(0, p.cd - dt);
     p.dashCd = Math.max(0, p.dashCd - dt);
     p.dashT = Math.max(0, p.dashT - dt);
     p.healT = Math.max(0, p.healT - dt);
+    p.fireT = Math.max(0, p.fireT - dt);
 
     let ix = (Input.held('right') ? 1 : 0) - (Input.held('left') ? 1 : 0);
     let iy = (Input.held('down') ? 1 : 0) - (Input.held('up') || Input.held('jump') ? 1 : 0);
     const n = Math.hypot(ix, iy);
     if (n) { ix /= n; iy /= n; }
     if (ix) p.face = ix < 0 ? -1 : 1;
-    if (!p.atk) p.aim = n ? Math.atan2(iy, ix) : (p.face > 0 ? 0 : Math.PI);
+
+    // aim at the mouse while it is in use; otherwise the way he swims, or faces
+    const mouse = Input.mouse();
+    if (mouse.moved || mouse.down) this.mouseT = Game.t;
+    this.mouseAim = mouse.inside && Game.t - this.mouseT < 4;
+    if (this.mouseAim) {
+      p.aim = Math.atan2(mouse.y + this.cam.y - p.y, mouse.x + this.cam.x - p.x);
+      p.face = Math.cos(p.aim) < 0 ? -1 : 1;
+    } else {
+      p.aim = n ? Math.atan2(iy, ix) : (p.face > 0 ? 0 : Math.PI);
+    }
 
     const acc = 1000 * suit.speed, top = 240 * suit.speed;
     p.vx += ix * acc * dt;
@@ -290,20 +303,19 @@ const Dive = {
     p.vx -= p.vx * drag; p.vy -= p.vy * drag;
     p.vy += 10 * dt;                           // a diver sinks, slowly
     const sp = Math.hypot(p.vx, p.vy);
-    if (p.dashT <= 0 && !(p.atk && p.atk.style === 'lance') && sp > top) { p.vx *= top / sp; p.vy *= top / sp; }
+    if (p.dashT <= 0 && sp > top) { p.vx *= top / sp; p.vy *= top / sp; }
 
     // dash
     if (Input.tap('roll') && p.dashCd <= 0) {
       const dx = n ? ix : p.face, dy = n ? iy : 0;
       p.vx += dx * 520; p.vy += dy * 520;
       p.dashT = .22; p.dashCd = .75; p.invuln = Math.max(p.invuln, .3);
-      Sfx.whoosh();
+      Sfx.dashUnder();
       for (let i = 0; i < 6; i++) this.bubble(p.x - dx * 20, p.y - dy * 20);
     }
 
-    // attack
-    if (Input.tap('attack') && !p.atk && p.cd <= 0) this.attack();
-    if (p.atk) this._attack(dt, w);
+    // fire: hold the attack key or the mouse button and it keeps firing, forever
+    if ((Input.tap('attack') || Input.held('attack') || mouse.down) && p.cd <= 0 && !p.harpoonOut) this.fire();
 
     // bandage
     if (Input.tap('use') && P.bandages > 0 && P.hp < P.maxHp && p.healT <= 0) {
@@ -348,63 +360,104 @@ const Dive = {
     Particles.add(x, y, { vx: rand(-10, 10), vy: rand(-70, -40), g: -40, drag: 1, size: rand(2, 4), life: rand(.8, 1.6), color: 'rgba(200,236,250,.7)' });
   },
 
-  /* -------------------------------- attacking ------------------------------ */
+  /* --------------------------------- firing -------------------------------- */
 
-  attack() {
+  // where shots leave the launcher
+  muzzle() {
+    const p = this.p;
+    return { x: p.x + Math.cos(p.aim) * 44, y: p.y + 2 + Math.sin(p.aim) * 44 };
+  },
+
+  fire() {
     const p = this.p, w = this.weapon();
-    const dur = { thrust: .3, zap: .4, lance: .38, ring: .5 }[w.style] || .3;
-    p.atk = { style: w.style, t: 0, dur, ax: Math.cos(p.aim), ay: Math.sin(p.aim), hit: new Set(), fired: false };
-    if (w.style === 'thrust') { p.vx += p.atk.ax * 160; p.vy += p.atk.ay * 160; Sfx.swing(); }
-    if (w.style === 'lance') { Sfx.whoosh(); p.invuln = Math.max(p.invuln, .34); }
-    if (w.style === 'zap') Sfx.tone({ f: 1400, f2: 300, dur: .2, type: 'sawtooth', vol: .12 });
-    if (w.style === 'ring') Sfx.tone({ f: 220, f2: 180, dur: 1.2, type: 'triangle', vol: .3 });
+    const mz = this.muzzle();
+    const shot = (ang, extra) => this.shots.push(Object.assign({
+      w, style: w.style, x: mz.x, y: mz.y, vx: Math.cos(ang) * w.speed, vy: Math.sin(ang) * w.speed,
+      dist: 0, r: w.size, hit: new Set(), t: 0, back: false
+    }, extra));
+
+    if (w.style === 'spread') {
+      for (let i = 0; i < w.count; i++) shot(p.aim + (i - (w.count - 1) / 2) * w.spread);
+    } else shot(p.aim);
+    if (w.style === 'harpoon') p.harpoonOut = true;
+    Sfx.fireUnder(w.style);
+
+    p.cd = w.cd;
+    p.fireT = .18;
+    p.vx -= Math.cos(p.aim) * 60; p.vy -= Math.sin(p.aim) * 60;     // recoil
+    for (let i = 0; i < 3; i++) this.bubble(mz.x, mz.y);
   },
 
-  _attack(dt, w) {
-    const p = this.p, a = p.atk;
-    a.t += dt;
-    if (a.style === 'thrust' && a.t >= .06 && a.t <= .2) {
-      // along the spear, from the hand to the tip
-      for (const m of this.targets()) {
-        if (m.dead || a.hit.has(m)) continue;
-        for (let k = 0; k <= 6; k++) {
-          const f = k / 6, x = p.x + a.ax * (18 + f * w.reach), y = p.y + a.ay * (18 + f * w.reach);
-          if (this._inMob(m, x, y, w.width / 2)) { a.hit.add(m); this.hitMob(m, w, a.ax, a.ay); break; }
+  // rock, cliff, seabed or open air: things a shot cannot go through
+  _solid(x, y) {
+    if (y < 0 || y > DIVE_FLOOR) return true;
+    if (x < diveWallL(y) || x > DIVE_W - diveWallR(y)) return true;
+    return DIVE_ROCKS.some(R => x > R.x0 && x < R.x1 && y > R.y0 && y < R.y1);
+  },
+
+  _shots(dt) {
+    const p = this.p;
+    for (let i = this.shots.length - 1; i >= 0; i--) {
+      const s = this.shots[i];
+      s.t += dt;
+
+      // a harpoon on its way back up the line
+      if (s.back) {
+        const dx = p.x - s.x, dy = p.y - s.y, d = Math.hypot(dx, dy) || 1, step = 1400 * dt;
+        if (d <= step + 24) {
+          this.shots.splice(i, 1);
+          p.harpoonOut = false;
+          p.cd = s.w.cd;
+          Sfx.reelIn();
+          continue;
         }
+        s.x += dx / d * step; s.y += dy / d * step;
+        continue;
       }
-    }
-    if (a.style === 'zap' && !a.fired && a.t >= .1) {
-      a.fired = true;
-      const near = this.targets().filter(m => !m.dead && Math.hypot(m.x - p.x, m.y - p.y) < w.reach + Math.min(m.def.len * .35, 160))
-        .sort((m1, m2) => Math.hypot(m1.x - p.x, m1.y - p.y) - Math.hypot(m2.x - p.x, m2.y - p.y))
-        .slice(0, w.chain);
-      let fromX = p.x + a.ax * 60, fromY = p.y + a.ay * 60;
-      for (const m of near) {
-        this.zaps.push({ x1: fromX, y1: fromY, x2: m.x, y2: m.y, t: 0 });
-        fromX = m.x; fromY = m.y;
-        const dx = m.x - p.x, dy = m.y - p.y, d = Math.hypot(dx, dy) || 1;
-        this.hitMob(m, w, dx / d, dy / d);
-        if (!m.dead && !m.def.boss) { m.state = 'stun'; m.t = 0; m.stun = .6; }
-      }
-      if (!near.length) this.zaps.push({ x1: p.x, y1: p.y, x2: p.x + a.ax * w.reach * .6, y2: p.y + a.ay * w.reach * .6, t: 0 });
-    }
-    if (a.style === 'lance' && a.t < .26) {
-      p.vx = a.ax * w.dash; p.vy = a.ay * w.dash;
-      const tipX = p.x + a.ax * (24 + w.reach), tipY = p.y + a.ay * (24 + w.reach);
+
+      const sp = Math.hypot(s.vx, s.vy);
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      s.dist += sp * dt;
+      if (s.style === 'wave') s.r = s.w.size + s.dist / s.w.range * s.w.grow;
+      if (chance(dt * 25) && s.style !== 'wave') this.bubble(s.x, s.y);
+
+      let done = this._solid(s.x, s.y);
+      if (done) Particles.burst(s.x, s.y, 6, { color: 'rgba(200,220,230,.7)', vx: rand(-80, 80), vy: rand(-80, 80), g: 0, drag: 3, size: 2, life: .4 });
+
       for (const m of this.targets()) {
-        if (m.dead || a.hit.has(m)) continue;
-        if (this._inMob(m, tipX, tipY, 18) || this._inMob(m, p.x, p.y, 22)) { a.hit.add(m); this.hitMob(m, w, a.ax, a.ay); }
+        if (done) break;
+        if (m.dead || s.hit.has(m) || !this._inMob(m, s.x, s.y, s.r)) continue;
+        s.hit.add(m);
+        this.hitMob(m, s.w, s.vx / sp, s.vy / sp);
+        if (s.style === 'harpoon' || s.style === 'spread') done = true;
+        if (s.style === 'chain') { this._chain(m, s.w); done = true; }
       }
-      if (chance(dt * 30)) this.bubble(p.x - a.ax * 30, p.y - a.ay * 30);
+
+      if (!done && s.dist >= s.w.range) done = true;
+      if (!done) continue;
+      if (s.style === 'harpoon') { s.back = true; Sfx.reelOut(); }
+      else this.shots.splice(i, 1);
     }
-    if (a.style === 'ring' && !a.fired && a.t >= .08) {
-      a.fired = true;
-      this.rings.push({ x: p.x, y: p.y, r: 24, max: w.reach, speed: w.reach / .4, width: 30, from: 'player', hit: new Set(), t: 0 });
-      Cam.kick(4);
-    }
-    if (a.t >= a.dur) { p.atk = null; p.cd = w.cd; }
   },
 
+  // lightning jumping on from what was hit to the nearest few around it
+  _chain(first, w) {
+    this.zaps.push({ x1: first.x - 30, y1: first.y - 20, x2: first.x, y2: first.y, t: 0 });
+    if (!first.dead && !first.def.boss) { first.state = 'stun'; first.t = 0; first.stun = .5; }
+    const near = this.targets()
+      .filter(m => m !== first && !m.dead && Math.hypot(m.x - first.x, m.y - first.y) < w.jump + Math.min(m.def.len * .3, 120))
+      .sort((a, b) => Math.hypot(a.x - first.x, a.y - first.y) - Math.hypot(b.x - first.x, b.y - first.y))
+      .slice(0, w.chain);
+    let from = first;
+    for (const m of near) {
+      this.zaps.push({ x1: from.x, y1: from.y, x2: m.x, y2: m.y, t: 0 });
+      const dx = m.x - from.x, dy = m.y - from.y, d = Math.hypot(dx, dy) || 1;
+      this.hitMob(m, w, dx / d, dy / d);
+      if (!m.dead && !m.def.boss) { m.state = 'stun'; m.t = 0; m.stun = .5; }
+      from = m;
+    }
+    Sfx.zapUnder();
+  },
   // is a circle at (x, y) of radius r touching this creature's body?
   _inMob(m, x, y, r) {
     const rx = m.def.len * .42 + r, ry = Math.max(14, m.def.len * (m.def.girth || .27) * 1.05) + r;
@@ -598,19 +651,9 @@ const Dive = {
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const R = this.rings[i];
       R.t += dt;
-      const prev = R.r;
       R.r += R.speed * dt;
-      if (R.from === 'player') {
-        for (const m of this.targets()) {
-          if (m.dead || R.hit.has(m)) continue;
-          const d = Math.hypot(m.x - R.x, m.y - R.y) - Math.min(m.def.len * .3, 90);
-          if (d <= R.r + R.width / 2 && d >= prev - R.width) {
-            R.hit.add(m);
-            const dd = Math.hypot(m.x - R.x, m.y - R.y) || 1;
-            this.hitMob(m, this.weapon(), (m.x - R.x) / dd, (m.y - R.y) / dd);
-          }
-        }
-      } else if (!R.hit.has('player')) {
+      // rings only ever come from the creatures; his weapons all fire shots
+      if (!R.hit.has('player')) {
         const d = Math.hypot(p.x - R.x, p.y - R.y);
         if (Math.abs(d - R.r) < R.width / 2 + 14) { R.hit.add('player'); this.hurtPlayer(R.dmg, R.x, R.y); }
       }
@@ -640,7 +683,8 @@ const Dive = {
     };
     // the player comes in from wherever he was, into the arena
     this._arenaClamp(p, 24);
-    p.vx = 0; p.vy = 0; p.atk = null;
+    p.vx = 0; p.vy = 0;
+    this.shots.length = 0; p.harpoonOut = false;
     Object.assign(this.girl, { visible: true, x: CITY_X + 320, y: 3620, face: -1, rot: 0 });
     // the whole conversation only once a session; after a blackout, straight to it
     const steps = this.sawMotherIntro ? motherReturnSteps(this) : motherIntroSteps(this);
@@ -909,9 +953,19 @@ const Dive = {
     else if (this.atLadder()) tip = '[' + keyLabel(ACTIONS.interact[0]) + '] Climb aboard';
     else if (this.firstDive && this.t < 9 && !this.boss) {
       tip = keyLabel(ACTIONS.jump[1] || ACTIONS.up[0]) + keyLabel(ACTIONS.left[0]) + keyLabel(ACTIONS.down[0]) + keyLabel(ACTIONS.right[0]) +
-        ' swim   [' + keyLabel(ACTIONS.attack[0]) + '] attack   [' + keyLabel(ACTIONS.roll[0]) + '] dash   ladder at the bow';
+        ' swim   [' + keyLabel(ACTIONS.attack[0]) + '] or click: fire   [' + keyLabel(ACTIONS.roll[0]) + '] dash';
     }
     if (tip) Fishing._tip(g, tip, col);
+
+    // a pixel crosshair where the mouse is aiming
+    if (this.mouseAim) {
+      const m = Input.mouse(), x = snap(m.x), y = snap(m.y);
+      const ready = p.cd <= 0 && !p.harpoonOut;
+      g.fillStyle = 'rgba(0,0,0,.6)';
+      g.fillRect(x - 10, y - 1, 6, 4); g.fillRect(x + 6, y - 1, 6, 4); g.fillRect(x - 1, y - 10, 4, 6); g.fillRect(x - 1, y + 6, 4, 6);
+      g.fillStyle = ready ? '#f0cf8a' : '#8d97b4';
+      g.fillRect(x - 10, y, 6, 2); g.fillRect(x + 6, y, 6, 2); g.fillRect(x, y - 10, 2, 6); g.fillRect(x, y + 6, 2, 6);
+    }
   },
 
   // her health across the top, with the two places she gets worse, and her banners

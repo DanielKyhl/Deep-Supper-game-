@@ -164,7 +164,7 @@ Object.assign(Art, {
     g.save();
     g.translate(-70, -5);
     g.rotate(-.05);
-    this.diveWeapon(g, DIVE_WEAPONS[0], t, 0);
+    this.diveWeapon(g, DIVE_WEAPONS[0], t, 0, true);
     g.restore();
     // dripping
     g.fillStyle = 'rgba(160,210,230,.6)';
@@ -172,113 +172,93 @@ Object.assign(Art, {
     g.restore();
   },
 
-  /* Underwater weapons, drawn from the grip with the business end toward +x.
-     `p` is how far through an attack the holder is (0 when idle). */
-  diveWeapon(g, w, t, p) {
+  /* The underwater launchers, drawn from the grip with the muzzle toward +x.
+     `loaded` shows what is ready to fly; `recoil` (1 just after firing, easing
+     to 0) kicks the launcher back. */
+  diveWeapon(g, w, t, recoil, loaded) {
     if (!w) return;
-    t = t || 0; p = p || 0;
+    t = t || 0; recoil = recoil || 0;
+    if (loaded === undefined) loaded = true;
+    g.save();
+    g.translate(-Math.round(recoil * 3) * PIX, 0);
     switch (w.kind) {
 
       case 'dharpoon': {
-        const L = 66;
-        g.fillStyle = w.grip; g.fillRect(-10, -2, L, 4);
-        // the Margaret's colours, painted round the shaft
-        g.fillStyle = '#e0aa3c'; g.fillRect(4, -3, 6, 6);
-        g.fillStyle = '#b4494b'; g.fillRect(10, -3, 4, 6);
-        g.fillStyle = w.metal;
-        g.beginPath(); g.moveTo(L - 12, -5); g.lineTo(L + 8, 0); g.lineTo(L - 12, 5); g.closePath(); g.fill();
-        g.beginPath();
-        g.moveTo(L - 10, -4); g.lineTo(L - 20, -11); g.lineTo(L - 6, -2);
-        g.moveTo(L - 10, 4); g.lineTo(L - 20, 11); g.lineTo(L - 6, 2);
-        g.fill();
-        g.fillStyle = 'rgba(255,255,255,.4)'; g.fillRect(L - 10, -2, 12, 2);
+        // a wooden stock, a brass spring tube, and the harpoon sitting in it
+        g.fillStyle = w.grip; g.fillRect(-10, -3, 22, 8); g.fillRect(-6, 4, 6, 6);
+        g.fillStyle = '#e0aa3c'; g.fillRect(-2, -3, 4, 8);
+        g.fillStyle = '#b4494b'; g.fillRect(2, -3, 2, 8);
+        g.fillStyle = w.accent; g.fillRect(12, -4, 22, 8);
+        g.fillStyle = 'rgba(0,0,0,.25)'; for (let x = 14; x < 34; x += 4) g.fillRect(x, -4, 2, 8);
+        if (loaded) {
+          g.fillStyle = w.grip; g.fillRect(30, -1, 18, 3);
+          g.fillStyle = w.metal;
+          g.beginPath(); g.moveTo(46, -4); g.lineTo(58, 0); g.lineTo(46, 4); g.closePath(); g.fill();
+          g.fillRect(44, -6, 2, 12);
+        }
         break;
       }
 
       case 'trident': {
-        const L = 58;
-        g.fillStyle = w.grip; g.fillRect(-10, -2, L, 4);
+        // three barrels bound together, a prong waiting in each
+        g.fillStyle = w.grip; g.fillRect(-10, -3, 20, 7); g.fillRect(-6, 4, 6, 6);
         g.fillStyle = w.metal;
-        g.fillRect(L - 4, -14, 4, 28);
-        for (const dy of [-12, 0, 12]) {
-          g.fillRect(L - 2, dy - 2, 16, 4);
-          g.beginPath(); g.moveTo(L + 14, dy - 4); g.lineTo(L + 22, dy); g.lineTo(L + 14, dy + 4); g.closePath(); g.fill();
+        for (const dy of [-7, 0, 7]) g.fillRect(10, dy - 2, 22, 4);
+        g.fillStyle = w.accent; g.fillRect(12, -9, 4, 18); g.fillRect(26, -9, 4, 18);
+        if (loaded) {
+          g.fillStyle = w.metal;
+          for (const dy of [-7, 0, 7]) { g.beginPath(); g.moveTo(32, dy - 3); g.lineTo(40, dy); g.lineTo(32, dy + 3); g.closePath(); g.fill(); }
         }
-        g.fillStyle = w.accent;       // barnacles
-        g.fillRect(L - 6, -10, 4, 4); g.fillRect(L + 4, 8, 4, 4); g.fillRect(20, -4, 4, 4);
         break;
       }
 
       case 'eel': {
-        // a short handle, a rope, and a very angry eel on the end of it
-        g.fillStyle = w.grip; g.fillRect(-6, -3, 12, 6);
-        const pts = [];
-        for (let i = 0; i <= 10; i++) {
-          const f = i / 10;
-          pts.push([8 + f * 64, Math.sin(f * 7 - t * 9) * (4 + f * 6) * (1 - p * .6)]);
-        }
-        g.strokeStyle = '#c9b27a'; g.lineWidth = 3;
-        g.beginPath(); g.moveTo(4, 0); g.lineTo(pts[2][0], pts[2][1]); g.stroke();
-        g.strokeStyle = '#3f5a2e'; g.lineWidth = 7;
-        g.beginPath();
-        for (let i = 2; i < pts.length; i++) (i === 2 ? g.moveTo : g.lineTo).call(g, pts[i][0], pts[i][1]);
-        g.stroke();
-        g.strokeStyle = w.accent; g.lineWidth = 3;
-        g.beginPath();
-        for (let i = 3; i < pts.length; i++) (i === 3 ? g.moveTo : g.lineTo).call(g, pts[i][0], pts[i][1] - 2);
-        g.stroke();
-        const [hx, hy] = pts[pts.length - 1];
-        g.fillStyle = '#3f5a2e'; g.fillRect(hx - 2, hy - 5, 12, 10);
-        g.fillStyle = '#ffffff'; g.fillRect(hx + 4, hy - 3, 2, 2);
-        // crackling while it is being used
-        if (p > 0 || Math.sin(t * 13) > .92) {
-          g.strokeStyle = w.metal; g.lineWidth = 3;
-          g.beginPath();
-          for (let k = 0; k < 3; k++) {
-            const [ex, ey] = pts[4 + k * 2];
-            g.moveTo(ex, ey); g.lineTo(ex + rand(-8, 8), ey - 10 - rand(0, 8)); g.lineTo(ex + rand(-8, 8), ey - 18);
-          }
-          g.stroke();
+        // a brass collar on his arm, and the eel coiled through it, head out front
+        const sway = Math.sin(t * 7) * 2;
+        g.fillStyle = w.grip; g.fillRect(-8, -3, 16, 7);
+        g.fillStyle = '#b8864a'; g.fillRect(6, -6, 10, 12);
+        g.fillStyle = '#3f5a2e';
+        g.fillRect(-12, -10 + sway, 8, 6); g.fillRect(-6, -12 + sway, 14, 5);
+        g.fillRect(16, -4, 18, 8);
+        g.fillStyle = w.accent; g.fillRect(18, -4, 14, 2);
+        g.fillStyle = '#3f5a2e'; g.fillRect(34, -5, 8, 10);
+        g.fillStyle = '#ffffff'; g.fillRect(38, -3, 2, 2);
+        if (loaded) {
+          stepGlow(g, 44, 0, 10, 'rgb(127,224,255)', .5 + Math.sin(t * 20) * .2, { steps: 2 });
+          g.fillStyle = w.metal; g.fillRect(42, -1, 4, 2);
         }
         break;
       }
 
       case 'tusk': {
-        // long, tapered, spiralled
-        const L = 84;
-        g.fillStyle = w.grip; g.fillRect(-8, -4, 16, 8);
-        g.fillStyle = w.metal;
-        g.beginPath(); g.moveTo(8, -6); g.lineTo(L, -1); g.lineTo(L + 4, 0); g.lineTo(L, 1); g.lineTo(8, 6); g.closePath(); g.fill();
-        g.fillStyle = w.accent;
-        for (let i = 0; i < 7; i++) {
-          const x0 = 14 + i * 10, hw = 6 * (1 - (x0 - 8) / (L - 8));
-          g.fillRect(x0, -hw, 3, hw * 2);
+        // a whaler's crossbow: stock, bow, and a tusk on the rail
+        g.fillStyle = w.grip; g.fillRect(-10, -3, 38, 6); g.fillRect(-6, 3, 6, 7);
+        g.fillStyle = '#6b4a2a'; g.fillRect(24, -16, 4, 32);
+        g.strokeStyle = '#d9d2b8'; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(26, -16); g.lineTo(loaded ? 6 : 22, 0); g.lineTo(26, 16); g.stroke();
+        if (loaded) {
+          g.fillStyle = w.metal;
+          g.beginPath(); g.moveTo(4, -3); g.lineTo(52, -1); g.lineTo(56, 0); g.lineTo(52, 1); g.lineTo(4, 3); g.closePath(); g.fill();
+          g.fillStyle = w.accent; for (let i = 0; i < 4; i++) g.fillRect(10 + i * 10, -2, 2, 4);
         }
         break;
       }
 
       case 'bell':
       default: {
-        // a bronze bell swinging off a short iron handle
-        const swing = p > 0 ? Math.sin(p * 30) * .5 : Math.sin(t * 2) * .08;
-        g.fillStyle = w.grip; g.fillRect(-6, -3, 22, 6);
-        g.save();
-        g.translate(18, 0);
-        g.rotate(swing);
-        g.fillStyle = '#5a5f6b'; g.fillRect(-2, -2, 4, 8);
+        // a bronze bell turned on its side, mouth forward, on an iron handle
+        g.fillStyle = w.grip; g.fillRect(-8, -3, 18, 7);
+        g.fillStyle = '#5a5f6b'; g.fillRect(8, -2, 6, 4);
         g.fillStyle = w.metal;
-        g.beginPath();
-        g.moveTo(-8, 6); g.lineTo(8, 6); g.lineTo(14, 28); g.lineTo(-14, 28); g.closePath(); g.fill();
-        g.beginPath(); g.arc(0, 8, 8, Math.PI, 0); g.fill();
-        g.fillStyle = w.accent; g.fillRect(-14, 24, 28, 4);
-        g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(-10, 12, 4, 12);
-        g.fillStyle = '#3a2f24'; g.fillRect(-3 + Math.round(swing * 12), 26, 6, 6);
-        g.restore();
+        g.beginPath(); g.moveTo(14, -7); g.lineTo(38, -15); g.lineTo(38, 15); g.lineTo(14, 7); g.closePath(); g.fill();
+        g.fillStyle = w.accent; g.fillRect(34, -15, 4, 30);
+        g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(16, 2, 18, 4);
+        if (loaded) stepGlow(g, 40, 0, 12, 'rgb(240,207,138)', .35, { steps: 2 });
         break;
       }
     }
+    g.restore();
   },
-
   /* The boy in the suit, standing on the deck: for suiting up and jumping in.
      Same frame of reference as Art.boy: feet at (x, y). */
   diverStanding(g, x, y, o) {
@@ -513,15 +493,15 @@ Object.assign(Art, {
       g.fillStyle = 'rgba(160,110,200,.6)'; g.fillRect(snap(b.x - 4), snap(b.y - 4), 4, 4);
     }
 
-    // the boy
-    const a = p.atk;
-    const aim = a ? Math.atan2(a.ay, a.ax) : p.aim;
-    const prog = a ? clamp(a.t / a.dur, 0, 1) : 0;
+    // the boy, and what he has fired that you can see without it glowing
+    const w = D.weapon();
     const blink = p.invuln > 0 && Math.floor(p.invuln * 20) % 2 === 0;
+    const mz = D.muzzle();
+    for (const s of D.shots) this._shotBody(g, s, mz, t);
     this.diver(g, p.x, p.y, {
-      face: p.face, suit, weapon: D.weapon(), t: p.animT, aim,
+      face: p.face, suit, weapon: w, t: p.animT, aim: p.aim,
       kick: clamp(Math.hypot(p.vx, p.vy) / 240, 0, 1), tilt: clamp(p.vy / 520, -.5, .5),
-      attackP: prog, thrust: a && a.style === 'thrust' ? Math.sin(prog * Math.PI) * 22 : 0,
+      recoil: p.fireT / .18, loaded: p.cd <= 0 && !p.harpoonOut,
       alpha: blink ? .45 : 1
     });
     g.restore();
@@ -580,11 +560,12 @@ Object.assign(Art, {
     }
     for (const R of D.rings) {
       g.globalAlpha = clamp(1 - R.r / R.max, .2, 1);
-      g.strokeStyle = R.from === 'player' ? '#f0cf8a' : '#c46bff';
+      g.strokeStyle = '#c46bff';
       g.lineWidth = 4;
       g.beginPath(); g.arc(R.x, R.y, R.r, 0, 6.2832); g.stroke();
       g.globalAlpha = 1;
     }
+    for (const s of D.shots) this._shotGlow(g, s, t);
     for (const z of D.zaps) {
       g.strokeStyle = z.t < .1 ? '#ffffff' : '#7fe0ff';
       g.lineWidth = 3;
@@ -604,6 +585,68 @@ Object.assign(Art, {
     Particles.draw(g, 0);
     Floaters.draw(g, 0);
     g.restore();
+  },
+
+  // the solid part of a shot: harpoons (on their line), prongs, tusks
+  _shotBody(g, s, mz, t) {
+    const ang = s.back ? Math.atan2(s.y - mz.y, s.x - mz.x) : Math.atan2(s.vy, s.vx);
+    if (s.style === 'harpoon') {
+      // the line, sagging a little between the launcher and the harpoon
+      const mx = (mz.x + s.x) / 2, my = (mz.y + s.y) / 2 + Math.min(40, Math.hypot(s.x - mz.x, s.y - mz.y) * .08);
+      g.strokeStyle = '#c9b27a'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(mz.x, mz.y); g.quadraticCurveTo(mx, my, s.x, s.y); g.stroke();
+    }
+    if (s.style === 'chain' || s.style === 'wave') return;
+    g.save();
+    g.translate(snap(s.x), snap(s.y));
+    g.rotate(ang);
+    const w = s.w;
+    if (s.style === 'harpoon') {
+      g.fillStyle = w.grip; g.fillRect(-46, -2, 40, 4);
+      g.fillStyle = '#e0aa3c'; g.fillRect(-40, -3, 6, 6);
+      g.fillStyle = w.metal;
+      g.beginPath(); g.moveTo(-8, -5); g.lineTo(12, 0); g.lineTo(-8, 5); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(-6, -4); g.lineTo(-16, -11); g.lineTo(-2, -2); g.moveTo(-6, 4); g.lineTo(-16, 11); g.lineTo(-2, 2); g.fill();
+    } else if (s.style === 'spread') {
+      g.fillStyle = w.metal; g.fillRect(-18, -2, 20, 4);
+      g.beginPath(); g.moveTo(0, -5); g.lineTo(10, 0); g.lineTo(0, 5); g.closePath(); g.fill();
+      g.fillStyle = w.accent; g.fillRect(-14, -4, 4, 4);
+    } else if (s.style === 'pierce') {
+      // a streak behind, then the tusk itself
+      g.fillStyle = 'rgba(220,236,244,.35)'; g.fillRect(-90, -2, 60, 4);
+      g.fillStyle = w.metal;
+      g.beginPath(); g.moveTo(-40, -5); g.lineTo(18, -1); g.lineTo(22, 0); g.lineTo(18, 1); g.lineTo(-40, 5); g.closePath(); g.fill();
+      g.fillStyle = w.accent;
+      for (let i = 0; i < 5; i++) g.fillRect(-34 + i * 11, -4 + i * .6, 3, 8 - i * 1.2);
+    }
+    g.restore();
+  },
+
+  // the part of a shot that gives off light: lightning balls and waves of sound
+  _shotGlow(g, s, t) {
+    if (s.style === 'chain') {
+      stepGlow(g, s.x, s.y, 26, 'rgb(127,224,255)', .6, { steps: 3 });
+      g.fillStyle = '#ffffff'; g.fillRect(snap(s.x) - 4, snap(s.y) - 4, 8, 8);
+      g.strokeStyle = '#bff4ff'; g.lineWidth = 2;
+      g.beginPath();
+      for (let k = 0; k < 4; k++) {
+        const a = k * 1.57 + t * 21 + s.t * 40;
+        g.moveTo(s.x, s.y);
+        g.lineTo(s.x + Math.cos(a) * 10, s.y + Math.sin(a * 1.3) * 10);
+        g.lineTo(s.x + Math.cos(a + .6) * 18, s.y + Math.sin(a + .9) * 18);
+      }
+      g.stroke();
+    } else if (s.style === 'wave') {
+      const ang = Math.atan2(s.vy, s.vx);
+      g.save();
+      g.globalAlpha = clamp(1.2 - s.dist / s.w.range, 0, 1);
+      g.strokeStyle = '#f0cf8a';
+      for (let k = 0; k < 3; k++) {
+        g.lineWidth = 4 - k;
+        g.beginPath(); g.arc(s.x - Math.cos(ang) * k * 12, s.y - Math.sin(ang) * k * 12, s.r + k * 4, ang - 1.1, ang + 1.1); g.stroke();
+      }
+      g.restore();
+    }
   },
 
   _darkness(g, sx, sy, r, a) {
@@ -764,8 +807,8 @@ Object.assign(Art, {
     g.translate(6, 2);
     g.rotate(local - (o.tilt || 0));
     g.fillStyle = rubber; g.fillRect(0, -3, 14, 6);
-    g.translate(14 + (o.thrust || 0), 0);
-    this.diveWeapon(g, o.weapon, t, o.attackP || 0);
+    g.translate(14, 0);
+    this.diveWeapon(g, o.weapon, t, o.recoil || 0, o.loaded);
     g.restore();
     g.restore();
   }

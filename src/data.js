@@ -72,33 +72,40 @@ const SUITS = [
     desc: 'Built for the very bottom. Nobody has ever needed to go further.' }
 ];
 
-/* Weapons that work underwater, where nothing that goes bang does.
-     thrust  a straight stab wherever you aim
-     zap     lashes the nearest things around you with lightning
-     lance   you and it go straight through whatever is in front of you
-     ring    a sound you can see, spreading out through everything nearby   */
+/* Launchers that work underwater. Every one of them fires, none of them
+   ever runs out, and nothing goes bang.
+     harpoon  one barbed harpoon on a line: it bites the first thing it hits,
+              then reels back in before it can fly again
+     spread   a fan of prongs, all at once
+     chain    a ball of lightning that jumps from what it hits to what is near
+     pierce   a heavy bolt that goes through everything in a line
+     wave     a ring of sound that rolls forward, widening, through everything
+   `speed` and `range` are the shot's, in pixels; `size` its radius.        */
 const DIVE_WEAPONS = [
-  { id: 'harpoon', name: 'Drowned Harpoon', kind: 'dharpoon', style: 'thrust', price: 0,
-    dmg: 30, reach: 120, width: 22, cd: .5, knock: 180,
+  { id: 'harpoon', name: 'Drowned Harpoon', kind: 'dharpoon', style: 'harpoon', price: 0,
+    dmg: 30, speed: 950, range: 560, cd: .15, knock: 160, size: 10,
     metal: '#9fb8c4', grip: '#5b4a3a', accent: '#c9b27a',
-    desc: 'Snapped off in the Old One. The shaft still has the Margaret painted on it.' },
-  { id: 'trident', name: 'Barnacle Trident', kind: 'trident', style: 'thrust', price: 1100,
-    dmg: 52, reach: 112, width: 60, cd: .5, knock: 240,
+    desc: "The Old One's harpoon on a spring launcher. It bites, then reels back in." },
+  { id: 'trident', name: 'Barnacle Trident', kind: 'trident', style: 'spread', price: 1100,
+    dmg: 24, speed: 860, range: 480, cd: .55, knock: 120, size: 8, count: 3, spread: .16,
     metal: '#b7c4bc', grip: '#3f5a52', accent: '#e8dcc0',
-    desc: 'Three prongs, all crusted over. Hard to miss with, harder to pull out.' },
-  { id: 'eel', name: 'Eel on a Rope', kind: 'eel', style: 'zap', price: 2200,
-    dmg: 54, reach: 200, chain: 3, cd: .8, knock: 120,
+    desc: 'Fires all three barnacled prongs at once, fanned out. Hard to miss with.' },
+  { id: 'eel', name: 'Eel on a Rope', kind: 'eel', style: 'chain', price: 2200,
+    dmg: 54, speed: 640, range: 600, cd: .8, knock: 100, size: 12, chain: 3, jump: 240,
     metal: '#7fe0ff', grip: '#4a5a3a', accent: '#d8f06a',
-    desc: 'A live electric eel on a leash. It hates everything nearby. Mostly not you.' },
-  { id: 'tusk', name: 'Narwhal Tusk', kind: 'tusk', style: 'lance', price: 3600,
-    dmg: 115, reach: 74, dash: 680, cd: .9, knock: 320,
+    desc: 'A live electric eel on a leash. It spits lightning at what you point it at, and at whatever is next to that.' },
+  { id: 'tusk', name: 'Narwhal Tusk', kind: 'tusk', style: 'pierce', price: 3600,
+    dmg: 115, speed: 1200, range: 760, cd: 1.0, knock: 260, size: 10,
     metal: '#efe6d0', grip: '#5a4a52', accent: '#b9a88e',
-    desc: 'Hold on and kick. You go through the thing in front of you, and so does it.' },
-  { id: 'bell', name: 'Sunken Bell', kind: 'bell', style: 'ring', price: 6000,
-    dmg: 135, reach: 270, cd: 1.2, knock: 420,
+    desc: "A narwhal's tusk in a whaler's crossbow. It goes through the first thing, and the next." },
+  { id: 'bell', name: 'Sunken Bell', kind: 'bell', style: 'wave', price: 6000,
+    dmg: 135, speed: 520, range: 640, cd: 1.2, knock: 380, size: 26, grow: 90,
     metal: '#b8864a', grip: '#4a3b2a', accent: '#e8c76a',
-    desc: "Lanthorne's old warning bell. Rung underwater, everything in earshot comes apart." }
+    desc: "Lanthorne's old warning bell. Its ring rolls out ahead of you and breaks everything it passes." }
 ];
+
+// how the shop describes each way of firing
+const FIRE_STYLES = { harpoon: 'harpoon on a line', spread: 'spread of 3', chain: 'chain lightning', pierce: 'pierces', wave: 'sound wave' };
 
 const GOODS = [
   { id: 'bandage', name: 'Oiled Bandage',  price: 24,  type: 'consume', max: 5,

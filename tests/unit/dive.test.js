@@ -302,105 +302,164 @@ describe('air and pressure', () => {
   });
 });
 
-describe('fighting underwater', () => {
-  test('the harpoon hits what is in front of him, once per thrust', () => {
+describe('fighting underwater: everything fires', () => {
+  // count every time the launcher goes off
+  const countShots = s => { s.h.sandbox.__fired = 0; s.h.eval('(() => { const f = Dive.fire; Dive.fire = function () { __fired++; return f.call(this); }; })()'); };
+
+  test('the harpoon flies to what it is aimed at, bites, and reels back in', () => {
     const s = inWater();
     still(s.h);
-    const m = alone(s, 'shelfcrab', 1600, 500);
+    const m = alone(s, 'shelfcrab', 1800, 500);
     Object.assign(s.p, { x: 1500, y: 500, face: 1 });
     s.h.tap('KeyJ');
-    s.h.frames(.3);
-    assert.equal(m.hp, m.maxHp - s.g.DIVE_WEAPONS[0].dmg);
-  });
-
-  test('...and not what is behind him', () => {
-    const s = inWater();
-    const m = alone(s, 'shelfcrab', 1380, 500);
-    Object.assign(s.p, { x: 1500, y: 500, face: 1 });
-    s.h.tap('KeyJ');
+    assert.equal(s.D.shots.length, 1);
+    assert.equal(s.p.harpoonOut, true);
     s.h.frames(.4);
-    assert.equal(m.hp, m.maxHp);
+    assert.equal(m.hp, m.maxHp - s.g.DIVE_WEAPONS[0].dmg);
+    s.h.frames(1);
+    assert.equal(s.D.shots.length, 0, 'reeled back in');
+    assert.equal(s.p.harpoonOut, false);
   });
 
-  test('stabbing downward hits something below', () => {
-    const s = inWater();
-    const m = alone(s, 'reefgnasher', 1500, 620);
+  test('while the harpoon is out, it cannot be fired again', () => {
+    const s = inWater({}, { empty: true });
     Object.assign(s.p, { x: 1500, y: 500 });
-    s.h.keyDown('KeyS');
-    s.h.frame();
+    s.h.tap('KeyJ');
+    s.h.tap('KeyJ');
+    s.h.tap('KeyJ');
+    assert.equal(s.D.shots.length, 1);
+  });
+
+  test('a shot that hits rock stops there; a harpoon comes back empty', () => {
+    const s = inWater({}, { empty: true });
+    Object.assign(s.p, { x: 600, y: 880 });
+    s.h.keyDown('KeyS'); s.h.frame();
+    s.h.press('KeyJ'); s.h.frame();
+    s.h.keyUp('KeyS');
+    const shot = s.D.shots[0];
+    assert.ok(s.h.until(() => shot.back, 1), 'turned back');
+    assert.ok(shot.y > 940 && shot.y < 980, 'stopped at the shelf, at ' + shot.y);
+    assert.ok(s.h.until(() => !s.p.harpoonOut, 2));
+  });
+
+  test('holding fire keeps firing, and there is no ammunition to run out', () => {
+    const s = inWater({ diveWeapon: 1 }, { empty: true });
+    countShots(s);
+    Object.assign(s.p, { x: 1500, y: 500, air: 999 });
+    s.h.keyDown('KeyJ');
+    s.h.frames(20);
+    const w = s.g.DIVE_WEAPONS[1];
+    assert.ok(s.h.sandbox.__fired >= Math.floor(20 / w.cd) - 2, 'fired ' + s.h.sandbox.__fired);
+  });
+
+  test('every launcher waits out its cooldown between shots', () => {
+    const s = inWater({ diveWeapon: 3 }, { empty: true });
+    countShots(s);
+    const w = s.g.DIVE_WEAPONS[3];
+    s.h.tap('KeyJ');
+    s.h.tap('KeyJ');
+    assert.equal(s.h.sandbox.__fired, 1);
+    s.h.frames(w.cd + .1);
+    s.h.tap('KeyJ');
+    assert.equal(s.h.sandbox.__fired, 2);
+  });
+
+  test('aiming downward sends the shot down', () => {
+    const s = inWater();
+    const m = alone(s, 'reefgnasher', 1500, 760);
+    Object.assign(s.p, { x: 1500, y: 500 });
+    s.h.keyDown('KeyS'); s.h.frame();
     s.h.press('KeyJ');
-    s.h.frames(.3);
+    s.h.frames(.5);
     assert.ok(m.hp < m.maxHp);
   });
 
-  test('attacks have a cooldown', () => {
-    const s = inWater();
-    const w = s.g.DIVE_WEAPONS[0];
+  test('the trident fans out three prongs at once', () => {
+    const s = inWater({ diveWeapon: 1 }, { empty: true });
+    Object.assign(s.p, { x: 1500, y: 500, face: 1 });
     s.h.tap('KeyJ');
-    s.h.frames(w.cd * .5 + .3);
-    assert.equal(s.p.atk, null);
-    s.h.tap('KeyJ');
-    assert.equal(s.p.atk, null, 'still cooling down');
-    s.h.frames(w.cd);
-    s.h.tap('KeyJ');
-    assert.ok(s.p.atk);
+    const angles = s.D.shots.map(x => Math.atan2(x.vy, x.vx)).sort((a, b) => a - b);
+    assert.equal(angles.length, 3);
+    near(angles[1] - angles[0], s.g.DIVE_WEAPONS[1].spread, 1e-9);
   });
 
-  test('the eel lashes the nearest few things around him and stuns them', () => {
+  test('the eel\'s lightning jumps from what it hits to the nearest few around it, and stuns them', () => {
     const s = inWater({ diveWeapon: 2 });
     still(s.h);
     const w = s.g.DIVE_WEAPONS[2];
-    const a = alone(s, 'kelpstrangler', 1600, 500);
-    const others = [[1500, 640], [1380, 500], [1500, 380]].map(([x, y]) => {
-      const m = s.D.spawn(1, null);
-      Object.assign(m, { def: a.def, hp: a.def.hp, maxHp: a.def.hp, x, y, state: 'stun', stun: 1e9 });
-      return m;
-    });
-    const far = s.D.spawn(1, null);
-    Object.assign(far, { def: a.def, hp: a.def.hp, maxHp: a.def.hp, x: 2200, y: 500, state: 'stun', stun: 1e9 });
-    Object.assign(s.p, { x: 1500, y: 500 });
-    s.h.tap('KeyJ'); s.h.frames(.2);
-    const hit = [a].concat(others).filter(m => m.hp < m.maxHp);
-    assert.equal(hit.length, w.chain);
+    const a = alone(s, 'kelpstrangler', 1800, 500);
+    const mk = (x, y) => { const m = s.D.makeMob(a.def, x, y, 1); Object.assign(m, { state: 'stun', stun: 1e9 }); return m; };
+    const around = [mk(1950, 520), mk(1800, 680), mk(1680, 380), mk(1990, 360)];
+    const far = mk(2600, 500);
+    Object.assign(s.p, { x: 1400, y: 500, face: 1 });
+    s.h.tap('KeyJ'); s.h.frames(.9);
+    assert.ok(a.hp < a.maxHp, 'the one it was aimed at');
+    assert.equal(around.filter(m => m.hp < m.maxHp).length, w.chain, 'jumped to ' + w.chain + ' more');
     assert.equal(far.hp, far.maxHp);
-    assert.ok(s.D.zaps.length >= w.chain, 'lightning drawn to each');
   });
 
-  test('the narwhal tusk carries him through the thing in front, untouchable', () => {
+  test('the narwhal tusk goes straight through a line of things', () => {
     const s = inWater({ diveWeapon: 3 });
-    const m = alone(s, 'shelfcrab', 1680, 500);
-    Object.assign(s.p, { x: 1500, y: 500, face: 1, invuln: 0 });
-    s.h.tap('KeyJ');
-    assert.ok(s.p.invuln > .3);
-    s.h.frames(.35);
-    assert.ok(s.p.x > 1600, 'moved to ' + s.p.x);
-    assert.ok(m.hp < m.maxHp);
+    still(s.h);
+    const first = alone(s, 'shelfcrab', 1700, 500);
+    const line = [first, s.D.makeMob(first.def, 1950, 500, 1), s.D.makeMob(first.def, 2200, 500, 1)];
+    for (const m of line) Object.assign(m, { state: 'stun', stun: 1e9, hp: 5000, maxHp: 5000 });
+    Object.assign(s.p, { x: 1400, y: 500, face: 1 });
+    s.h.tap('KeyJ'); s.h.frames(1);
+    for (const m of line) assert.equal(m.hp, 5000 - s.g.DIVE_WEAPONS[3].dmg, 'each hit exactly once');
   });
 
-  test('the sunken bell rings out through everything nearby, once each', () => {
+  test('the bell\'s wave rolls forward, widening, through everything it passes', () => {
     const s = inWater({ diveWeapon: 4 });
     still(s.h);
     const w = s.g.DIVE_WEAPONS[4];
-    const near1 = alone(s, 'shelfcrab', 1650, 500);
-    const near2 = s.D.spawn(1, null);
-    Object.assign(near2, { def: near1.def, hp: 2000, maxHp: 2000, x: 1500, y: 720, state: 'stun', stun: 1e9 });
-    const far = s.D.spawn(1, null);
-    Object.assign(far, { def: near1.def, hp: 2000, maxHp: 2000, x: 2300, y: 500, state: 'stun', stun: 1e9 });
-    near1.hp = near1.maxHp = 2000;
+    const a = alone(s, 'shelfcrab', 1750, 500);
+    const b = s.D.makeMob(a.def, 1950, 590, 1);
+    const off = s.D.makeMob(a.def, 1500, 900, 1);
+    for (const m of [a, b, off]) Object.assign(m, { state: 'stun', stun: 1e9, hp: 5000, maxHp: 5000 });
+    Object.assign(s.p, { x: 1450, y: 500, face: 1 });
+    s.h.tap('KeyJ');
+    const r0 = s.D.shots[0].r;
+    s.h.frames(.6);
+    assert.ok(!s.D.shots.length || s.D.shots[0].r > r0, 'it widens');
+    s.h.frames(1);
+    assert.equal(a.hp, 5000 - w.dmg);
+    assert.equal(b.hp, 5000 - w.dmg);
+    assert.equal(off.hp, 5000);
+  });
+
+  test('aim follows the mouse while it is being used, and he turns to face it', () => {
+    const s = inWater({}, { empty: true });
     Object.assign(s.p, { x: 1500, y: 500 });
-    s.h.tap('KeyJ'); s.h.frames(.8);
-    assert.equal(near1.hp, 2000 - w.dmg);
-    assert.equal(near2.hp, 2000 - w.dmg);
-    assert.equal(far.hp, 2000);
+    s.D._camera(0, true);
+    const sx = s.p.x - s.D.cam.x, sy = s.p.y - s.D.cam.y;
+    s.h.mouseMove(sx - 200, sy + 200);
+    s.h.frame();
+    near(s.p.aim, Math.atan2(200, -200), .05);
+    assert.equal(s.p.face, -1);
+    assert.equal(s.D.mouseAim, true);
+    s.h.frames(5);
+    assert.equal(s.D.mouseAim, false, 'after a while untouched, the keys aim again');
+  });
+
+  test('clicking fires where the mouse points', () => {
+    const s = inWater({}, { empty: true });
+    Object.assign(s.p, { x: 1500, y: 500 });
+    s.D._camera(0, true);
+    const sx = s.p.x - s.D.cam.x, sy = s.p.y - s.D.cam.y;
+    s.h.click(sx, sy - 200);
+    s.h.frame();
+    const shot = s.D.shots[0];
+    assert.ok(shot && shot.vy < -800 && Math.abs(shot.vx) < 50, 'fired upward');
   });
 
   test('a kill goes in the net and on the record, and the sea refills later', () => {
     const s = inWater();
-    const m = alone(s, 'bladderjelly', 1600, 500);
+    const m = alone(s, 'bladderjelly', 1650, 500);
     m.hp = 1;
     Object.assign(s.p, { x: 1500, y: 500, face: 1 });
     const kills = s.P.totalKills;
-    s.h.tap('KeyJ'); s.h.frames(.3);
+    s.h.tap('KeyJ'); s.h.frames(.4);
     assert.equal(m.dead, true);
     assert.equal(s.P.catches[s.P.catches.length - 1].id, 'bladderjelly');
     assert.equal(s.P.kills.bladderjelly, 1);
@@ -414,10 +473,10 @@ describe('fighting underwater', () => {
     const value = luck => {
       const s = inWater({ luck });
       still(s.h);
-      const m = alone(s, 'shelfcrab', 1600, 500);
+      const m = alone(s, 'shelfcrab', 1650, 500);
       m.hp = 1;
       Object.assign(s.p, { x: 1500, y: 500, face: 1 });
-      s.h.tap('KeyJ'); s.h.frames(.3);
+      s.h.tap('KeyJ'); s.h.frames(.4);
       return s.P.catches[s.P.catches.length - 1].value;
     };
     assert.equal(value(true), Math.round(value(false) * 1.25));
@@ -426,15 +485,14 @@ describe('fighting underwater', () => {
   test('damage numbers follow the setting underwater too', () => {
     const s = inWater();
     s.g.Settings.set('damageNumbers', false);
-    const m = alone(s, 'shelfcrab', 1600, 500);
+    const m = alone(s, 'shelfcrab', 1650, 500);
     Object.assign(s.p, { x: 1500, y: 500, face: 1 });
     s.g.Floaters.clear();
-    s.h.tap('KeyJ'); s.h.frames(.3);
+    s.h.tap('KeyJ'); s.h.frames(.4);
     assert.ok(m.hp < m.maxHp);
     assert.equal(s.g.Floaters.list.length, 0);
   });
 });
-
 describe('what lives down there', () => {
   test('a creature drifts until he comes close, then hunts him', () => {
     const s = inWater();
@@ -705,7 +763,7 @@ describe('the Mother Below', () => {
       const B = s.B;
       Object.assign(B, { state: 'rest', t: 0, restDur: 99, x: s.p.x + 330, y: s.p.y, vx: 0, vy: 0 });
       s.p.face = 1;
-      s.h.tap('KeyJ'); s.h.frames(.7);
+      s.h.tap('KeyJ'); s.h.frames(1.2);
       assert.ok(B.hp < B.maxHp, 'weapon ' + w);
       assert.notEqual(B.state, 'stun');
       assert.ok(Math.abs(B.vx) < 80, 'knocked back ' + B.vx);
@@ -823,6 +881,6 @@ describe('the diving HUD', () => {
     s.g.Settings.bind('attack', 'KeyL');
     Object.assign(s.p, { x: 1500, y: 300 });
     s.h.frame();
-    assert.ok(saw(s, /WASD swim .*\[L\] attack/));
+    assert.ok(saw(s, /WASD swim .*\[L\] or click: fire/));
   });
 });

@@ -99,24 +99,27 @@ describe('diving weapons', () => {
     for (const w of W) assert.doesNotMatch(w.name + ' ' + w.desc, /gun|pistol|rifle|musket|cannon|bullet|powder/i, w.id);
   });
 
-  test('every weapon draws differently, and there are four ways to fight', () => {
+  test('every weapon is a launcher, each firing its own way', () => {
     assert.ok(unique(W.map(w => w.kind)));
-    assert.deepEqual([...new Set(W.map(w => w.style))].sort(), ['lance', 'ring', 'thrust', 'zap']);
+    assert.deepEqual([...new Set(W.map(w => w.style))].sort(), ['chain', 'harpoon', 'pierce', 'spread', 'wave']);
+    for (const w of W) assert.ok(g.FIRE_STYLES[w.style], 'the shop can describe ' + w.style);
   });
 
-  test('each upgrade costs more and hits harder', () => {
+  test('each upgrade costs more, and every one out-damages the harpoon in a single shot', () => {
+    const volley = w => w.dmg * (w.count || 1);
     for (let i = 1; i < W.length; i++) {
       assert.ok(W[i].price > W[i - 1].price, W[i].id);
-      assert.ok(W[i].dmg > W[i - 1].dmg, W[i].id);
+      assert.ok(volley(W[i]) > volley(W[0]), W[i].id);
     }
   });
 
-  test('weapon stats are usable', () => {
+  test('weapon stats are usable: every shot flies, reaches and cools down', () => {
     for (const w of W) {
-      assert.ok(w.reach > 0 && w.cd > 0 && w.knock > 0, w.id);
-      if (w.style === 'thrust') assert.ok(w.width > 0);
-      if (w.style === 'zap') assert.ok(w.chain >= 1);
-      if (w.style === 'lance') assert.ok(w.dash > 0);
+      assert.ok(w.speed > 300 && w.range > 300 && w.cd > 0 && w.knock > 0 && w.size > 0, w.id);
+      assert.equal('ammo' in w, false, 'no ammunition, ever');
+      if (w.style === 'spread') assert.ok(w.count >= 2 && w.spread > 0);
+      if (w.style === 'chain') assert.ok(w.chain >= 1 && w.jump > 0);
+      if (w.style === 'wave') assert.ok(w.grow > 0);
       for (const c of [w.metal, w.grip, w.accent]) assert.match(c, /^#[0-9a-f]{6}$/i);
     }
   });
