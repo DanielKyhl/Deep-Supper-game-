@@ -177,4 +177,22 @@ describe('test shortcuts, diving and the Mother in the app', () => {
     assert.equal(s.hp, true);
     assert.equal(s.music, 'abyss');
   });
+
+  test('Sail home: the voyage home plays to its music, ENTER reads on, holding ESC skips it and the credits, and he is back on deck with the ending seen', async () => {
+    await backToTitle(page);
+    await A.choose(page, 'dev');
+    await A.choose(page, 'devFinale');
+    await A.until(page, () => Game.state === 'cutscene' && Game.endingRun && Dialogue.active, null, 10000);
+    assert.match(await page.evaluate(() => Dialogue.full), /turns for home/);
+    await A.until(page, () => Dialogue.done, null, 8000);
+    await page.waitForTimeout(250);
+    await page.keyboard.press('Enter');
+    await A.until(page, () => !Dialogue.active, null, 3000);
+    assert.equal(await page.evaluate(() => Music.pending || Music.themeName), 'ending');
+    await page.keyboard.down('Escape');
+    await A.until(page, () => Game.state === 'play', null, 8000);
+    await page.keyboard.up('Escape');
+    const s = await page.evaluate(() => ({ saw: Player.sawEnding, saved: SaveGame.read().sawEnding, credits: CUT.credits, objective: Game.objective() }));
+    assert.deepEqual(s, { saw: true, saved: true, credits: null, objective: 'Lanthorne is lit again. The sea is yours.' });
+  });
 });

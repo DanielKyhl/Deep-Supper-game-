@@ -120,7 +120,7 @@ describe('the Mother Below', () => {
     assert.ok(h.g.Player.catches.some(c => c.id === 'broodling'));
   });
 
-  test('after part two, the deck says so and the dive is free', () => {
+  test('after part two, back aboard he is told to take the Margaret home, and the dive is free', () => {
     const h = fromShortcut(10);
     h.g.Player.beatMother = true;
     const D = h.g.Dive;
@@ -130,8 +130,12 @@ describe('the Mother Below', () => {
     Object.assign(D.p, { x: h.g.DIVE_LADDER_X, y: 30 });
     h.tap('KeyE');
     assert.ok(h.until(() => h.g.Game.state === 'play', 3));
+    assert.equal(h.g.Dialogue.full, h.g.NARRATION.homeward[0]);
+    F.readDialogue(h);
     h.g.Player.catches.length = 0;
-    assert.match(h.g.Game.objective(), /lit again/);
+    assert.match(h.g.Game.objective(), /Take the Margaret home/);
+    h.g.Player.x = h.g.FINALE.helmX;
+    assert.equal(h.g.Game.spotLabel(h.g.Game.nearestSpot()), 'Sail home');
   });
 });
 

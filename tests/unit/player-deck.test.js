@@ -234,6 +234,8 @@ describe('stations and dialogue', () => {
     P.suit = g.SUITS.length - 1;
     assert.match(g.Game.objective(), /Lanthorne is down there/);
     P.beatMother = true;
+    assert.match(g.Game.objective(), /Take the Margaret home/);
+    P.sawEnding = true;
     assert.match(g.Game.objective(), /lit again/);
   });
 
