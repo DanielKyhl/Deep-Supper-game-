@@ -5,7 +5,7 @@
    way to quit.
    ======================================================================== */
 
-const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, screen, shell } = require('electron');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
@@ -42,10 +42,17 @@ if (!app.requestSingleInstanceLock()) {
     win.focus();
   });
 
+  // 1280x720, or the largest 16:9 window that fits a smaller screen with room
+  // for the title bar, rather than one the system squashes to fit
+  function startSize() {
+    const area = screen.getPrimaryDisplay().workAreaSize;
+    const k = Math.min(1, (area.width - 40) / 1280, (area.height - 80) / 720);
+    return { width: Math.max(640, Math.round(1280 * k)), height: Math.max(360, Math.round(720 * k)) };
+  }
+
   function createWindow() {
     win = new BrowserWindow({
-      width: 1280,
-      height: 720,
+      ...startSize(),
       useContentSize: true,
       minWidth: 640,
       minHeight: 360,

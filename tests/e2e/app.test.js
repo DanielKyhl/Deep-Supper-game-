@@ -17,24 +17,32 @@ describe('the desktop app', () => {
   });
   after(async () => { await A.close(app); A.removeProfile(profile); });
 
-  test('opens one window called Deep Supper, 1280x720 inside, that cannot shrink below 640x360', async () => {
+  test('opens one window called Deep Supper, 1280x720 inside (16:9 and smaller on a small screen), that cannot shrink below 640x360', async () => {
     assert.equal(app.windows().length, 1);
     assert.equal(await page.title(), 'Deep Supper');
-    const bounds = await app.evaluate(({ BrowserWindow }) => {
+    const bounds = await app.evaluate(({ BrowserWindow, screen }) => {
       const w = BrowserWindow.getAllWindows()[0];
-      return { content: w.getContentBounds(), visible: w.isVisible() };
+      return { content: w.getContentBounds(), visible: w.isVisible(), area: screen.getPrimaryDisplay().workAreaSize };
     });
-    // Windows display scaling can round the content size by a pixel
-    assert.ok(Math.abs(bounds.content.width - 1280) <= 2, 'width ' + bounds.content.width);
-    assert.ok(Math.abs(bounds.content.height - 720) <= 2, 'height ' + bounds.content.height);
+    const { content, area } = bounds;
+    const shown = content.width + 'x' + content.height + ' on a ' + area.width + 'x' + area.height + ' work area';
+    // display scaling can round the content size by a pixel or two
+    if (area.width >= 1320 && area.height >= 800) {
+      assert.ok(Math.abs(content.width - 1280) <= 2, shown);
+      assert.ok(Math.abs(content.height - 720) <= 2, shown);
+    } else {
+      assert.ok(content.width <= 1282 && content.width <= area.width && content.height <= area.height, 'fits: ' + shown);
+      assert.ok(Math.abs(content.width / content.height - 16 / 9) < .02, '16:9: ' + shown);
+    }
     assert.equal(bounds.visible, true);
 
     const small = await app.evaluate(async ({ BrowserWindow }) => {
       const w = BrowserWindow.getAllWindows()[0];
+      const [ow, oh] = w.getContentSize();
       w.setContentSize(200, 100);
       await new Promise(r => setTimeout(r, 300));
       const b = w.getContentBounds();
-      w.setContentSize(1280, 720);
+      w.setContentSize(ow, oh);
       await new Promise(r => setTimeout(r, 300));
       return b;
     });
