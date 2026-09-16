@@ -447,6 +447,18 @@ Settings.onApply(d => {
 addEventListener('blur', () => { windowFocused = false; applyAudio(Settings.data); });
 addEventListener('focus', () => { windowFocused = true; applyAudio(Settings.data); });
 
+// in the app, the window says when it has really changed; whatever it says wins
+if (window.native) {
+  addEventListener('nativefullscreenchange', e => {
+    const on = !!(e && e.detail);
+    Settings.appliedFullscreen = on;
+    if (Settings.data.fullscreen !== on) {
+      Settings.data.fullscreen = on;
+      Settings.save();
+    }
+  });
+}
+
 // in a browser the player can leave fullscreen with ESC behind our back
 if (!window.native && typeof document.addEventListener === 'function') {
   document.addEventListener('fullscreenchange', () => {

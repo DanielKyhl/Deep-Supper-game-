@@ -1,7 +1,8 @@
 'use strict';
 /* ========================================================================
-   Draws the app icon as 32x32 pixel art and writes it out as a 256x256
-   PNG (build/icon.png), which electron-builder turns into the .exe icon.
+   Draws the app icon as 32x32 pixel art and writes it out as a 1024x1024
+   PNG (build/icon.png), which electron-builder turns into the .exe icon
+   and the Mac app icon (a Mac needs at least 512x512).
 
    No image libraries: pixels go into an RGBA buffer by hand and a minimal
    PNG encoder writes it, using the zlib that ships with Node.
@@ -14,7 +15,7 @@ const path = require('path');
 const zlib = require('zlib');
 
 const N = 32;          // design grid
-const SCALE = 8;       // 32 * 8 = 256
+const SCALE = 32;      // 32 * 32 = 1024
 
 function hex(h) {
   const n = parseInt(h.replace('#', ''), 16);

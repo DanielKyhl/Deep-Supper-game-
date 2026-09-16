@@ -21,6 +21,21 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   let win = null;
 
+  // no menu bar on Windows. A Mac always has one across the top of the
+  // screen, so there it gets the least a Mac app should have: About, Hide,
+  // Quit (Cmd+Q), and a Window menu with fullscreen (Ctrl+Cmd+F)
+  function appMenu() {
+    if (process.platform !== 'darwin') return null;
+    return Menu.buildFromTemplate([
+      { label: app.name, submenu: [
+        { role: 'about' }, { type: 'separator' },
+        { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' },
+        { role: 'quit' }
+      ] },
+      { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'togglefullscreen' }, { role: 'close' }] }
+    ]);
+  }
+
   app.on('second-instance', () => {
     if (!win) return;
     if (win.isMinimized()) win.restore();
@@ -49,7 +64,13 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
-    Menu.setApplicationMenu(null);
+    Menu.setApplicationMenu(appMenu());
+
+    // tell the page when the window has really gone in or out of fullscreen.
+    // On a Mac that animates, ignores a second toggle part-way through, and
+    // can be done with the window's own green button
+    win.on('enter-full-screen', () => win.webContents.send('fullscreen-changed', true));
+    win.on('leave-full-screen', () => win.webContents.send('fullscreen-changed', false));
 
     // the game never navigates anywhere; anything that tries is refused
     win.webContents.on('will-navigate', e => e.preventDefault());
