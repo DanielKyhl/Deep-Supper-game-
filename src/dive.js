@@ -253,6 +253,7 @@ const Dive = {
     this._shots(dt);
     this._projectiles(dt);
     this._respawn(dt);
+    Lore.pickups(this);
     this._ambience(dt);
     this._camera(dt);
     for (let i = this.zaps.length - 1; i >= 0; i--) { this.zaps[i].t += dt; if (this.zaps[i].t > .22) this.zaps.splice(i, 1); }
@@ -940,7 +941,9 @@ const Dive = {
       const lost = Player.catches.length - this.haulStart;
       Player.catches.length = this.haulStart;
       Player.hp = Player.maxHp;
-      this.backOnDeck(lost ? 'You wake on the deck, coughing. The sea kept what you caught.' : 'You wake on the deck, coughing.', DORRAN.deck.woke);
+      const fee = salvageFee();
+      const cost = fee > 0 ? ' Salvage fee: ' + fee + '§' : '';
+      this.backOnDeck((lost ? 'You wake on the deck. The sea kept your catch.' : 'You wake on the deck, coughing.') + cost, DORRAN.deck.woke);
     });
   },
 

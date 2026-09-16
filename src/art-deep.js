@@ -411,6 +411,12 @@ Object.assign(Art, {
       for (let x = Math.floor(x0 / 16) * 16; x < x1; x += 16) g.fillRect(x, DIVE_FLOOR + Math.round(Math.sin(x * .05) * 2) * PIX, 16, 2);
     }
 
+    // what lies down here waiting to be found
+    for (const L of Lore.unfound()) {
+      if (L.x < x0 - 60 || L.x > x1 + 60 || L.y < y0 - 60 || L.y > y1 + 60) continue;
+      Lore.drawFind(g, L, L.x, L.y, t, 1);
+    }
+
     // everything alive
     for (const m of D.mobs) {
       if (m.x < x0 - 400 || m.x > x1 + 400 || m.y < y0 - 300 || m.y > y1 + 300) continue;

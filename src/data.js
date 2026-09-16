@@ -52,6 +52,20 @@ const WEAPONS = [
     desc: 'Pulled from a jaw by a boy who should not have survived doing it.' }
 ];
 
+/* One sword, not for sale. It comes up on a line once in a thousand casts,
+   and nothing on the boat survives a single blow from it.                 */
+const EXCALIBUR = {
+  id: 'excalibur', name: 'Excalibur', kind: 'excalibur', style: 'swing', price: 0,
+  dmg: 999, reach: 1.34, speed: 1.2, knock: 2.4,
+  metal: '#e6eeff', grip: '#34407a', accent: '#f0cf6a',
+  desc: 'It came out of the sea, not a stone. Nothing on this boat survives one blow of it.'
+};
+
+// what he fights with on deck
+function deckWeapon() {
+  return Player.excalibur ? EXCALIBUR : WEAPONS[Math.max(0, Player.weapon)];
+}
+
 /* ------------------------------ below the surface -------------------------
    Diving suits, for after the Old One. `depth` is how far down (in pixels
    of water, fifty to a fathom) the suit holds before it starts to buckle,
@@ -502,26 +516,44 @@ const DORRAN = {
       "Wakey wakey. Sea's still there."
     ]
   },
-  // when he has something to say, he says it properly
-  talk: {
-    start: [
-      "Oi! Nephew! You're not going at the sea with your bare hands, are you?",
-      "...You probably could. Don't. There's a crate by the cabin. Net in it. Or a cat."
-    ],
-    crate: [
-      "That's the herring net! Bent hoop, splintered handle. Smells like 1908.",
-      "It's for scooping herring out of a bucket. Still. In your hands, I expect it'll do."
-    ],
-    noNet: [
-      "Empty hands? Your dad'd have my head. And he'd be welcome to it.",
-      "The crate, lad. By the cabin. Big wooden box. You know what a crate is."
-    ],
-    lost: [
-      "Having a lie down? Good idea. Best part of the night, the lie down.",
-      "Whatever that was, it's gone off with your hook. Nice of it to leave the rest of you."
-    ]
-  }
 };
+
+/* -------------------------------- narration --------------------------------
+   What happens, told by nobody in particular, in the dialogue box. {fee} is
+   filled in with what Dorran charged for fishing him out.                  */
+
+const NARRATION = {
+  start: [
+    "The boat is yours, the sea is dark, and your hands are empty.",
+    "There is a crate by the cabin. Whatever is in it is better than nothing."
+  ],
+  crate: [
+    "The old crate: rope, oilskins, a tin of something furred over, and a dip net.",
+    "Bent hoop, splintered handle. It is for scooping herring out of a bucket. It will have to do."
+  ],
+  noNet: [
+    "Empty hands. Nothing goes over the side without something to hit it with.",
+    "The crate by the cabin, first."
+  ],
+  lost: [
+    "You come to flat on the deck, soaked. Whatever it was has gone back down with your catch."
+  ],
+  fee: "Dorran fished you out of the scuppers. His salvage fee: {fee} coins.",
+  excalibur: [
+    "The line comes up heavy, and not with a fish.",
+    "A sword. Bright as the day it went into the water, without a speck of rust on it.",
+    "It hums in your hand. Nothing on this boat is going to survive it."
+  ],
+  bottle: "A bottle, corked and sealed, with a page rolled up inside."
+};
+
+// what it costs to be fished out: a quarter of what you carry, rounded down
+const SALVAGE_CUT = .25;
+function salvageFee() {
+  const fee = Math.floor(Player.coins * SALVAGE_CUT);
+  Player.coins -= fee;
+  return fee;
+}
 
 /* --------------------------- catch generation ---------------------------- */
 

@@ -615,7 +615,7 @@ describe('coming back up', () => {
     assert.ok(h.until(() => g.Game.state === 'play', 3));
     assert.deepEqual(plain(P.catches.map(c => c.id)), ['gnashfin']);
     assert.equal(P.hp, P.maxHp);
-    assert.match(g.Game.toastText, /kept what you caught/);
+    assert.match(g.Game.toastText, /kept your catch/);
   });
 
   test('returning to the title or loading a save ends the dive cleanly', () => {

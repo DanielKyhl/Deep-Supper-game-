@@ -52,24 +52,30 @@ const Dialogue = {
     const x = 78, y = 398, w = VIEW_W - 156, h = 108;
     panel(g, x, y, w, h, { alpha: .97 });
 
-    // name plate
-    if (this.who) {
+    // name plate; a line with no name on it is narration, set apart from speech
+    const narr = !this.who;
+    if (!narr) {
       const nw = Text.width(g, this.who, { size: 17, weight: 'bold' }) + 30;
       panel(g, x + 16, y - 19, nw, 34, { alpha: 1, top: 'rgba(40,34,26,.98)', bottom: 'rgba(24,20,14,.99)' });
       Text.draw(g, this.who, x + 16 + nw / 2, y + 3, {
         size: 17, weight: 'bold', align: 'center', color: '#f0cf8a', font: 'Georgia, serif'
       });
+    } else {
+      g.fillStyle = 'rgba(160,176,208,.35)';
+      g.fillRect(x + w / 2 - 60, y + 12, 120, 2);
     }
 
-    const str = this.full.slice(0, Math.floor(this.shown));
-    const opts = { size: 21, font: 'Georgia, serif', color: '#e8e3d6' };
+    const opts = { size: 21, font: 'Georgia, serif', color: narr ? '#b9c6de' : '#e8e3d6' };
     const lines = Text.wrap(g, this.full, w - 60, opts);
     // render progressively, line by line
     let left = Math.floor(this.shown);
     let ly = y + 46;
     for (const ln of lines) {
       const take = Math.max(0, Math.min(ln.length, left));
-      if (take > 0) Text.draw(g, ln.slice(0, take), x + 30, ly, opts);
+      if (take > 0) {
+        if (narr) Text.draw(g, ln.slice(0, take), x + w / 2 - Text.width(g, ln, opts) / 2, ly, opts);
+        else Text.draw(g, ln.slice(0, take), x + 30, ly, opts);
+      }
       left -= ln.length + 1;
       ly += 30;
       if (left <= 0) break;
@@ -236,6 +242,8 @@ function sSay(who, text) {
     update() { return Dialogue.pressed() && Dialogue.press(); }
   };
 }
+// a line of narration: what happens, told by nobody in particular
+function sNarrate(text) { return sSay('', text); }
 function sHideText() {
   return sAct(() => Dialogue.hide());
 }
@@ -316,9 +324,9 @@ function buildOpening() {
         CUT.bgTween(9, p => { Cam.x = lerp(c0, c0 + 210, ease(p)); });
       }),
       sWait(2.6),
-      sSay('Dorran', "Look at that! The whole harbour, getting smaller. Does that every time."),
+      sNarrate("The harbour grows smaller behind the Margaret, and then it is gone."),
       sWait(1.4),
-      sSay('Dorran', "Getting dark fast, too. That'll be the night. Comes every day, the night."),
+      sNarrate("It gets dark very fast out here."),
       sHideText(),
       sAct(() => {
         CUT.bgTween(7, p => { Game.night = lerp(0.74, 1, p); });
@@ -335,8 +343,8 @@ function buildOpening() {
       sWait(2.0),
       sAct(() => { Sfx.roar(); Cam.kick(8); }),
       sWait(1.9),
-      sSay('Dorran', "..."),
-      sSay('Dorran', "That'll have been a wave."),
+      sNarrate("Something the length of the hull passes beneath the boat."),
+      sNarrate("It was not a wave."),
       sHideText(),
       sWait(1.0),
       sAct(() => { CUT.bigShadow = 0; Cam.locked = false; }),
@@ -414,8 +422,8 @@ function buildGirlScene() {
       }),
       sAct(() => { G.visible = false; splash(over.x, 34); Cam.kick(3); }),
       sWait(1.8),
-      sSay('Dorran', "Was that a girl? Out of the sea?"),
-      sSay('Dorran', "...Happens. I nearly married one."),
+      sNarrate("She is gone before the ripples are."),
+      sSay('Dorran', "Was that a girl? Out of the sea? ...Happens."),
       sHideText(),
       sAct(() => { finalize(); })
     ]
@@ -545,9 +553,9 @@ function buildEnding() {
         Particles.burst(Player.x + 120, DECK_Y - 12, 20, { color: '#9fd4e4', vy: rand(-240, -60), g: 800, size: rand(2, 5), life: .7 });
       }),
       sWait(1.2),
-      sSay('Dorran', "Oh, it's coughed something up. They do that."),
-      sSay('Dorran', 'A diving suit! Brass helmet, rubber gone hard, and a harpoon snapped off through the sleeve.'),
-      sSay('Dorran', "Somebody went down after that one before you, nephew. A long time before you. Finders keepers."),
+      sNarrate("It coughs something up on its way back over the rail."),
+      sNarrate('A diving suit: brass helmet, rubber gone hard, and a harpoon snapped off through the sleeve.'),
+      sNarrate("Somebody went down after it before you. A long time before you."),
       sAct(() => {
         takeTheSuit();
         Sfx.buy();
@@ -565,9 +573,9 @@ function buildEnding() {
         CUT.bgTween(10, p => { CUT.harbourX = lerp(-1400, 300, ease(p)); });
       }),
       sWait(1.2),
-      sSay('Dorran', "Sun's coming up."),
+      sNarrate("The sun comes up."),
       sWait(1.0),
-      sSay('Dorran', "Everything out here goes quiet when the sun comes up. Everything except me."),
+      sNarrate("Everything out here goes quiet when the sun comes up. Everything."),
       sWait(2.4),
       sAct(() => { CUT.dad.visible = true; CUT.dad.x = 240; CUT.dad.face = 1; }),
       sWait(1.0),
@@ -578,7 +586,6 @@ function buildEnding() {
       sSay('Dad', "What is that."),
       sSay('Dorran', "Supper!"),
       sSay('Dad', "That is not supper. That has a jaw on it the size of a rowboat."),
-      sSay('Dorran', "Boy caught it. I weighed it. Well. I weighed some of it."),
       sSay('Dad', "..."),
       sSay('Dad', "Your mother is going to need a bigger pot."),
       sSay('Dad', 'And where did you get that suit?'),

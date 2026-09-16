@@ -270,7 +270,8 @@ const SAVE_FIELDS = {
   girlMet:    { type: 'bool' },
   suit:       { type: 'int', min: -1, max: SUITS.length - 1 },
   diveWeapon: { type: 'int', min: -1, max: DIVE_WEAPONS.length - 1 },
-  beatMother: { type: 'bool' }
+  beatMother: { type: 'bool' },
+  excalibur:  { type: 'bool' }
 };
 
 const SaveGame = {
@@ -286,6 +287,7 @@ const SaveGame = {
       body: c.body, belly: c.belly, len: c.len
     }));
     d.kills = Object.assign({}, Player.kills);
+    d.lore = Player.lore.slice();
     return d;
   },
 
@@ -322,6 +324,9 @@ const SaveGame = {
         if (typeof v === 'number' && v > 0) d.kills[m.id] = Math.floor(v);
       }
     }
+    // letters and relics found: only ones that exist, each once
+    d.lore = [];
+    if (Array.isArray(raw.lore)) for (const id of raw.lore) if (loreDef(id) && d.lore.indexOf(id) < 0) d.lore.push(id);
     d.catches = [];
     if (Array.isArray(raw.catches)) {
       for (const c of raw.catches.slice(0, 200)) {
@@ -383,6 +388,7 @@ const SaveGame = {
     Player.catches.length = 0;
     for (const c of d.catches) Player.catches.push(c);
     Player.kills = Object.assign({}, d.kills);
+    Player.lore = (d.lore || []).slice();
     Game.crateOpen = d.crateOpen;
     return true;
   },

@@ -98,6 +98,7 @@ const Menu = {
         { kind: 'action', label: 'Resume', id: 'resume', run: () => Game.resume() },
         { kind: 'action', label: 'Save game', id: 'save', run: () => this.push('saveSlots') },
         { kind: 'action', label: 'Load game', id: 'load', hidden: !SaveGame.anySlot(), run: () => this.push('loadSlots') },
+        { kind: 'action', label: 'Journal  (' + Player.lore.length + '/' + LORE.length + ')', id: 'journal', run: () => this.push('journal') },
         { kind: 'action', label: 'Options', id: 'options', run: () => this.push('options') },
         { kind: 'action', label: 'Save and return to title', id: 'title', run: () => Game.quitToTitle() },
         { kind: 'action', label: 'Save and quit game', id: 'quit', hidden: !isApp, run: () => Game.quitApp() },
@@ -219,6 +220,21 @@ const Menu = {
         { kind: 'gap' },
         { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
       ];
+
+      // everything found so far, in the order it was found
+      case 'journal': {
+        const rows = Player.lore.map(id => loreDef(id)).filter(Boolean).map(L => ({
+          kind: 'action', label: (L.kind === 'relic' ? 'Relic: ' : 'Letter: ') + L.title, id: 'lore-' + L.id, run: () => Lore.read(L.id)
+        }));
+        if (!rows.length) rows.push({ kind: 'text', label: 'Nothing yet. Bottles come up on lines; other things lie on the bottom.' });
+        return [
+          { kind: 'text', label: Lore.count('letter') + ' of ' + Lore.total('letter') + ' letters   ·   ' + Lore.count('relic') + ' of ' + Lore.total('relic') + ' relics' },
+          { kind: 'gap' },
+          ...rows,
+          { kind: 'gap' },
+          { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
+        ];
+      }
 
       case 'credits': return [
         { kind: 'text', label: 'DEEP SUPPER' },

@@ -14,9 +14,11 @@
 
 const MAT = {
   EMPTY: 0, BODY: 1, BELLY: 2, FIN: 3, MOUTH: 4, TOOTH: 5, EYE: 6, PUPIL: 7,
-  GLOW: 8, GUM: 9, BONE: 10, METAL: 11, SHELL: 12, DARK: 13, WOOD: 14, WHITE: 15
+  GLOW: 8, GUM: 9, BONE: 10, METAL: 11, SHELL: 12, DARK: 13, WOOD: 14, WHITE: 15,
+  // spare materials for people and things, coloured by their own palettes
+  C1: 16, C2: 17, C3: 18, C4: 19, C5: 20, C6: 21, C7: 22, C8: 23
 };
-const EMISSIVE = new Uint8Array(16);
+const EMISSIVE = new Uint8Array(32);
 EMISSIVE[MAT.EYE] = EMISSIVE[MAT.GLOW] = EMISSIVE[MAT.WHITE] = EMISSIVE[MAT.PUPIL] = 1;
 const BAYER16 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
@@ -996,6 +998,63 @@ const Beast = {
   // let go of creatures that haven't been drawn in a while
   _forget() {
     for (const [who, held] of this._held) if (this._calls - held.last > 600) this._held.delete(who);
+  }
+};
+
+/* ------------------------------ everything else ------------------------------
+   People, gear, relics and the boat are drawn with the same workbench. Each
+   gets a palette of its own: a colour per material, shaded the same way. */
+
+const SPRITE_BASE = {
+  BODY: '#7a6a58', BELLY: '#c8b89a', FIN: '#5a4a3a', SHELL: '#8a7a68', MOUTH: '#60162a', GUM: '#b25062',
+  TOOTH: '#eee6ce', BONE: '#ccc2a8', METAL: '#7c7068', WOOD: '#805c3a', DARK: '#281c30', EYE: '#ffd76a',
+  GLOW: '#ffd76a', PUPIL: '#0a040e', WHITE: '#fffcee',
+  C1: '#8a8a8a', C2: '#8a8a8a', C3: '#8a8a8a', C4: '#8a8a8a', C5: '#8a8a8a', C6: '#8a8a8a', C7: '#8a8a8a', C8: '#8a8a8a'
+};
+const _spritePalettes = new Map();
+function spritePalette(key, spec) {
+  let P = _spritePalettes.get(key);
+  if (P) return P;
+  const s = Object.assign({}, SPRITE_BASE, spec);
+  P = [];
+  for (const k in MAT) {
+    if (k === 'EMPTY') continue;
+    const col = hexRgb(s[k]);
+    P[MAT[k]] = k === 'PUPIL' || k === 'WHITE' ? flat(col) : EMISSIVE[MAT[k]] ? lights(col) : tones(col);
+  }
+  P.outline = s.outline ? hexRgb(s.outline) : [22, 14, 28];
+  P.eyeCss = s.EYE; P.glowCss = s.GLOW;
+  _spritePalettes.set(key, P);
+  return P;
+}
+
+/* A sprite that isn't a creature, drawn through the same cache: `who` names
+   the thing on screen, `pose` is a string of everything that changes its
+   pixels. Same pose, same pixels, put down again for free. */
+const Sprite = {
+  cache: true,
+  _held: new Map(),
+  _calls: 0,
+  draw(g, who, pose, wx, wy, o) {
+    const face = o.face < 0 ? -1 : 1, flash = o.flash || 0;
+    let held = null;
+    if (this.cache) {
+      held = this._held.get(who);
+      if (!held) this._held.set(who, held = { pose: null, baked: null, surface: null, last: 0 });
+      held.last = ++this._calls;
+      if (this._calls % 900 === 0) for (const [k, h] of this._held) if (this._calls - h.last > 900) this._held.delete(k);
+      const key = pose + '|' + face + '|' + Math.round(flash * 4);
+      if (held.pose === key) {
+        if (held.baked) Spr.blit(g, snap(wx), snap(wy), held.baked);
+        return;
+      }
+      held.pose = key;
+    }
+    Spr.begin(o.w, o.h);
+    o.paint();
+    const baked = Spr.bake(face, o.pal, flash, held ? held.surface : undefined);
+    if (held) { held.baked = baked; if (baked) held.surface = baked.S; }
+    if (baked) Spr.blit(g, snap(wx), snap(wy), baked);
   }
 };
 

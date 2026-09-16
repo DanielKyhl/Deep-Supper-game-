@@ -25,14 +25,14 @@ function readThrough(h, state, seconds) {
 }
 
 describe('Uncle Dorran, and a boy who says nothing', () => {
-  test('from the title to the first sale, the boy never says a word, and Dorran does most of the talking', () => {
+  test('from the title to the first sale, the boy never says a word: narration tells it, Dad and Dorran talk', () => {
     const h = loadGame({ seed: 1, draw: false });
     const said = listen(h);
     F.newVoyageFromMenu(h);
     readThrough(h, 'cutscene');
     assert.equal(h.g.Game.state, 'play');
-    assert.equal(h.g.Dialogue.who, 'Dorran', 'he is the first to speak on deck');
-    assert.match(h.g.Dialogue.full, /bare hands/);
+    assert.equal(h.g.Dialogue.who, '', 'narration tells him where to start');
+    assert.match(h.g.Dialogue.full, /hands are empty/);
     F.readDialogue(h);
 
     F.walkTo(h, h.g.FISH_X, 40);
@@ -52,8 +52,8 @@ describe('Uncle Dorran, and a boy who says nothing', () => {
     assert.doesNotMatch(h.g.Shop.line, /[{}]/);
     assert.notEqual(h.g.Shop.line, h.g.DORRAN.remark.first);
 
-    assert.deepEqual(speakers(said), ['Dad', 'Dorran']);
-    assert.ok(said.filter(l => l.who === 'Dorran').length >= 10, 'Dorran said ' + said.filter(l => l.who === 'Dorran').length + ' lines');
+    assert.deepEqual(speakers(said), ['', 'Dad', 'Dorran']);
+    assert.ok(said.filter(l => l.who === '').length >= 6, 'narrated ' + said.filter(l => l.who === '').length + ' lines');
   });
 
   test('walking along the deck he calls out from his stall, in a bubble over it, and hushes when you open it', () => {
@@ -141,7 +141,7 @@ describe('Uncle Dorran, and a boy who says nothing', () => {
       else h.frame();
     }
     assert.equal(title, 'END OF PART ONE');
-    assert.deepEqual(speakers(said), ['Dad', 'Dorran']);
+    assert.deepEqual(speakers(said), ['', 'Dad', 'Dorran']);
     const at = text => said.findIndex(l => l.text === text);
     assert.equal(said[at('What is that.') + 1].text, 'Supper!');
     assert.equal(said[at("Look at me. Say you won't.") + 1].text, '...You never do say anything, do you.');

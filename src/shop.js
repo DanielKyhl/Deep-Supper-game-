@@ -29,7 +29,7 @@ const Shop = {
   tab: 0, sel: 0, line: '', lineT: 0, shown: 0, t: 0, flashRow: -1, flashT: 0,
   remarked: {},
   TALK_CPS: 38,        // how fast he gets his words out
-  SILENCE: 9,          // how long he can stand nobody saying anything
+  SILENCE: 15,         // how long he can stand nobody saying anything
 
   open() {
     Game.state = 'shop';
@@ -315,12 +315,19 @@ const Shop = {
       if (r.kind === 'fish') { Art.fishIcon(g, X + 48, y + 24, 1.15, r.body, r.belly); nx = X + 74; }
 
       Text.draw(g, r.name, nx, y + 24, { size: 19, color: nameCol, weight: on ? 'bold' : 'normal' });
-      if (r.sub) Text.draw(g, r.sub, nx, y + 48, {
-        size: 13, color: dim ? '#4e566d' : '#8d97b4', italic: true, font: 'Georgia, serif'
-      });
-      if (r.stat) Text.draw(g, r.stat, X + W - 150, y + 48, {
-        size: 12, color: '#75809c', align: 'right', font: 'Verdana, sans-serif'
-      });
+      const statO = { size: 12, color: '#75809c', align: 'right', font: 'Verdana, sans-serif' };
+      if (r.sub) {
+        // the description stops short of the stats beside it, trimmed with an ellipsis
+        const subO = { size: 13, color: dim ? '#4e566d' : '#8d97b4', italic: true, font: 'Georgia, serif' };
+        const room = (r.stat ? X + W - 150 - Text.width(g, r.stat, statO) - 18 : X + W - 130) - nx;
+        let sub = r.sub;
+        if (Text.width(g, sub, subO) > room) {
+          while (sub.length > 1 && Text.width(g, sub + '…', subO) > room) sub = sub.slice(0, -1);
+          sub = sub.trimEnd() + '…';
+        }
+        Text.draw(g, sub, nx, y + 48, subO);
+      }
+      if (r.stat) Text.draw(g, r.stat, X + W - 150, y + 48, statO);
 
       // right column
       const rx = X + W - 44;

@@ -4,7 +4,8 @@ const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const { loadGame } = require('../helpers/harness');
 
-const SPEAKERS = ['Dad', 'Dorran', 'Nerys', '???'];
+// who may speak: everyone but him, and the narration, which has no name
+const SPEAKERS = ['Dad', 'Dorran', 'Nerys', '???', ''];
 
 // everything a scene's steps would say, without playing any of its actions
 function linesOf(h, steps) {
@@ -60,7 +61,7 @@ describe('the boy says nothing', () => {
     assert.ok(total >= 50, 'read ' + total + ' lines');
   });
 
-  test('what he used to think to himself on deck is Dorran shouting it across the deck', () => {
+  test('what he used to think to himself on deck is told as narration, and being fished out costs a quarter of his coins', () => {
     const h = loadGame({ draw: false, seed: 2 });
     const g = h.g;
     const said = talkDuring(h, () => {
@@ -68,10 +69,13 @@ describe('the boy says nothing', () => {
       g.Game.useSpot({ id: 'fish' });                          // no net yet
       g.Game.useSpot({ id: 'crate' });                         // the net
       g.Battle.def = g.MONSTERS[0];
+      g.Player.coins = 403;
       g.Game.endBattle(false);                                 // knocked flat
     });
-    assert.ok(said.length >= 8);
-    for (const l of said) assert.equal(l.who, 'Dorran', l.text);
+    assert.ok(said.length >= 7);
+    for (const l of said) assert.equal(l.who, '', l.text);
+    assert.equal(g.Player.coins, 403 - 100);
+    assert.match(said[said.length - 1].text, /salvage fee: 100 coins/);
     assert.match(said.map(l => l.text).join(' '), /crate by the cabin/);
     assert.match(g.Game.toastText, /dip net/);
   });
@@ -81,7 +85,7 @@ describe('the boy says nothing', () => {
     const g = h.g, D = { boss: {}, girl: {} };
     const lines = [g.buildOpening(), g.buildGirlScene(), g.buildEnding(), g.motherIntroSteps(D), g.motherEndSteps(D)]
       .flatMap(s => linesOf(h, s.steps).map(l => l.text))
-      .concat(Object.values(g.DORRAN.talk).flat());
+      .concat(Object.values(g.NARRATION).flat());
     const width = g.VIEW_W - 156 - 60;
     for (const text of lines) {
       const rows = g.Text.wrap(null, text, width, { size: 21 });
@@ -292,7 +296,7 @@ describe('Uncle Dorran on deck', () => {
     walk(h, 'KeyA', () => g.Player.x < 1000);
     assert.equal(G.bark.text, '', 'not again so soon');
     walk(h, 'KeyD', () => g.Player.x > 1300);
-    h.frames(26);
+    h.frames(61);
     walk(h, 'KeyA', () => g.Player.x < 1000);
     assert.ok(D.deck.near.includes(G.bark.text), 'but later, yes');
   });
@@ -311,7 +315,7 @@ describe('Uncle Dorran on deck', () => {
   test('a conversation shuts him up, and he waits a moment after it before calling out', () => {
     const { h, G } = onDeck(1100);
     G.dorranShouts('Is it Tuesday? Feels like a Tuesday.');
-    G.dorranTalks('noNet');
+    G.narrate('noNet');
     h.frame();
     assert.equal(G.bark.text, '');
     assert.ok(G.barkCd >= 7.9);

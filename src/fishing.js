@@ -33,6 +33,12 @@ const Fishing = {
     this.intro = (Player.totalKills === 0 && !Player.introDone);
     this.eaten = false;
     this.warned = false;
+    // once in a long while the sea hands something up instead: a sword, or a bottle
+    this.special = null;
+    if (!this.intro) {
+      if (!Player.excalibur && SeaDice.chance(EXCALIBUR_CHANCE)) this.special = 'excalibur';
+      else if (Lore.nextBottle() && SeaDice.chance(BOTTLE_CHANCE)) this.special = 'bottle';
+    }
     Player.state = 'idle';
     Player.face = 1;
     Player.x = FISH_X;
@@ -185,7 +191,7 @@ const Fishing = {
 
     if (this.t >= this.waitFor) {
       this.phase = 'bite'; this.t = 0;
-      this.target = this.intro ? MINNOW : (this.girlDue() ? GIRL : rollCatch(RODS[Player.rod].depth, Player.luck));
+      this.target = this.intro ? MINNOW : this.girlDue() ? GIRL : this.special ? this._specialCatch() : rollCatch(RODS[Player.rod].depth, Player.luck);
       Sfx.bite();
       this.hook.tug = 22;
       Cam.kick(this.target.gentle ? 1 : 4);
@@ -226,9 +232,23 @@ const Fishing = {
     }
   },
 
+  // what a special catch looks like on the line: it comes straight up, like junk
+  _specialCatch() {
+    if (this.special === 'excalibur') return { junk: true, special: 'excalibur', name: 'something heavy and bright', value: 0, gentle: true };
+    const L = Lore.nextBottle();
+    return { junk: true, special: 'bottle', lore: L.id, name: 'a bottle with a page in it', value: 0, gentle: true };
+  },
+
   _junk(dt) {
     // junk just comes straight up
     this.hook.depth = Math.max(0, this.hook.depth - 620 * dt);
+    if (this.target.special && this.t > 2.2) {
+      const T = this.target;
+      this.quit();
+      if (T.special === 'excalibur') Game.foundExcalibur();
+      else { Game.toast(NARRATION.bottle); Lore.find(T.lore); }
+      return;
+    }
     if (this.t > 2.2) {
       Player.coins += this.target.value;
       Floaters.add(VIEW_W / 2, 300, '+' + this.target.value + '§', { color: '#f0cf8a', size: 24, fixed: true });

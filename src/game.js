@@ -16,6 +16,7 @@ const Player = {
   kills: {}, totalKills: 0, sold: 0, casts: 0,
   beatBoss: false,
   suit: -1, diveWeapon: -1, beatMother: false,   // the second half: diving
+  excalibur: false, lore: [],                    // what the sea gave back
   // battle scratch
   attackT: 0, attackDur: .32, attackDone: false, combo: 0, comboBuffer: false,
   rollT: 0, rollCd: 0, invuln: 0, knock: 0, healT: 0,
@@ -28,6 +29,7 @@ const Player = {
     this.catches.length = 0; this.kills = {}; this.totalKills = 0; this.sold = 0; this.casts = 0;
     this.beatBoss = false;
     this.suit = -1; this.diveWeapon = -1; this.beatMother = false;
+    this.excalibur = false; this.lore = [];
     this.attackT = 0; this.rollT = 0; this.invuln = 0; this.knock = 0;
     this.state = 'idle'; this.bState = 'idle';
   }
@@ -97,6 +99,7 @@ const Game = {
     this.msgs = [];
     Dialogue.hide();
     Particles.clear(); Floaters.clear();
+    Lore.open = null;
     this.hushDorran();
     const o = buildOpening();
     this.state = 'cutscene';
@@ -110,7 +113,7 @@ const Game = {
     Dialogue.hide();
     if (Player.weapon < 0 && !this._toldStart) {
       this._toldStart = true;
-      this.dorranTalks('start');
+      this.narrate('start');
     }
     this.autosave();
   },
@@ -217,6 +220,7 @@ const Game = {
     this.cutKind = null;
     CUT.allowShadows = 1; CUT.wake = 1; CUT.bigShadow = 0; CUT.titleCard = null;
     Particles.clear(); Floaters.clear(); Dialogue.hide();
+    Lore.open = null;
     this.hushDorran();
     Dive.reset();
     Player.state = 'idle'; Player.bState = 'idle'; Player.y = DECK_Y; Player.vy = 0;
@@ -226,9 +230,21 @@ const Game = {
 
   /* ------------------------------ Uncle Dorran --------------------------- */
 
-  // a proper talking-to, in the dialogue box
-  dorranTalks(topic) {
-    this.say(...DORRAN.talk[topic].map(line => ['Dorran', line]));
+  // the sword in the stone, except it was the sea
+  foundExcalibur() {
+    Player.excalibur = true;
+    Sfx.buy(); Sfx.crit(); Cam.kick(10);
+    Particles.burst(Player.x - Cam.x + 40, DECK_Y - 80, 60, {
+      color: chance(.5) ? '#fff6c8' : '#bfe0ff', vx: rand(-260, 260), vy: rand(-380, -40), g: 300, size: rand(2, 6), life: rand(.8, 1.6), fixed: true
+    });
+    Floaters.add(VIEW_W / 2, 200, 'EXCALIBUR', { color: '#f0cf6a', size: 44, fixed: true, life: 3, vy: -8 });
+    this.say(...NARRATION.excalibur);
+    this.autosave();
+  },
+
+  // what happens, in the dialogue box, told by nobody in particular
+  narrate(topic) {
+    this.say(...NARRATION[topic]);
   },
   // called across the deck, in a bubble over his stall
   dorranShouts(text) {
@@ -240,7 +256,7 @@ const Game = {
   hushDorran() {
     this.bark.text = '';
     this.barkCd = 10;
-    this.barkIdle = 40;
+    this.barkIdle = 90;
     this.nearStall = Math.abs(Player.x - STALL_X) < 300;
     Shop.remarked = {};
   },
@@ -261,12 +277,12 @@ const Game = {
     }
     if (near && !this.nearStall && this.barkCd <= 0 && !B.text) {
       this.dorranShouts(dorranPick(DORRAN.deck.near));
-      this.barkCd = 25;
+      this.barkCd = 60;
     }
     this.nearStall = near;
     this.barkIdle -= dt;
     if (this.barkIdle <= 0) {
-      this.barkIdle = 45;
+      this.barkIdle = 90;
       if (!B.text && this.barkCd <= 0 && Math.abs(Player.x - STALL_X) < 700) this.dorranShouts(dorranPick(DORRAN.deck.idle));
     }
   },
@@ -297,6 +313,7 @@ const Game = {
       this.endingRun = false;
       Cam.locked = false;
       Particles.clear(); Floaters.clear();
+      Lore.open = null;
       Dive.reset();
       this.night = .88;
       CUT.harbourX = 300;
@@ -336,7 +353,8 @@ const Game = {
     if (!won) {
       Player.hp = Player.maxHp;
       this.state = 'play';
-      this.dorranTalks('lost');
+      const fee = salvageFee();
+      this.say(...NARRATION.lost, ...(fee > 0 ? [NARRATION.fee.replace('{fee}', fee)] : []));
       this.autosave();
       return;
     }
@@ -434,7 +452,8 @@ const Game = {
       } else if (this.fade.a <= 0 && this.fade.dir < 0) { this.fade.a = 0; this.fade.dir = 0; }
     }
 
-    switch (this.state) {
+    if (Lore.open) Lore.update(dt);
+    else switch (this.state) {
       case 'menu':     this.updateMenu(dt); break;
       case 'cutscene': CUT.update(dt); break;
       case 'play':     this.updatePlay(dt); break;
@@ -494,7 +513,7 @@ const Game = {
         color: '#f0cf8a', vy: rand(-240, -60), g: 520, size: rand(2, 5), life: .9, fixed: true
       });
       this.toast('Took the dip net.');
-      this.dorranTalks('crate');
+      this.narrate('crate');
       this.autosave();
       return;
     }
@@ -507,7 +526,7 @@ const Game = {
         return;
       }
       if (Player.weapon < 0) {
-        this.dorranTalks('noNet');
+        this.narrate('noNet');
         return;
       }
       Player.casts++;
@@ -641,6 +660,8 @@ const Game = {
       stepVignette(g, 'rgb(180,20,30)', a * .9, true);
       g.restore();
     }
+
+    if (Lore.open) Lore.draw(g);
 
     if (this.fade.a > 0) {
       g.fillStyle = 'rgba(3,4,10,' + this.fade.a + ')';
@@ -824,7 +845,7 @@ const Game = {
       o.backArm = 0.5;
     } else if (P.weapon >= 0) {
       o.hold = 'weapon';
-      o.weapon = WEAPONS[P.weapon];
+      o.weapon = deckWeapon();
       o.weaponAngle = -1.15 + Math.sin(P.animT * 2) * .04;
       o.frontArm = 0.35;
     }
@@ -897,7 +918,7 @@ const Game = {
     const diving = Player.suit >= 0;
     const rodName = diving ? SUITS[Player.suit].name : RODS[Player.rod].name;
     const swName = diving ? DIVE_WEAPONS[Math.max(0, Player.diveWeapon)].name
-      : Player.weapon >= 0 ? WEAPONS[Player.weapon].name : 'unarmed';
+      : Player.weapon >= 0 ? deckWeapon().name : 'unarmed';
     Text.draw(g, rodName, VIEW_W - 24, 34, {
       size: 14, align: 'right', color: '#b9c4dd', font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3
     });
@@ -922,7 +943,7 @@ const Game = {
         size: 13, color: '#9fd8b0', font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3
       });
     }
-    const swName = Player.weapon >= 0 ? WEAPONS[Player.weapon].name : 'bare hands';
+    const swName = Player.weapon >= 0 ? deckWeapon().name : 'bare hands';
     Text.draw(g, swName, VIEW_W - 24, 34, {
       size: 14, align: 'right', color: '#d8cdb4', font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3
     });

@@ -633,7 +633,6 @@ const Art = {
     this._barrel(g, X(1002), DECK_Y, .82);
     this._tarpCrate(g, X(1140), DECK_Y, t);
     this._crate(g, X(1240), DECK_Y, 40, false);
-    this._netPile(g, X(1310), DECK_Y);
     this._pots(g, X(1392), DECK_Y, 1);
     this._chair(g, X(1452), DECK_Y);
     this._lantern(g, X(1452), DECK_Y - 128, night, t, .8);
@@ -1251,24 +1250,6 @@ const Art = {
     g.fillRect(x - w / 2 - 3, y - 10 * s, w + 6, 4 * s);
     g.fillStyle = css(shade(WOOD.hull, .22));
     g.beginPath(); g.ellipse(x, y - h, w / 2, 5 * s, 0, 0, 6.2832); g.fill();
-    g.restore();
-  },
-
-  _netPile(g, x, y) {
-    g.save();
-    g.strokeStyle = 'rgba(196,178,130,.75)'; g.lineWidth = 3;
-    for (let i = 0; i < 9; i++) {
-      g.beginPath();
-      g.ellipse(x + rand(-2, 2), y - 6 - i * 2.2, 34 - i * 2.4, 9 - i * .6, 0, 0, 6.2832);
-      g.stroke();
-    }
-    g.fillStyle = 'rgba(120,104,70,.35)';
-    g.beginPath(); g.ellipse(x, y - 8, 34, 12, 0, 0, 6.2832); g.fill();
-    // floats
-    for (let i = 0; i < 4; i++) {
-      g.fillStyle = i % 2 ? '#c96a4a' : '#d8c48a';
-      g.beginPath(); g.arc(x - 24 + i * 16, y - 22 - (i % 2) * 6, 4.5, 0, 6.2832); g.fill();
-    }
     g.restore();
   },
 

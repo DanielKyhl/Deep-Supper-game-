@@ -204,7 +204,7 @@ const Battle = {
 
   _swing(step) {
     const P = Player;
-    const w = WEAPONS[Math.max(0, P.weapon)];
+    const w = deckWeapon();
     P.combo = step;
     const base = w.style === 'chop' ? .44 : (w.style === 'thrust' ? .26 : .32);
     P.attackDur = (step === 2 ? base * 1.4 : base) / (w.speed || 1);
@@ -218,7 +218,7 @@ const Battle = {
 
   _playerHitbox() {
     const P = Player;
-    const w = WEAPONS[Math.max(0, P.weapon)];
+    const w = deckWeapon();
     const reach = 64 * w.reach;
     let y, h;
     if (w.style === 'thrust') { y = P.y - 54; h = 34; }             // narrow, level
@@ -239,10 +239,12 @@ const Battle = {
     if (!overlaps(hb, this._monsterHurtbox())) return;
 
     Player.attackDone = true;
-    const sw = WEAPONS[Math.max(0, Player.weapon)];
+    const sw = deckWeapon();
     const crit = chance(.14);
     let dmg = Math.round(sw.dmg * rand(.88, 1.12) * (crit ? 1.75 : 1) * (Player.combo === 2 ? 1.35 : 1));
     if (m.state === 'recover') dmg = Math.round(dmg * 1.35);
+    // one blow, whatever it is
+    if (Player.excalibur) dmg = Math.max(dmg, m.hp);
     m.x += Player.face * 6 * (sw.knock || 1);
     m.hp -= dmg;
     m.flash = 1;
@@ -667,7 +669,7 @@ const Battle = {
     g.save();
     if (blink) g.globalAlpha = .4;
 
-    const w = WEAPONS[Math.max(0, P.weapon)];
+    const w = deckWeapon();
     const o = {
       face: P.face, t: P.animT, state: P.bState === 'attack' ? 'idle' : P.bState, squash: bodySquash(P),
       air: -P.air, rollT: P.rollT > 0 ? (.34 - P.rollT) : 0,
