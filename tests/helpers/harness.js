@@ -217,6 +217,13 @@ function loadGame(opts) {
   // drawing is presentation only; unit tests skip it for speed unless asked
   if (opts.draw === false) evalIn('Game.draw = function () {}');
 
+  // The sea's own dice (bottles, Excalibur) are seeded from the clock, so any
+  // cast could come up special by chance and a test would fail one run in
+  // fifteen. Here they are fixed, and never come up special unless a test
+  // asks for rareCatches or rigs them itself.
+  evalIn('SeaDice.s = ' + ((((opts.seed || 1) * 2654435761) >>> 0) || 1));
+  if (!opts.rareCatches) evalIn('SeaDice.chance = function () { return false; }');
+
   const Game = g.Game;
   const emit = (type, ev) => { for (const fn of (windowListeners[type] || [])) fn(ev); };
   const keyEvent = code => ({ code, key: code, repeat: false, preventDefault() {} });

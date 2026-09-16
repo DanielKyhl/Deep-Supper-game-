@@ -210,6 +210,17 @@ describe('what turns up on a line', () => {
     assert.equal(due.g.Fishing.target, due.g.GIRL);
   });
 
+  test('in tests the sea never comes up special by chance, unless a test asks for it', () => {
+    const ordinary = loadGame({ draw: false, seed: 3 });
+    for (let i = 0; i < 500; i++) assert.equal(ordinary.g.SeaDice.chance(.99), false);
+    const rare = loadGame({ draw: false, seed: 3, rareCatches: true });
+    let hits = 0;
+    for (let i = 0; i < 2000; i++) if (rare.g.SeaDice.chance(.06)) hits++;
+    assert.ok(hits > 60 && hits < 190, 'about 6 in 100: ' + hits);
+    const again = loadGame({ draw: false, seed: 3, rareCatches: true });
+    assert.equal(again.g.SeaDice.next(), loadGame({ draw: false, seed: 3, rareCatches: true }).g.SeaDice.next(), 'and the same seed rolls the same');
+  });
+
   test("the sea's dice are its own: a cast rolls no more of the game's dice than it did", () => {
     const { h, g } = onDeck();
     h.sandbox.__rolls = 0;

@@ -278,7 +278,7 @@ and has three skill checks.
 
 ## Tests
 
-853 tests: 684 unit (80%), 129 integration (15%) and 40 end-to-end (5%).
+854 tests: 685 unit (80%), 129 integration (15%) and 40 end-to-end (5%).
 
 ```bash
 npm test
