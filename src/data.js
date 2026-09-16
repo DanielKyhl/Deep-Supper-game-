@@ -378,29 +378,150 @@ const JUNK = [
   { name: 'half a ship\'s wheel', value: 11, icon: 'wheel' }
 ];
 
-/* --------------------------- shop banter --------------------------------- */
+/* ------------------------------ Uncle Dorran ------------------------------
+   The boy's uncle keeps a stall amidships and a flask in his coat. He has
+   never once found anything the boy brings him strange: it is all fish to
+   him. The boy never says a word, which suits Dorran. More room for his.
 
-const DORRAN_GREET = [
-  "Evening. Boat's yours, sea's not.",
-  "Anything with a face, I'll weigh it.",
-  "Don't bleed on the counter, lad.",
-  "Fresh? Fresh enough. Coin's coin.",
-  "Your father sold me a tooth once. Still got it.",
-  "I don't ask what it was. I ask what it weighs."
-];
-const DORRAN_SELL = [
-  "Heavier than it looks.",
-  "Someone'll eat this. Not me.",
-  "Hm. Still twitching. Ten percent off.",
-  "That's a good one. Don't let it go to your head.",
-  "I'll take it before it wakes up."
-];
-const DORRAN_BUY = [
-  "Mind the edge.",
-  "Sold. No refunds, no reattachments.",
-  "Use it before it uses you.",
-  "Good choice. Grim, but good."
-];
+   {fish} is an ordinary fish, picked fresh each time ({Fish} capitalised);
+   {name}, {value}, {total} and {short} are filled in by the stall.        */
+
+const DORRAN = {
+  greet: [
+    "Evening, nephew. Or morning. One of the two. *hic*",
+    "Ah! My favourite nephew. My only nephew? Don't answer that.",
+    "Come in, come in. Mind the bucket. Mind the other bucket.",
+    "Quiet as ever. Good lad. Leaves more of the talking for me.",
+    "What've you brought your old uncle? Fish? Lovely. It's all fish.",
+    "I wasn't asleep. I was resting my eyes. Both of them. At once.",
+    "Your dad says I'm a bad influence. Your dad says a lot of things.",
+    "Don't mind the smell. That's the stall. Or it's me."
+  ],
+  // once he's in the suit
+  greetDiving: [
+    "Back from the bottom? Wet down there, I hear.",
+    "You're dripping on my counter. That's fine. Everything drips.",
+    "Been swimming? Your great-grandad swam. Or sank. One of those.",
+    "Take the helmet off, I can't hear you. Ha. As if I ever could."
+  ],
+  // once the Mother has gone back down
+  greetDone: [
+    "They're saying the sea's gone quiet. Probably the weather.",
+    "Lights on under the boat these days. Very nice. Saves on candles."
+  ],
+  // things he notices once a voyage, the first time he sees you after (then forgets)
+  remark: {
+    first:  "Caught something already? That's my nephew. Pop it on the scale.",
+    girl:   "You've the look of a lad who's met a girl. Out of the sea? Happens.",
+    suit:   "Is that a diving suit? Suits you. SUITS you. ...Nobody ever laughs.",
+    mother: "Lanthorne's all lit up, they're saying. Where's Lanthorne? Cheers."
+  },
+  // what everything the boy brings him is
+  fish: ['cod', 'haddock', 'mackerel', 'whiting', 'plaice', 'herring', 'pollock', 'sprat', 'turbot'],
+  sell: [
+    "Lovely bit of {fish}, that.",
+    "{Fish}. Big {fish}. Cross {fish}.",
+    "Nice {fish}. More teeth than I remember {fish} having.",
+    "{name}? We used to get those in a tin.",
+    "Still twitching. Still counts. {value} it is.",
+    "Put it with the others. The others are in the bucket. Mostly.",
+    "Counting its eyes'd take all night. Here's {value}.",
+    "Did it bite you? Doesn't matter. Everything bites.",
+    "Your aunt made a pie of one of those. Then she left. Unrelated."
+  ],
+  sellBig: [
+    "Now THAT is a {fish}. Your dad caught one that big once. In a story.",
+    "Heavy! Help me get it up on the... no, leave it. Floor's fine."
+  ],
+  sellAll: [
+    "{total} for the lot. Don't tell your mother where you got it.",
+    "All of it? Right. {total}. I'll count it again later. I won't."
+  ],
+  buy: {
+    rod: [
+      "Longer string, deeper fish. That's science, that is.",
+      "Good rod. Don't wave it about, you'll have someone's eye out."
+    ],
+    weapon: [
+      "Mind the edge. It's the sharp bit. The sharp bit's the edge.",
+      "Sold. No refunds, no reattachments.",
+      "What's a boy need with that? Fish. Course. For the fish."
+    ],
+    suit: [
+      "Deeper's colder. Wear a vest under it. Your mother'd want that.",
+      "Never leaked once. Not that anyone's been in it. For a while."
+    ],
+    diveweapon: [
+      "Point that end at the fish, and the other end at nothing.",
+      "Shoots underwater, that. Don't ask me how. Don't ask me anything."
+    ],
+    consume: ["Wrap it tight. Wrap it twice. Wrap me one while you're at it."],
+    maxhp:   ["Somebody loved somebody. Now it's yours. Lucky somebody."],
+    lantern: ["They come to the light. So do I. Where's my bottle."],
+    luck:    ["Cold, isn't it. It was on a neck once. Nice neck."]
+  },
+  owned:  ["You've got one of those. I've got two. Of something."],
+  locked: ["One thing at a time, lad. I can only count to one just now."],
+  poor:   ["That's {short} short. I'd lend it you, but I've drunk it."],
+  // when nothing is happening, which to him is a gap in the conversation
+  mutter: [
+    "*hic*",
+    "Fifteen men on a dead man's... something. Chest? Leg?",
+    "Where'd I put my medicine. Oh. It's in me.",
+    "Ever noticed the sea's bigger at night? No. Me neither.",
+    "Take your time. Browse. Browse away. I'll be here. Somewhere.",
+    "Your dad was quiet like you. No he wasn't. Never shut up.",
+    "I had a boat once. This one. I've still got it. Hang on.",
+    "Did you say something? No. You never do. Good lad."
+  ],
+  // called out from behind the counter while the boy is about the deck
+  deck: {
+    near: [
+      "Oi! Nephew! Come here. No, go away. No, come here.",
+      "Buying? Selling? Just looking at me?",
+      "Don't stand there dripping. Come and drip over here.",
+      "Whatever it is, I'll weigh it."
+    ],
+    idle: [
+      "*hic*",
+      "Lovely night for it. For what? For it.",
+      "Somebody's been counting my buckets.",
+      "Oh the sea is wet and the fish are... fish...",
+      "Is it Tuesday? Feels like a Tuesday."
+    ],
+    won: [
+      "That'll sell! Bring it here before it gets up.",
+      "Ooh, a big one. Don't let it back in."
+    ],
+    aboard: [
+      "Back already? Wash your hands.",
+      "Touch the bottom, did you? Don't touch me."
+    ],
+    woke: [
+      "Having a lie down? Best part of the night.",
+      "Wakey wakey. Sea's still there."
+    ]
+  },
+  // when he has something to say, he says it properly
+  talk: {
+    start: [
+      "Oi! Nephew! You're not going at the sea with your bare hands, are you?",
+      "...You probably could. Don't. There's a crate by the cabin. Net in it. Or a cat."
+    ],
+    crate: [
+      "That's the herring net! Bent hoop, splintered handle. Smells like 1908.",
+      "It's for scooping herring out of a bucket. Still. In your hands, I expect it'll do."
+    ],
+    noNet: [
+      "Empty hands? Your dad'd have my head. And he'd be welcome to it.",
+      "The crate, lad. By the cabin. Big wooden box. You know what a crate is."
+    ],
+    lost: [
+      "Having a lie down? Good idea. Best part of the night, the lie down.",
+      "Whatever that was, it's gone off with your hook. Nice of it to leave the rest of you."
+    ]
+  }
+};
 
 /* --------------------------- catch generation ---------------------------- */
 

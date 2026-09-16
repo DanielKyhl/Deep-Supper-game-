@@ -33,9 +33,11 @@ const Player = {
   }
 };
 
+const STALL_X = 742;     // Dorran's stall, amidships
+
 const SPOTS = [
   { id: 'crate', x: 392, r: 70 },
-  { id: 'stall', x: 742, r: 118 },
+  { id: 'stall', x: STALL_X, r: 118 },
   { id: 'fish',  x: FISH_X, r: 104 }
 ];
 
@@ -49,6 +51,10 @@ const Game = {
   toastT: 0, toastText: '',
   hintT: 0,
   muteFlash: 0,
+  // Uncle Dorran calling out from behind his counter: what, for how long so far,
+  // how soon he may call again, and when he next talks to nobody in particular
+  bark: { text: '', t: 0 },
+  barkCd: 0, barkIdle: 40, nearStall: false,
 
   /* ------------------------------ lifecycle ---------------------------- */
 
@@ -91,6 +97,7 @@ const Game = {
     this.msgs = [];
     Dialogue.hide();
     Particles.clear(); Floaters.clear();
+    this.hushDorran();
     const o = buildOpening();
     this.state = 'cutscene';
     CUT.play(o.steps, { finalize: o.finalize, onEnd: () => this.startPlay() });
@@ -103,8 +110,7 @@ const Game = {
     Dialogue.hide();
     if (Player.weapon < 0 && !this._toldStart) {
       this._toldStart = true;
-      this.say(['You', 'Alright. Rod, bait, boat, boy.'],
-               ['You', "Dad always says: never put a line in the water without something in your other hand. There'll be gear in the crate by the cabin."]);
+      this.dorranTalks('start');
     }
     this.autosave();
   },
@@ -211,11 +217,61 @@ const Game = {
     this.cutKind = null;
     CUT.allowShadows = 1; CUT.wake = 1; CUT.bigShadow = 0; CUT.titleCard = null;
     Particles.clear(); Floaters.clear(); Dialogue.hide();
+    this.hushDorran();
     Dive.reset();
     Player.state = 'idle'; Player.bState = 'idle'; Player.y = DECK_Y; Player.vy = 0;
     Cam.locked = false;
     Cam.snap(Player.x);
   },
+
+  /* ------------------------------ Uncle Dorran --------------------------- */
+
+  // a proper talking-to, in the dialogue box
+  dorranTalks(topic) {
+    this.say(...DORRAN.talk[topic].map(line => ['Dorran', line]));
+  },
+  // called across the deck, in a bubble over his stall
+  dorranShouts(text) {
+    this.bark.text = text;
+    this.bark.t = 0;
+    this.barkCd = Math.max(this.barkCd, 14);
+  },
+  // a new voyage, or a loaded one: he has forgotten everything, as usual
+  hushDorran() {
+    this.bark.text = '';
+    this.barkCd = 10;
+    this.barkIdle = 40;
+    this.nearStall = Math.abs(Player.x - STALL_X) < 300;
+    Shop.remarked = {};
+  },
+  _dorran(dt, busy) {
+    const B = this.bark;
+    const near = Math.abs(Player.x - STALL_X) < 300;
+    this.barkCd = Math.max(0, this.barkCd - dt);
+    if (busy) {
+      // he doesn't talk over a conversation, or straight after one
+      B.text = '';
+      this.barkCd = Math.max(this.barkCd, 8);
+      this.nearStall = near;
+      return;
+    }
+    if (B.text) {
+      B.t += dt;
+      if (B.t > this.barkLife(B.text)) B.text = '';
+    }
+    if (near && !this.nearStall && this.barkCd <= 0 && !B.text) {
+      this.dorranShouts(dorranPick(DORRAN.deck.near));
+      this.barkCd = 25;
+    }
+    this.nearStall = near;
+    this.barkIdle -= dt;
+    if (this.barkIdle <= 0) {
+      this.barkIdle = 45;
+      if (!B.text && this.barkCd <= 0 && Math.abs(Player.x - STALL_X) < 700) this.dorranShouts(dorranPick(DORRAN.deck.idle));
+    }
+  },
+  // long enough to read
+  barkLife(text) { return 2.2 + text.length * .05; },
 
   pause() {
     if (this.state === 'pause' || this.state === 'menu') return;
@@ -280,8 +336,7 @@ const Game = {
     if (!won) {
       Player.hp = Player.maxHp;
       this.state = 'play';
-      this.say(['You', 'You come to flat on your back, staring at more stars than you remember.'],
-               ['You', 'Whatever it was, it took the hook and your dignity with it.']);
+      this.dorranTalks('lost');
       this.autosave();
       return;
     }
@@ -292,7 +347,10 @@ const Game = {
       return;
     }
     this.state = 'play';
-    if (reward) this.toast('Hauled aboard: ' + reward.name + ' (' + reward.weight + ' lb)');
+    if (reward) {
+      this.toast('Hauled aboard: ' + reward.name + ' (' + reward.weight + ' lb)');
+      this.dorranShouts(dorranPick(DORRAN.deck.won));
+    }
     this.autosave();
   },
 
@@ -435,14 +493,13 @@ const Game = {
       Particles.burst(392 - Cam.x, DECK_Y - 50, 20, {
         color: '#f0cf8a', vy: rand(-240, -60), g: 520, size: rand(2, 5), life: .9, fixed: true
       });
-      this.say(['You', 'The old crate. Rope, oilskins, a tin of something furred over—'],
-               ['You', '...and the dip net. Handle splintered, hoop bent, smells like 1908.'],
-               ['You', "It's for scooping herring out of a bucket. It is not for anything else."],
-               ['You', "Still. Better in my hands than not."]);
+      this.toast('Took the dip net.');
+      this.dorranTalks('crate');
       this.autosave();
       return;
     }
-    if (s.id === 'stall') { Shop.open(); return; }
+    // at the counter he says it to your face instead
+    if (s.id === 'stall') { this.bark.text = ''; Shop.open(); return; }
     if (s.id === 'fish') {
       if (Player.suit >= 0) {
         this.state = 'dive';
@@ -450,8 +507,7 @@ const Game = {
         return;
       }
       if (Player.weapon < 0) {
-        this.say(['You', "Empty hands, empty boat. That's Dad's rule and he's never once explained it."],
-                 ['You', 'There was a crate back by the cabin.']);
+        this.dorranTalks('noNet');
         return;
       }
       Player.casts++;
@@ -464,6 +520,8 @@ const Game = {
   updatePlay(dt) {
     const P = Player;
     P.animT += dt;
+
+    this._dorran(dt, Dialogue.active);
 
     // modal dialogue takes priority
     if (Dialogue.active) {
@@ -541,7 +599,7 @@ const Game = {
     switch (this.state) {
       case 'menu':     Menu.draw(g); break;
       case 'cutscene': CUT.drawOverlay(g); break;
-      case 'play':     this.drawHUD(g); Dialogue.draw(g); break;
+      case 'play':     this.drawHUD(g); this.drawBark(g); Dialogue.draw(g); break;
       case 'fish':     if (Fishing.phase !== 'reel') this.drawHUD(g); Fishing.drawUI(g); break;
       case 'battle':   this.drawBattleHUD(g); Battle.drawUI(g); break;
       case 'shop':     Shop.draw(g); break;
@@ -590,6 +648,34 @@ const Game = {
     }
 
     present();   // buffer -> screen, nearest-neighbour
+  },
+
+  // Dorran's words in a bubble over his stall, typed out as he says them
+  drawBark(g) {
+    const B = this.bark;
+    if (!B.text || Dialogue.active) return;
+    const o = { size: 15, color: '#2c2430' };
+    const lines = Text.wrap(g, B.text, 250, o);
+    const w = Math.max(...lines.map(l => Text.width(g, l, o))) + 26, h = lines.length * 20 + 16;
+    const hx = STALL_X + 8 - Cam.x, hy = DECK_Y - 142;
+    const x = snap(clamp(hx - w / 2, 10, VIEW_W - w - 10)), y = snap(hy - h - 10);
+    let left = Math.floor(B.t * 45);
+    g.save();
+    g.globalAlpha = clamp(Math.min(B.t * 8, (this.barkLife(B.text) - B.t) * 3), 0, 1);
+    g.fillStyle = '#1c1620';
+    g.fillRect(x - 2, y - 2, w + 4, h + 4);
+    g.fillStyle = '#efe4c8';
+    g.fillRect(x, y, w, h);
+    if (hx > 0 && hx < VIEW_W) {
+      const tx = snap(clamp(hx, x + 14, x + w - 22));
+      g.fillStyle = '#1c1620'; g.fillRect(tx - 2, y + h, 12, 4); g.fillRect(tx, y + h + 4, 8, 4); g.fillRect(tx + 2, y + h + 8, 4, 4);
+      g.fillStyle = '#efe4c8'; g.fillRect(tx, y + h - 2, 8, 4); g.fillRect(tx + 2, y + h + 2, 4, 4);
+    }
+    for (let i = 0; i < lines.length && left > 0; i++) {
+      Text.draw(g, lines[i].slice(0, left), x + 13, y + 23 + i * 20, o);
+      left -= lines[i].length + 1;
+    }
+    g.restore();
   },
 
   drawWorld(g, scene) {

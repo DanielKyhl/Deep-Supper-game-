@@ -41,7 +41,7 @@ describe('the first voyage', () => {
     assert.equal(h.g.Game.night, 1);
     assert.equal(h.g.Player.x, 640);
     assert.ok(h.storage.has(SAVE));
-    assert.equal(h.g.Dialogue.active, true, 'the boy says something first');
+    assert.equal(h.g.Dialogue.active, true, 'Dorran has something to say first');
   });
 
   test('after reading his first lines, the boy can walk the deck', () => {

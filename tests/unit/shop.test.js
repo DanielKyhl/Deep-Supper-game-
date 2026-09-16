@@ -25,10 +25,10 @@ describe('opening the stall', () => {
 
   test('the first visit after meeting Nerys, Dorran can tell', () => {
     const { g, S } = atStall(P => { P.girlMet = true; });
-    assert.match(S.line, /met someone/);
+    assert.match(S.line, /met a girl/);
     S.close();
     g.Shop.open();
-    assert.doesNotMatch(S.line, /met someone/, 'he only says it once');
+    assert.doesNotMatch(S.line, /met a girl/, 'he only says it once');
   });
 
   test('an empty hold says so, with no price on the row', () => {
@@ -151,7 +151,7 @@ describe('the gear tab', () => {
     S.act();
     assert.equal(P.rod, 0);
     assert.equal(P.coins, 84);
-    assert.match(S.line, /1 more/);
+    assert.match(S.line, /1 short/);
   });
 
   test('locked and owned items are refused without charging', () => {
@@ -159,7 +159,7 @@ describe('the gear tab', () => {
     selectRow(S, r => r.kind === 'rod' && r.idx === 3);
     S.act();
     assert.equal(P.rod, 0);
-    assert.match(S.line, /One step/);
+    assert.match(S.line, /One thing at a time/);
     selectRow(S, r => r.kind === 'weapon' && r.idx === 0);
     S.act();
     assert.equal(P.coins, 5000);
@@ -204,7 +204,7 @@ describe('the gear tab after the Old One', () => {
     selectRow(S, r => r.kind === 'suit' && r.idx === 3);
     S.act();
     assert.equal(P.suit, 0);
-    assert.match(S.line, /One step/);
+    assert.match(S.line, /One thing at a time/);
   });
 });
 

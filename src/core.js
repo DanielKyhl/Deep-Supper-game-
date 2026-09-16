@@ -351,6 +351,8 @@ const Sfx = {
   whoosh() { this.noise({ f: 700, f2: 2400, dur: .25, filter: 'bandpass', vol: .14 }); },
   heal()   { [660, 880, 990].forEach((f, i) => setTimeout(() => this.tone({ f, dur: .18, type: 'sine', vol: .16 }), i * 90)); },
   text()   { this.tone({ f: 520 + Math.random() * 120, dur: .018, type: 'square', vol: .035 }); },
+  // Dorran getting his words out: low, round and not entirely steady
+  mumble() { if (this.ready && !this.muted) this.tone({ f: 130 + Math.random() * 70, f2: 110 + Math.random() * 40, dur: .05, type: 'triangle', vol: .05 }); },
 
   /* ------------------------------ underwater ------------------------------ */
 

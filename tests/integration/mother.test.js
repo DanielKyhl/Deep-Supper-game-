@@ -56,7 +56,7 @@ describe('the Mother Below', () => {
     assert.equal(h.g.Music.themeName, 'abyss');
     const { lines } = readScene(h);
     const all = lines.join(' ');
-    assert.match(all, /Nerys\?/);
+    assert.match(all, /I know it came for you first/);
     assert.match(all, /The Old One wasn't what was waking down here. It was her child./);
     assert.equal(h.g.Dive.phase, 'swim');
     assert.equal(h.g.Dive.boss.state, 'idle');
@@ -191,7 +191,7 @@ describe('part two, joined up', () => {
     assert.ok(h.until(() => h.g.Game.state === 'play', 5));
     h.keyUp('Escape');
     F.openStall(h);
-    assert.match(h.g.Shop.line, /met someone/);
+    assert.match(h.g.Shop.line, /met a girl/);
   });
 
   test('a save slot made while diving survives quitting the app and loads from the title', () => {

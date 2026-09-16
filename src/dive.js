@@ -929,7 +929,7 @@ const Dive = {
     this.phase = 'climb';
     Sfx.climbOut();
     const n = Player.catches.length - this.haulStart;
-    Game.fadeOut(() => this.backOnDeck(n ? 'Back aboard with ' + n + ' in the net.' : 'Back aboard. Dry, nearly.'));
+    Game.fadeOut(() => this.backOnDeck(n ? 'Back aboard with ' + n + ' in the net.' : 'Back aboard. Dry, nearly.', DORRAN.deck.aboard));
   },
 
   blackout() {
@@ -940,11 +940,11 @@ const Dive = {
       const lost = Player.catches.length - this.haulStart;
       Player.catches.length = this.haulStart;
       Player.hp = Player.maxHp;
-      this.backOnDeck(lost ? 'You wake on the deck, coughing. The sea kept what you caught.' : 'You wake on the deck, coughing.');
+      this.backOnDeck(lost ? 'You wake on the deck, coughing. The sea kept what you caught.' : 'You wake on the deck, coughing.', DORRAN.deck.woke);
     });
   },
 
-  backOnDeck(message) {
+  backOnDeck(message, dorran) {
     this.reset();
     this.firstDive = false;
     Particles.clear(); Floaters.clear();
@@ -953,6 +953,7 @@ const Dive = {
     Cam.locked = false;
     Cam.snap(Player.x);
     Game.toast(message);
+    if (dorran) Game.dorranShouts(dorranPick(dorran));
     Game.autosave();
   },
 

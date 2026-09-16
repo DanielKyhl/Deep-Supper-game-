@@ -1,31 +1,63 @@
 'use strict';
 /* ========================================================================
-   shop.js — Dorran weighs anything with a face
+   shop.js — Uncle Dorran weighs anything with a face, and calls it cod
    ======================================================================== */
 
 const TABS = ['SELL', 'GEAR', 'GOODS'];
 
+// Dorran's own dice, so his chatter never changes anything the sea does
+const DorranDice = {
+  s: 20260916,
+  next() { this.s = (Math.imul(this.s, 1664525) + 1013904223) >>> 0; return this.s / 4294967296; }
+};
+// one of his lines, and not the one he has just said if he can help it
+function dorranPick(list, not) {
+  let i = Math.floor(DorranDice.next() * list.length);
+  if (list.length > 1 && list[i] === not) i = (i + 1) % list.length;
+  return list[i];
+}
+// fill a line in: an ordinary fish for {fish}, and whatever else he was handed
+function dorranLine(s, vars) {
+  const fish = dorranPick(DORRAN.fish);
+  const out = s.replace(/\{(\w+)\}/g, (m, k) =>
+    k === 'fish' ? fish : k === 'Fish' ? fish[0].toUpperCase() + fish.slice(1) :
+    vars && vars[k] !== undefined ? String(vars[k]) : m);
+  return out[0].toUpperCase() + out.slice(1);
+}
+
 const Shop = {
-  tab: 0, sel: 0, line: '', lineT: 0, t: 0, flashRow: -1, flashT: 0,
+  tab: 0, sel: 0, line: '', lineT: 0, shown: 0, t: 0, flashRow: -1, flashT: 0,
+  remarked: {},
+  TALK_CPS: 38,        // how fast he gets his words out
+  SILENCE: 9,          // how long he can stand nobody saying anything
 
   open() {
     Game.state = 'shop';
     this.tab = Player.catches.length ? 0 : 1;
     this.sel = 0;
     this.t = 0;
-    // the first visit after meeting her, he can tell
-    if (Player.girlMet && !this.remarkedOnGirl) {
-      this.remarkedOnGirl = true;
-      this.say("You've the look of a lad who's met someone. Don't tell me.");
-    } else this.say(choice(DORRAN_GREET));
+    this.say(this.greeting());
     Sfx.select();
+  },
+
+  // what he opens with: something he has only just noticed, or else how things are
+  greeting() {
+    const P = Player, R = this.remarked;
+    const news = [['mother', P.beatMother], ['suit', P.suit >= 0], ['girl', P.girlMet], ['first', P.sold === 0 && P.catches.length > 0]];
+    for (let i = 0; i < news.length; i++) {
+      if (!news[i][1] || R[news[i][0]]) continue;
+      // the newest thing drives out anything older he hadn't got round to mentioning
+      for (let j = i; j < news.length; j++) R[news[j][0]] = true;
+      return DORRAN.remark[news[i][0]];
+    }
+    return dorranPick(P.beatMother ? DORRAN.greetDone : P.suit >= 0 ? DORRAN.greetDiving : DORRAN.greet, this.line);
   },
   close() {
     Game.state = 'play';
     Sfx.select();
     Game.autosave();
   },
-  say(s) { this.line = s; this.lineT = 0; },
+  say(s) { this.line = s; this.lineT = 0; this.shown = 0; },
 
   rows() {
     if (this.tab === 0) {
@@ -113,6 +145,15 @@ const Shop = {
     this.t += dt; this.lineT += dt;
     this.flashT = Math.max(0, this.flashT - dt);
 
+    // he gets his words out at his own pace, mumbling
+    if (this.shown < this.line.length) {
+      const before = Math.floor(this.shown / 3);
+      this.shown = Math.min(this.line.length, this.shown + dt * this.TALK_CPS);
+      if (Math.floor(this.shown / 3) > before) Sfx.mumble();
+    }
+    // and when nobody says anything back, which is always, he fills the silence
+    if (this.lineT > this.SILENCE) this.say(dorranPick(DORRAN.mutter, this.line));
+
     if (Input.tap('cancel')) { this.close(); return; }
     if (Input.tap('menuLeft')) { this.tab = (this.tab + 2) % 3; this.sel = this.firstSelectable(); Sfx.select(); }
     if (Input.tap('menuRight')) { this.tab = (this.tab + 1) % 3; this.sel = this.firstSelectable(); Sfx.select(); }
@@ -134,7 +175,7 @@ const Shop = {
       Player.sold += n;
       Player.catches.length = 0;
       Sfx.coin();
-      this.say('Right then. ' + total + ' for the lot. Don’t spend it all on blades.');
+      this.say(dorranLine(dorranPick(DORRAN.sellAll), { total }));
       Floaters.add(VIEW_W / 2, 250, '+' + total + '§', { color: '#f0cf8a', size: 34, fixed: true, life: 1.4 });
       this.sel = 0;
       return;
@@ -145,7 +186,7 @@ const Shop = {
       Player.sold++;
       Player.catches.splice(r.idx, 1);
       Sfx.coin();
-      this.say(choice(DORRAN_SELL));
+      this.say(dorranLine(dorranPick(c.value >= 600 ? DORRAN.sellBig : DORRAN.sell, this.line), { name: c.name, value: c.value }));
       Floaters.add(VIEW_W / 2, 250, '+' + c.value + '§', { color: '#f0cf8a', size: 28, fixed: true, life: 1.2 });
       this.sel = Math.min(Math.max(0, this.sel), Math.max(0, this.rows().length - 1));
       if (!this.selectable(this.rows()[this.sel])) this.sel = this.firstSelectable();
@@ -154,11 +195,11 @@ const Shop = {
     if (r.kind === 'none') { Sfx.deny(); return; }
 
     // buying
-    if (r.owned) { Sfx.deny(); this.say('You’ve got one already. Use it.'); this.flash(); return; }
-    if (r.locked) { Sfx.deny(); this.say('One step at a time. Buy the cheap one first.'); this.flash(); return; }
+    if (r.owned) { Sfx.deny(); this.say(dorranPick(DORRAN.owned)); this.flash(); return; }
+    if (r.locked) { Sfx.deny(); this.say(dorranPick(DORRAN.locked)); this.flash(); return; }
     if (Player.coins < r.price) {
       Sfx.deny();
-      this.say('Come back with ' + (r.price - Player.coins) + ' more. I’ll still be here.');
+      this.say(dorranLine(dorranPick(DORRAN.poor), { short: r.price - Player.coins }));
       this.flash();
       return;
     }
@@ -169,23 +210,20 @@ const Shop = {
 
     if (r.kind === 'rod') {
       Player.rod = Math.max(Player.rod, r.idx);
-      this.say('Deeper line. Deeper things. Your choice, lad.');
     } else if (r.kind === 'weapon') {
       Player.weapon = Math.max(Player.weapon, r.idx);
-      this.say(choice(DORRAN_BUY));
     } else if (r.kind === 'suit') {
       Player.suit = Math.max(Player.suit, r.idx);
-      this.say("Deeper's colder. Don't come crying to me about the cold.");
     } else if (r.kind === 'diveweapon') {
       Player.diveWeapon = Math.max(Player.diveWeapon, r.idx);
-      this.say(choice(DORRAN_BUY));
     } else {
       const gd = r.def;
-      if (gd.type === 'consume') { Player.bandages++; this.say('Wrap it tight. Wrap it twice.'); }
-      if (gd.type === 'maxhp') { Player.lockets++; Player.maxHp++; Player.hp++; this.say('Somebody loved somebody. Now it’s yours.'); }
-      if (gd.type === 'lantern') { Player.lantern = true; this.say('They come to the light. That’s the trouble with light.'); }
-      if (gd.type === 'luck') { Player.luck = true; this.say('Cold, isn’t it. It was on a neck once.'); }
+      if (gd.type === 'consume') Player.bandages++;
+      if (gd.type === 'maxhp') { Player.lockets++; Player.maxHp++; Player.hp++; }
+      if (gd.type === 'lantern') Player.lantern = true;
+      if (gd.type === 'luck') Player.luck = true;
     }
+    this.say(dorranPick(DORRAN.buy[r.kind === 'good' ? r.def.type : r.kind]));
   },
 
   flash(good) { this.flashRow = this.sel; this.flashT = .4; this.flashGood = !!good; },
@@ -208,13 +246,11 @@ const Shop = {
       size: 24, color: '#f0cf8a', weight: 'bold', font: 'Verdana, sans-serif'
     });
 
-    // Dorran's line
-    g.save();
-    g.globalAlpha = clamp(2.4 - this.lineT * .5, 0, 1);
-    Text.draw(g, '“' + this.line + '”', X + 26, Y + 66, {
+    // Dorran, talking
+    const said = Math.floor(this.shown);
+    Text.draw(g, '“' + this.line.slice(0, said) + (said >= this.line.length ? '”' : ''), X + 26, Y + 66, {
       size: 16, color: '#9fb0d0', italic: true, font: 'Georgia, serif'
     });
-    g.restore();
 
     // tabs
     const tabY = Y + 86;
