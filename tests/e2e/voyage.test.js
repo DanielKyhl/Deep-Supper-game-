@@ -70,9 +70,7 @@ describe('a voyage in the app', () => {
   });
 
   test('E at the crate takes the dip net', async () => {
-    await page.keyboard.down('KeyA');
-    await A.until(page, () => Player.x < 420, null, 8000);
-    await page.keyboard.up('KeyA');
+    await A.holdUntil(page, 'KeyA', () => Player.x < 420, null, 8000);
     await page.keyboard.press('KeyE');
     await A.until(page, () => Player.weapon === 0);
     for (let i = 0; i < 8 && await page.evaluate(() => Dialogue.active); i++) {
@@ -84,12 +82,10 @@ describe('a voyage in the app', () => {
 
   test('walking up to the stall, Dorran calls out; at the counter he talks, a word at a time', async () => {
     await A.until(page, () => Game.barkCd <= 0 && !Game.bark.text, null, 15000);
-    await page.keyboard.down('KeyD');
-    await A.until(page, () => Game.bark.text !== '', null, 5000);
+    await A.holdUntil(page, 'KeyD', () => Game.bark.text !== '', null, 5000);
     const called = await page.evaluate(() => ({ text: Game.bark.text, near: DORRAN.deck.near.includes(Game.bark.text) }));
     assert.ok(called.near, 'called out: ' + called.text);
-    await A.until(page, () => Player.x > 730, null, 8000);
-    await page.keyboard.up('KeyD');
+    await A.holdUntil(page, 'KeyD', () => Player.x > 730, null, 8000);
     await page.keyboard.press('KeyE');
     await A.until(page, () => Game.state === 'shop');
     const early = await page.evaluate(() => ({ shown: Shop.shown, len: Shop.line.length }));
@@ -103,9 +99,7 @@ describe('a voyage in the app', () => {
   });
 
   test('E at the bow casts the line', async () => {
-    await page.keyboard.down('KeyD');
-    await A.until(page, () => Player.x > FISH_X - 60, null, 10000);
-    await page.keyboard.up('KeyD');
+    await A.holdUntil(page, 'KeyD', () => Player.x > FISH_X - 60, null, 10000);
     await page.keyboard.press('KeyE');
     await A.until(page, () => Game.state === 'fish');
     await A.until(page, () => Fishing.phase === 'sink' || Fishing.phase === 'deep', null, 5000);

@@ -82,9 +82,7 @@ describe('test shortcuts, diving and the Mother in the app', () => {
     await A.choose(page, 'dev');
     await A.choose(page, 'devDiving');
     await A.until(page, () => Game.state === 'play' && Game.fade.dir === 0, null, 5000);
-    await page.keyboard.down('KeyD');
-    await A.until(page, () => Player.x > FISH_X - 60, null, 5000);
-    await page.keyboard.up('KeyD');
+    await A.holdUntil(page, 'KeyD', () => Player.x > FISH_X - 60, null, 5000);
     await page.keyboard.press('KeyE');
     await A.until(page, () => Game.state === 'dive', null, 2000);
     await A.until(page, () => Dive.underwater && Dive.phase === 'swim' && Game.fade.dir === 0, null, 10000);
@@ -163,9 +161,7 @@ describe('test shortcuts, diving and the Mother in the app', () => {
     await A.choose(page, 'devMother');
     await A.until(page, () => Dive.underwater && Dive.phase === 'swim' && Game.fade.dir === 0, null, 6000);
     await page.evaluate(() => { Dive.mobs.length = 0; });
-    await page.keyboard.down('KeyD');
-    await A.until(page, () => Dive.phase === 'scene', null, 8000);
-    await page.keyboard.up('KeyD');
+    await A.holdUntil(page, 'KeyD', () => Dive.phase === 'scene', null, 8000);
     const s = await page.evaluate(() => ({ boss: !!Dive.boss, girl: Dive.girl.visible, music: Music.themeName }));
     assert.equal(s.boss, true);
     assert.equal(s.girl, true);

@@ -68,6 +68,28 @@ async function hold(page, key, ms) {
   await page.keyboard.up(key);
 }
 
+// hold a key until a condition holds. The game lets go of every key when its
+// window loses focus, so if the desktop steals focus mid-walk the key is
+// pressed again rather than the test waiting on a boy who has stopped.
+async function holdUntil(page, key, fn, arg, timeout) {
+  const end = Date.now() + (timeout || 10000);
+  for (;;) {
+    await page.keyboard.down(key);
+    try {
+      await page.waitForFunction(fn, arg, { timeout: Math.max(50, Math.min(1000, end - Date.now())), polling: 50 });
+      await page.keyboard.up(key);
+      return;
+    } catch (e) {
+      await page.keyboard.up(key);
+      if (Date.now() >= end) {
+        const at = await page.evaluate(() => ({ state: Game.state, x: Math.round(Player.x), dialogue: Dialogue.active })).catch(() => null);
+        e.message += ' (holding ' + key + '; ' + JSON.stringify(at) + ')';
+        throw e;
+      }
+    }
+  }
+}
+
 // move the menu cursor to an item by id and press ENTER
 async function choose(page, id) {
   const cursor = () => page.evaluate(id => {
@@ -111,4 +133,4 @@ async function startVoyage(page) {
   await until(page, () => !Dialogue.active);
 }
 
-module.exports = { ROOT, tempProfile, removeProfile, appEnv, launch, close, until, hold, choose, startVoyage };
+module.exports = { ROOT, tempProfile, removeProfile, appEnv, launch, close, until, hold, holdUntil, choose, startVoyage };
