@@ -80,10 +80,12 @@ describe('the desktop app', () => {
   });
 
   test('the game loop is running on its own', async () => {
+    // over a second and a half, so one slow frame on a busy machine (a frame
+    // only ever counts for a twentieth of a second) cannot fail it
     const t0 = await page.evaluate(() => Game.t);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1500);
     const t1 = await page.evaluate(() => Game.t);
-    assert.ok(t1 - t0 > .25, 'game time advanced ' + (t1 - t0));
+    assert.ok(t1 - t0 > .75, 'game time advanced ' + (t1 - t0));
   });
 
   test('the canvas uses whole-number pixel scaling at the default size', async () => {
