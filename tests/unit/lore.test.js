@@ -188,9 +188,9 @@ describe('what turns up on a line', () => {
     assert.match(g.Game.toastText, /bottle/);
   });
 
-  test('Excalibur: once in a hundred casts, and then it is yours', () => {
+  test('Excalibur: once in a thousand casts, and then it is yours', () => {
     const { h, g, P } = onDeck();
-    assert.equal(g.EXCALIBUR_CHANCE, .01);
+    assert.equal(g.EXCALIBUR_CHANCE, .001);
     rig(g, 'excalibur');
     landSpecial(h);
     assert.equal(P.excalibur, true);
@@ -259,7 +259,7 @@ describe('Excalibur on deck', () => {
     }
   });
 
-  test('it is drawn, named on the HUD, and does not sell or appear in the shop', () => {
+  test('it is drawn, named on the HUD, and never for sale: the stall only lists it to take back in hand', () => {
     const { h, g, P } = onDeck({ draw: true }, { excalibur: true });
     const said = [];
     const draw = g.Text.draw;
@@ -268,7 +268,13 @@ describe('Excalibur on deck', () => {
     g.Text.draw = draw;
     assert.ok(said.includes('Excalibur'));
     g.Shop.open(); g.Shop.tab = 1;
-    assert.ok(!g.Shop.rows().some(r => /Excalibur/.test(r.name)));
+    const row = g.Shop.rows().find(r => /Excalibur/.test(r.name));
+    assert.ok(row && row.owned && row.price === 0, 'owned, at no price');
+    g.Shop.tab = 0;
+    assert.ok(!g.Shop.rows().some(r => /Excalibur/.test(r.name)), 'and not on the SELL tab');
+    P.excalibur = false;
+    g.Shop.tab = 1;
+    assert.ok(!g.Shop.rows().some(r => /Excalibur/.test(r.name)), 'no row before it comes up');
   });
 });
 

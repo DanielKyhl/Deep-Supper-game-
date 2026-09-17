@@ -154,7 +154,7 @@ describe('the gear tab', () => {
     assert.match(S.line, /1 short/);
   });
 
-  test('locked and owned items are refused without charging', () => {
+  test('locked items, and the one already in hand, are refused without charging', () => {
     const { S, P } = atStall(P => { P.coins = 5000; });
     selectRow(S, r => r.kind === 'rod' && r.idx === 3);
     S.act();
@@ -163,7 +163,7 @@ describe('the gear tab', () => {
     selectRow(S, r => r.kind === 'weapon' && r.idx === 0);
     S.act();
     assert.equal(P.coins, 5000);
-    assert.match(S.line, /got one/);
+    assert.match(S.line, /in your hand/);
   });
 
   test('buying the next weapon upgrades what you fight with', () => {

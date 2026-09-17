@@ -210,11 +210,11 @@ describe('Uncle Dorran at his stall', () => {
     buy('diveweapon', r => r.kind === 'diveweapon' && r.idx === 1);
   });
 
-  test('turning you down: already yours, not yet, and not enough money', () => {
+  test('turning you down: already in your hand, not yet, and not enough money', () => {
     const { S, P, D } = atStall(P => { P.coins = 50; });
     S.tab = 1;
     S.sel = S.rows().findIndex(r => r.kind === 'weapon' && r.idx === 0); S.act();
-    assert.equal(S.line, D.owned[0]);
+    assert.equal(S.line, D.inHand[0]);
     S.sel = S.rows().findIndex(r => r.kind === 'rod' && r.idx === 3); S.act();
     assert.equal(S.line, D.locked[0]);
     S.sel = S.rows().findIndex(r => r.kind === 'rod' && r.idx === 1); S.act();

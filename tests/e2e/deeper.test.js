@@ -239,3 +239,59 @@ describe('a rematch with the Old One in the app', () => {
     assert.equal(await page.evaluate(() => Fishing.target.id), 'leviathan');
   });
 });
+
+// a point in the game's 960x540 space, in page pixels
+function onPage(page, gx, gy) {
+  return page.evaluate(([gx, gy]) => {
+    const r = canvas.getBoundingClientRect();
+    return { x: r.left + gx / VIEW_W * r.width, y: r.top + gy / VIEW_H * r.height };
+  }, [gx, gy]);
+}
+// the clickable row of the screen on top, for an item's key, id or gear slot
+function menuRow(page, name) {
+  return page.evaluate(name => {
+    const items = Menu.items(Menu.top());
+    const h = Menu.hits.find(x => { const it = items[x.index]; return it && (it.key === name || it.id === name || it.slot === name); });
+    return h && { x: h.x, y: h.y, w: h.w, h: h.h, bar: h.bar, arrows: h.arrows };
+  }, name);
+}
+async function clickAt(page, gx, gy) {
+  const p = await onPage(page, gx, gy);
+  await page.mouse.move(p.x, p.y);
+  await page.mouse.down();
+  await page.waitForTimeout(60);
+  await page.mouse.up();
+  await page.waitForTimeout(120);
+}
+
+describe('gear in the app', () => {
+  let profile, app, page;
+  before(async () => {
+    profile = A.tempProfile();
+    ({ app, page } = await A.launch(profile));
+    await A.startVoyage(page);
+  });
+  after(async () => { await A.close(app); A.removeProfile(profile); });
+
+  test("pause, Gear, click the › on the weapon row: the net is back in hand, and the HUD says so", async () => {
+    await page.evaluate(() => Object.assign(Player, { weapon: 3, rod: 2 }));
+    await page.keyboard.press('Escape');
+    await A.until(page, () => Game.state === 'pause');
+    await A.choose(page, 'gear');
+    await A.until(page, () => Menu.top() === 'gear');
+    await page.waitForTimeout(150);
+    const r = await menuRow(page, 'weapon');
+    await clickAt(page, r.arrows.x1 - 3, r.y + r.h / 2);
+    await A.until(page, () => deckWeapon().id === 'dipnet', null, 2000);
+    await page.keyboard.press('Escape');
+    await A.until(page, () => Menu.top() === 'pause');
+    await page.keyboard.press('Escape');
+    await A.until(page, () => Game.state === 'play');
+    const shown = await page.evaluate(() => {
+      const said = [], draw = Text.draw;
+      Text.draw = function (g, s) { said.push(String(s)); return draw.apply(this, arguments); };
+      return new Promise(res => requestAnimationFrame(() => requestAnimationFrame(() => { Text.draw = draw; res(said); })));
+    });
+    assert.ok(shown.includes('Dip Net'), shown.filter(s => /Net|Harpoon/i.test(s)).join(', '));
+  });
+});

@@ -401,15 +401,92 @@ describe('drawing and the mouse', () => {
     assert.equal(M.top(), 'options');
   });
 
-  test('clicking the left or right half of a value steps it down or up', () => {
+});
+
+describe('the mouse on the option screens', () => {
+  // a screen drawn and ready for the mouse; clicks are a press, a frame, and the button let go
+  function screen(id) {
     const { h, g } = loadGame({ draw: false });
     const M = g.Menu;
-    M.push('audio');
-    M.draw(h.eval('bctx'));
-    const row = M.hits[0];
-    assert.equal(M.hitAt(row.valueX + 2, row.y + 5).side, -1);
-    assert.equal(M.hitAt(row.x + row.w - 2, row.y + 5).side, 1);
-    assert.equal(M.hitAt(row.x + 2, row.y + 5).side, 0);
+    M.push(id);
+    const bctx = h.eval('bctx');
+    const redraw = () => M.draw(bctx);
+    const frame = () => { M.update(1 / 60); g.Input.endFrame(); redraw(); };
+    redraw();
+    const row = key => M.hits.find(x => { const it = M.items(id)[x.index]; return it.key === key || it.id === key; });
+    const click = (x, y) => { h.click(x, y); frame(); h.emit('mouseup', { button: 0 }); frame(); };
+    return { h, g, M, S: g.Settings, row, click, frame };
+  }
+  const mid = r => r.y + r.h / 2;
+
+  test("clicking a slider's name selects it and leaves the value alone", () => {
+    const { M, S, row, click } = screen('audio');
+    const r = row('sfx');
+    click(r.x + 20, mid(r));
+    assert.equal(M.items('audio')[M.sel.audio].key, 'sfx');
+    assert.equal(S.data.sfx, .8);
+  });
+
+  test('clicking along a slider sets it to that point: a segment, the far end, or just before the start for nothing', () => {
+    const { S, row, click } = screen('audio');
+    const bar = row('master').bar;
+    click(bar.x0 + bar.seg * 2 + 2, mid(row('master')));
+    assert.equal(S.data.master, .3, 'the third segment');
+    click(bar.x1, mid(row('master')));
+    assert.equal(S.data.master, 1);
+    click(bar.x0 - 8, mid(row('master')));
+    assert.equal(S.data.master, 0);
+  });
+
+  test('holding the button drags a slider along, over other rows too, and letting go stops it', () => {
+    const { h, g, M, S, row, frame } = screen('audio');
+    const r = row('music'), bar = r.bar;
+    h.click(bar.x0 + 2, mid(r)); frame();
+    assert.equal(S.data.music, .1);
+    h.mouseMove(bar.x0 + bar.seg * 6 + 2, mid(row('master'))); frame();
+    assert.equal(S.data.music, .7, 'dragged, though the pointer strayed onto another row');
+    assert.equal(M.items('audio')[M.sel.audio].key, 'music', 'and the selection stayed put');
+    assert.equal(S.data.master, .8);
+    h.mouseMove(bar.x1 + 40, mid(r)); frame();
+    assert.equal(S.data.music, 1, 'past the end is the end');
+    h.emit('mouseup', { button: 0 }); frame();
+    h.mouseMove(bar.x0, mid(r)); frame();
+    assert.equal(S.data.music, 1, 'let go, it stays');
+  });
+
+  test('brightness keeps its own range under the mouse', () => {
+    const { S, row, click } = screen('graphics');
+    const r = row('brightness');
+    click(r.bar.x1, mid(r));
+    assert.equal(S.data.brightness, 1.3);
+    click(r.bar.x0 - 8, mid(r));
+    assert.equal(S.data.brightness, .7);
+  });
+
+  test("a choice's left arrow steps it back, its right arrow forward, and anywhere else on the row cycles on", () => {
+    const { S, row, click } = screen('graphics');
+    S.set('flashes', 'soft');
+    let r = row('flashes');
+    click(r.arrows.x0 + 2, mid(r));
+    assert.equal(S.data.flashes, 'full', 'the ‹');
+    r = row('flashes');
+    click(r.arrows.x1 - 2, mid(r));
+    assert.equal(S.data.flashes, 'soft', 'the ›');
+    r = row('flashes');
+    click(r.arrows.x1 - 2, mid(r));
+    assert.equal(S.data.flashes, 'off');
+    r = row('flashes');
+    click(r.x + 20, mid(r));
+    assert.equal(S.data.flashes, 'full', 'the name cycles round');
+  });
+
+  test('a toggle flips from a click anywhere on its row, and nothing is hit off the rows', () => {
+    const { M, S, row, click } = screen('audio');
+    const r = row('muted');
+    click(r.x + 20, mid(r));
+    assert.equal(S.data.muted, true);
+    click(r.x + r.w - 10, mid(r));
+    assert.equal(S.data.muted, false);
     assert.equal(M.hitAt(-50, -50), null);
   });
 });
