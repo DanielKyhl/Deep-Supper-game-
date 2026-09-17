@@ -76,10 +76,60 @@ const EXCALIBUR = {
   desc: 'It came out of the sea, not a stone. Nothing on this boat survives one blow of it.'
 };
 
-// what he fights with on deck
-function deckWeapon() {
-  return Player.excalibur ? EXCALIBUR : WEAPONS[Math.max(0, Player.weapon)];
+/* ------------------------------ what's in hand -----------------------------
+   Player.rod, weapon, suit and diveWeapon are the best of each he owns: they
+   are bought in order, so he owns everything up to them (and Excalibur, once
+   the sea hands it up). What he uses can be any of those. His pick is kept in
+   Player.useRod and the rest, where -1 means the best he owns, so anything
+   new he buys is in his hands straight away. */
+const DECK_ARMS = WEAPONS.concat([EXCALIBUR]);
+const GEAR = {
+  rod:    { label: 'Rod',        use: 'useRod',        list: () => RODS,         best: () => Player.rod },
+  weapon: { label: 'On deck',    use: 'useWeapon',     list: () => DECK_ARMS,    best: () => Player.weapon },
+  suit:   { label: 'Suit',       use: 'useSuit',       list: () => SUITS,        best: () => Player.suit },
+  dive:   { label: 'Underwater', use: 'useDiveWeapon', list: () => DIVE_WEAPONS, best: () => Player.diveWeapon }
+};
+const GEAR_SLOTS = ['rod', 'weapon', 'suit', 'dive'];
+
+// the indices of everything he owns for a slot, worst to best
+function gearOwned(slot) {
+  const out = [];
+  for (let i = 0; i <= GEAR[slot].best(); i++) out.push(i);
+  if (slot === 'weapon' && Player.excalibur) out.push(WEAPONS.length);
+  return out;
 }
+// the index of what he has in hand (-1 when he owns nothing for that slot)
+function gearIndex(slot) {
+  const owned = gearOwned(slot), pick = Player[GEAR[slot].use];
+  if (!owned.length) return -1;
+  return owned.indexOf(pick) >= 0 ? pick : owned[owned.length - 1];
+}
+function gearDef(slot) { return GEAR[slot].list()[Math.max(0, gearIndex(slot))]; }
+// take something he owns in hand; false if he doesn't own it
+function gearPick(slot, idx) {
+  const owned = gearOwned(slot);
+  if (owned.indexOf(idx) < 0) return false;
+  Player[GEAR[slot].use] = idx === owned[owned.length - 1] ? -1 : idx;
+  return true;
+}
+// the next (dir 1) or the previous (dir -1) thing he owns, wrapping round
+function gearCycle(slot, dir) {
+  const owned = gearOwned(slot);
+  if (owned.length < 2) return false;
+  const i = owned.indexOf(gearIndex(slot));
+  return gearPick(slot, owned[(i + (dir < 0 ? owned.length - 1 : 1)) % owned.length]);
+}
+// what a piece of gear does, in a line
+function gearStat(slot, d) {
+  if (slot === 'rod') return 'depth ' + d.depth + '  ·  grip ' + d.bar;
+  if (slot === 'weapon') return 'damage ' + d.dmg + '  ·  ' + d.style + statusTags(d) + (d.heavy ? '  ·  heavy: ' + d.heavy.name.toLowerCase() : '');
+  if (slot === 'suit') return 'depth ' + Math.round(d.depth / 50) + ' fm  ·  air ' + d.air + 's';
+  return 'damage ' + d.dmg + '  ·  ' + FIRE_STYLES[d.style] + statusTags(d);
+}
+
+// what he fights with on deck, and fishes with
+function deckWeapon() { return gearDef('weapon'); }
+function rodDef() { return gearDef('rod'); }
 
 /* ------------------------------ below the surface -------------------------
    Diving suits, for after the Old One. `depth` is how far down (in pixels
@@ -515,6 +565,12 @@ const DORRAN = {
   },
   owned:  ["You've got one of those. I've got two. Of something."],
   locked: ["One thing at a time, lad. I can only count to one just now."],
+  // taking something he already owns back in hand
+  equip:  [
+    "The old one? Sentimental. I kept my first bottle. Well. The cork.",
+    "Swap it about all you like. It's all paid for. Is it all paid for?"
+  ],
+  inHand: ["That's the one in your hand, lad. Look down. Other hand."],
   poor:   ["That's {short} short. I'd lend it you, but I've drunk it."],
   // when nothing is happening, which to him is a gap in the conversation
   mutter: [

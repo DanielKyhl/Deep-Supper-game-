@@ -21,6 +21,7 @@ const Player = {
   records: {}, chapters: [],                     // the heaviest of each kind landed; bestiary chapters paid for
   omens: 0,                                      // strange things seen at night
   lostOldOne: false, chum: false,                // beaten by the Old One once; a bucket of chum to call it back
+  useRod: -1, useWeapon: -1, useSuit: -1, useDiveWeapon: -1,   // what he has in hand, of what he owns (-1: the best)
   shortcut: false,                               // started from a test shortcut: earns no achievements
   // battle scratch
   attackT: 0, attackDur: .32, attackDone: false, combo: 0, comboBuffer: false,
@@ -39,6 +40,7 @@ const Player = {
     this.sawEnding = false;
     this.records = {}; this.chapters = []; this.omens = 0; this.shortcut = false;
     this.lostOldOne = false; this.chum = false;
+    this.useRod = -1; this.useWeapon = -1; this.useSuit = -1; this.useDiveWeapon = -1;
     this.attackT = 0; this.rollT = 0; this.invuln = 0; this.knock = 0;
     this.state = 'idle'; this.bState = 'idle';
   }
@@ -994,8 +996,8 @@ const Game = {
     // gear, top right
     // after the Old One, the gear that matters is what you dive in
     const diving = Player.suit >= 0;
-    const rodName = diving ? SUITS[Player.suit].name : RODS[Player.rod].name;
-    const swName = diving ? DIVE_WEAPONS[Math.max(0, Player.diveWeapon)].name
+    const rodName = diving ? gearDef('suit').name : rodDef().name;
+    const swName = diving ? gearDef('dive').name
       : Player.weapon >= 0 ? deckWeapon().name : 'unarmed';
     Text.draw(g, rodName, VIEW_W - 24, 34, {
       size: 14, align: 'right', color: '#b9c4dd', font: 'Verdana, sans-serif', outline: 'rgba(0,0,0,.6)', outlineW: 3

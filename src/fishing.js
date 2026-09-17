@@ -25,7 +25,7 @@ const Fishing = {
   prog: .32, tension: 0, shake: 0,
 
   start() {
-    const rod = RODS[Player.rod];
+    const rod = rodDef();
     this.phase = 'cast';
     this.t = 0;
     this.msg = '';
@@ -49,7 +49,7 @@ const Fishing = {
     this.hook.vy = 0;
     this.hook.tug = 0;
     // the first cast goes a little deeper, so the ambush has room to happen in the dark
-    this.targetDepth = this.intro ? 300 : ROD_DEPTH[Player.rod] * rand(.86, 1);
+    this.targetDepth = this.intro ? 300 : ROD_DEPTH[gearIndex('rod')] * rand(.86, 1);
     Game.viewY = 0;
 
     // silhouettes drifting at depth, more of them the deeper you can reach
@@ -93,7 +93,7 @@ const Fishing = {
 
   update(dt) {
     this.t += dt;
-    const rod = RODS[Player.rod];
+    const rod = rodDef();
     const a = this._anchor();
     this.shake = Math.max(0, this.shake - dt * 3);
     this.hook.x = a.bx;
@@ -157,7 +157,7 @@ const Fishing = {
       });
     }
     // the watcher shows itself once you are properly deep
-    if (this.hook.depth > 420 && Player.rod >= 2 && this.watcher.want === 0 && chance(dt * .5)) {
+    if (this.hook.depth > 420 && gearIndex('rod') >= 2 && this.watcher.want === 0 && chance(dt * .5)) {
       this.watcher.want = 1;
       this.watcher.depth = this.hook.depth + rand(105, 150);
       Sfx.tone({ f: 46, f2: 34, dur: 2.2, type: 'sine', vol: .18 });
@@ -181,7 +181,7 @@ const Fishing = {
       });
     }
     // creeping dread: the deeper your rod, the more often it looks at you
-    if (Player.rod >= 2 && this.watcher.want === 0 && chance(dt * (Player.rod >= 3 ? .35 : .12))) {
+    if (gearIndex('rod') >= 2 && this.watcher.want === 0 && chance(dt * (gearIndex('rod') >= 3 ? .35 : .12))) {
       this.watcher.want = 1;
       this.watcher.depth = this.hook.depth + rand(105, 150);
       this.watcher.x = rand(200, VIEW_W - 200);
@@ -193,7 +193,7 @@ const Fishing = {
     if (this.t >= this.waitFor) {
       this.phase = 'bite'; this.t = 0;
       this.target = this.intro ? MINNOW : this.girlDue() ? GIRL : this.chummed ? monsterDef('leviathan')
-        : this.special ? this._specialCatch() : rollCatch(RODS[Player.rod].depth, Player.luck || Weather.luckyWater());
+        : this.special ? this._specialCatch() : rollCatch(rodDef().depth, Player.luck || Weather.luckyWater());
       Sfx.bite();
       this.hook.tug = 22;
       Cam.kick(this.target.gentle ? 1 : 4);
@@ -223,7 +223,7 @@ const Fishing = {
   // Nerys comes up once, somewhere around the second or third rod
   // a bucket of chum over the side brings the Old One, if the line reaches it.
   // It is used up when the fight begins, so a snapped line keeps it in the water.
-  chumWorks() { return !!Player.chum && RODS[Player.rod].depth >= 4 && !this.girlDue(); },
+  chumWorks() { return !!Player.chum && rodDef().depth >= 4 && !this.girlDue(); },
 
   girlDue() {
     if (Player.girlMet || Player.beatBoss) return false;
@@ -268,7 +268,7 @@ const Fishing = {
   _beginReel() {
     this.phase = 'reel';
     this.t = 0;
-    const rod = RODS[Player.rod];
+    const rod = rodDef();
     const m = this.target;
     const small = m === MINNOW, girl = m === GIRL;
     this.barFrac = (small ? 190 : girl ? 170 : rod.bar) / 300;

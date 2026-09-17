@@ -30,11 +30,11 @@ const SCREEN_TITLES = {
   controls: 'CONTROLS', gameplay: 'GAMEPLAY', credits: 'CREDITS',
   confirmNew: 'NEW VOYAGE', confirmReset: 'RESET SETTINGS', confirmQuit: 'QUIT',
   saveSlots: 'SAVE GAME', loadSlots: 'LOAD GAME', confirmOverwrite: 'OVERWRITE', confirmLoad: 'LOAD',
-  dev: 'TEST SHORTCUTS'
+  dev: 'TEST SHORTCUTS', gear: 'GEAR'
 };
 
 // screens whose rows carry long values
-const WIDE_SCREENS = ['controls', 'graphics', 'audio', 'credits', 'saveSlots', 'loadSlots', 'dev'];
+const WIDE_SCREENS = ['controls', 'graphics', 'audio', 'credits', 'saveSlots', 'loadSlots', 'dev', 'gear'];
 
 const Menu = {
   context: 'main',     // 'main' (title screen) or 'pause'
@@ -45,6 +45,7 @@ const Menu = {
   notice: '', noticeT: 0,
   t: 0,
   hits: [],            // clickable rows from the last draw
+  drag: null,          // a slider being dragged with the mouse
 
   /* ------------------------------ navigation ---------------------------- */
 
@@ -107,6 +108,7 @@ const Menu = {
         { kind: 'action', label: 'Resume', id: 'resume', run: () => Game.resume() },
         { kind: 'action', label: 'Save game', id: 'save', run: () => this.push('saveSlots') },
         { kind: 'action', label: 'Load game', id: 'load', hidden: !SaveGame.anySlot(), run: () => this.push('loadSlots') },
+        { kind: 'action', label: 'Gear', id: 'gear', run: () => this.push('gear') },
         { kind: 'action', label: 'Journal  (' + Player.lore.length + '/' + LORE.length + ')', id: 'journal', run: () => this.push('journal') },
         { kind: 'action', label: 'Bestiary  (' + Bestiary.count() + '/' + Bestiary.total() + ')', id: 'bestiary', run: () => Bestiary.open() },
         { kind: 'action', label: 'Achievements  (' + Achievements.count() + '/' + Achievements.total() + ')', id: 'achievements', run: () => Achievements.open() },
@@ -116,6 +118,18 @@ const Menu = {
         { kind: 'gap' },
         { kind: 'text', label: Player.coins + '§ in pocket   ·   ' + Player.totalKills + ' killed   ·   ' + Player.catches.length + ' in the hold' }
       ].filter(i => !i.hidden);
+
+      // everything he owns, and what he has in hand: on deck only, not mid-cast or mid-fight
+      case 'gear': {
+        const onDeck = Game.pausedFrom === 'play';
+        const rows = GEAR_SLOTS.filter(slot => gearOwned(slot).length).map(slot => ({ kind: 'gear', label: GEAR[slot].label, slot, locked: !onDeck }));
+        const on = rows[this.sel.gear] || rows[0];
+        return rows.concat([
+          { kind: 'gap' },
+          { kind: 'text', label: !rows.length ? 'Nothing to choose from yet. Try the crate.' : !onDeck ? 'Gear can only be changed on deck.' : gearStat(on.slot, gearDef(on.slot)) },
+          { kind: 'action', label: 'Back', id: 'back', run: () => this.back() }
+        ]);
+      }
 
       case 'options': return [
         { kind: 'action', label: 'Graphics', id: 'graphics', run: () => this.push('graphics') },
@@ -311,6 +325,10 @@ const Menu = {
       return '‹ ' + (map[String(v)] !== undefined ? map[String(v)] : String(v)) + ' ›';
     }
     if (it.kind === 'slider') return Math.round(d[it.key] * 100) + '%';
+    if (it.kind === 'gear') {
+      const name = gearDef(it.slot).name;
+      return gearOwned(it.slot).length > 1 && !it.locked ? '‹ ' + name + ' ›' : name;
+    }
     if (it.kind === 'bind') {
       if (this.rebinding === it.action) return 'press a key…';
       return (d.bindings[it.action] || []).map(keyLabel).join('  /  ');
@@ -325,6 +343,40 @@ const Menu = {
       Settings.nudge(it.key, dir);
       Sfx.select();
     }
+    if (it.kind === 'gear') {
+      if (it.locked) { Sfx.deny(); this.say('Gear can only be changed on deck.'); return; }
+      if (!gearCycle(it.slot, dir)) { Sfx.deny(); return; }
+      Sfx.select();
+      Game.autosave();
+    }
+  },
+
+  // a slider set from a point along its bar: a click, or the mouse dragging it
+  slideTo(key, bar, x) {
+    const spec = SETTINGS_SPEC[key];
+    const n = clamp(Math.ceil((x - bar.x0 + bar.gap / 2) / bar.seg), 0, bar.segs);
+    const before = Settings.data[key];
+    Settings.set(key, spec.min + (spec.max - spec.min) * n / bar.segs);
+    if (Settings.data[key] !== before) Sfx.select();
+  },
+
+  // a click on a row: sliders take the point clicked on their bar, choices
+  // their arrows; a row's name only ever selects a slider, never changes it
+  click(it, hit) {
+    if (!it || !this.selectable(it)) return;
+    if (it.kind === 'slider') {
+      if (hit.bar) {
+        this.drag = { screen: this.top(), key: it.key, bar: hit.bar };
+        this.slideTo(it.key, hit.bar, hit.x);
+      }
+      return;
+    }
+    if (it.kind === 'choice' || it.kind === 'gear') {
+      if (hit.side) this.adjust(it, hit.side);
+      else this.activate(it, 0);
+      return;
+    }
+    this.activate(it, 0);
   },
 
   // enter or a click on an item; `side` is -1/+1 when a click lands on a value
@@ -342,6 +394,7 @@ const Menu = {
       return;
     }
     if (it.kind === 'slider') { this.adjust(it, side || 1); return; }
+    if (it.kind === 'gear') { this.adjust(it, side || 1); return; }
     if (it.kind === 'bind') this.beginRebind(it.action);
   },
 
@@ -378,13 +431,17 @@ const Menu = {
     if (sel === undefined || !this.selectable(items[sel])) sel = this.firstSelectable(items);
 
     const m = Input.mouse();
-    if (m.moved || m.click) {
+    // a slider follows the mouse for as long as the button stays down
+    if (this.drag && (!m.down || this.drag.screen !== id)) this.drag = null;
+    if (this.drag) {
+      if (m.moved) this.slideTo(this.drag.key, this.drag.bar, m.x);
+    } else if (m.moved || m.click) {
       const hit = this.hitAt(m.x, m.y);
       if (hit) {
         if (hit.index !== sel && this.selectable(items[hit.index])) { sel = hit.index; Sfx.select(); }
         if (m.click) {
           this.sel[id] = sel;
-          this.activate(items[sel], hit.side);
+          this.click(items[sel], hit);
           return;
         }
       }
@@ -400,12 +457,20 @@ const Menu = {
     if (Input.tap('confirm')) this.activate(items[sel], 0);
   },
 
+  /* What is under a point: the row, and on it, a slider's bar (a little
+     past either end, so the very ends are easy to hit) or which arrow of a
+     choice. `side` is -1 on the left arrow, 1 on the right, 0 anywhere else. */
   hitAt(x, y) {
     for (const h of this.hits) {
       if (x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h) {
-        let side = 0;
-        if (h.valueX !== undefined && x >= h.valueX) side = x < h.valueMid ? -1 : 1;
-        return { index: h.index, side };
+        const out = { index: h.index, side: 0, x };
+        if (h.bar && x >= h.bar.x0 - 14 && x <= h.bar.x1 + 14) out.bar = h.bar;
+        if (h.arrows) {
+          const a = h.arrows;
+          if (x >= a.x0 - 10 && x < a.x0 + a.w + 6) out.side = -1;
+          else if (x > a.x1 - a.w - 6 && x <= a.x1 + 14) out.side = 1;
+        }
+        return out;
       }
     }
     return null;
@@ -511,24 +576,24 @@ const Menu = {
       Text.draw(g, it.label, hasValue ? X + 40 : VIEW_W / 2, ry + 6, {
         size: 18, align: hasValue ? 'left' : 'center', color: labelCol
       });
+      const hit = { x: X + 16, y: ry - 14, w: W - 32, h: 28, index: i };
       if (hasValue) {
-        if (it.kind === 'slider') this.drawSlider(g, valueX, ry, W * .48 - 50, Settings.data[it.key], it.key, on);
+        if (it.kind === 'slider') hit.bar = this.drawSlider(g, valueX, ry, W * .48 - 50, Settings.data[it.key], it.key, on);
         else {
           const blink = this.rebinding === it.action && Math.sin(this.t * 8) < 0;
-          Text.draw(g, this.valueText(it), X + W - 40, ry + 6, {
+          const text = this.valueText(it), right = X + W - 40;
+          Text.draw(g, text, right, ry + 6, {
             size: 18, align: 'right',
             color: blink ? 'rgba(240,207,138,.35)' : (on ? '#f0cf8a' : '#9aa7c4')
           });
+          // where the ‹ and › of a choice are, for the mouse
+          if (text.charAt(0) === '‹') hit.arrows = { x0: right - Text.width(g, text, { size: 18 }), x1: right, w: Text.width(g, '‹ ', { size: 18 }) };
         }
       }
-      this.hits.push({
-        x: X + 16, y: ry - 14, w: W - 32, h: 28, index: i,
-        valueX: hasValue ? valueX : undefined,
-        valueMid: valueX + (X + W - 40 - valueX) / 2
-      });
+      this.hits.push(hit);
     });
 
-    const adjustable = items.some(i => i.kind === 'slider' || i.kind === 'choice' || i.kind === 'toggle');
+    const adjustable = items.some(i => i.kind === 'slider' || i.kind === 'choice' || i.kind === 'toggle' || (i.kind === 'gear' && !i.locked));
     const hint = this.rebinding ? 'press the new key     ESC cancel'
       : !adjustable ? '↑↓ choose     ENTER select     ESC back'
       : '↑↓ choose     ←→ change     ENTER select     ESC back';
@@ -549,5 +614,7 @@ const Menu = {
       g.fillRect(snap(x + i * (sw + gap)), y - 6, sw, 12);
     }
     Text.draw(g, Math.round(v * 100) + '%', x + w, y + 6, { size: 18, align: 'right', color: on ? '#f0cf8a' : '#9aa7c4' });
+    // the bar's geometry, for the mouse
+    return { x0: x, x1: x + segs * (sw + gap) - gap, seg: sw + gap, gap, segs };
   }
 };

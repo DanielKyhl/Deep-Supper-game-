@@ -312,7 +312,7 @@ const Battle = {
     const windingUp = m.state === 'tele' && m.atk !== 'roar';
     this.lastBlowHeavy = heavy;
     // one blow, whatever it is
-    if (Player.excalibur) dmg = Math.max(dmg, m.hp);
+    if (deckWeapon() === EXCALIBUR) dmg = Math.max(dmg, m.hp);
     m.x += Player.face * 6 * (sw.knock || 1);
     m.hp -= dmg;
     m.flash = 1;

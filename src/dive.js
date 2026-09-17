@@ -108,8 +108,8 @@ const Dive = {
     Sfx.setUnderwater(false);
   },
 
-  suit() { return SUITS[Math.max(0, Player.suit)]; },
-  weapon() { return DIVE_WEAPONS[Math.max(0, Player.diveWeapon)]; },
+  suit() { return gearDef('suit'); },
+  weapon() { return gearDef('dive'); },
 
   /* -------------------------------- on deck ------------------------------- */
 

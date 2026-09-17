@@ -4,6 +4,8 @@
    ======================================================================== */
 
 const TABS = ['SELL', 'GEAR', 'GOODS'];
+// which piece of gear each kind of row is
+const SHOP_SLOTS = { rod: 'rod', weapon: 'weapon', suit: 'suit', diveweapon: 'dive' };
 
 // Dorran's own dice, so his chatter never changes anything the sea does
 const DorranDice = {
@@ -80,7 +82,7 @@ const Shop = {
         r.push({
           kind: 'suit', idx: i, name: s.name, sub: s.desc, price: s.price,
           owned: i <= Player.suit, locked: i > Player.suit + 1,
-          stat: 'depth ' + Math.round(s.depth / 50) + ' fm  ·  air ' + s.air + 's'
+          stat: gearStat('suit', s)
         });
       });
       r.push({ kind: 'head', name: 'ARMS' });
@@ -88,7 +90,7 @@ const Shop = {
         r.push({
           kind: 'diveweapon', idx: i, name: w.name, sub: w.desc, price: w.price,
           owned: i <= Player.diveWeapon, locked: i > Player.diveWeapon + 1,
-          stat: 'damage ' + w.dmg + '  ·  ' + FIRE_STYLES[w.style] + statusTags(w)
+          stat: gearStat('dive', w)
         });
       });
       return r;
@@ -99,7 +101,7 @@ const Shop = {
         r.push({
           kind: 'rod', idx: i, name: rod.name, sub: rod.desc, price: rod.price,
           owned: i <= Player.rod, locked: i > Player.rod + 1,
-          stat: 'depth ' + rod.depth + '  ·  grip ' + rod.bar
+          stat: gearStat('rod', rod)
         });
       });
       r.push({ kind: 'head', name: 'ARMS' });
@@ -107,9 +109,13 @@ const Shop = {
         r.push({
           kind: 'weapon', idx: i, name: s.name, sub: s.desc, price: s.price,
           owned: i <= Player.weapon, locked: i > Player.weapon + 1,
-          stat: 'damage ' + s.dmg + '  ·  ' + s.style + statusTags(s) + (s.heavy ? '  ·  heavy: ' + s.heavy.name.toLowerCase() : '')
+          stat: gearStat('weapon', s)
         });
       });
+      // the sword isn't for sale, but it can be taken back in hand here
+      if (Player.excalibur) {
+        r.push({ kind: 'weapon', idx: WEAPONS.length, name: EXCALIBUR.name, sub: EXCALIBUR.desc, price: 0, owned: true, locked: false, stat: gearStat('weapon', EXCALIBUR) });
+      }
       return r;
     }
     return GOODS.filter(gd => !gd.unlocked || gd.unlocked()).map(gd => {
@@ -195,8 +201,15 @@ const Shop = {
     }
     if (r.kind === 'none') { Sfx.deny(); return; }
 
+    // something he owns already: take it in hand
+    if (r.owned) {
+      const slot = SHOP_SLOTS[r.kind];
+      if (slot && gearIndex(slot) === r.idx) { Sfx.deny(); this.say(dorranPick(DORRAN.inHand)); this.flash(); return; }
+      if (slot && gearPick(slot, r.idx)) { Sfx.select(); this.say(dorranPick(DORRAN.equip)); this.flash(true); return; }
+      Sfx.deny(); this.say(dorranPick(DORRAN.owned)); this.flash(); return;
+    }
+
     // buying
-    if (r.owned) { Sfx.deny(); this.say(dorranPick(DORRAN.owned)); this.flash(); return; }
     if (r.locked) { Sfx.deny(); this.say(dorranPick(DORRAN.locked)); this.flash(); return; }
     if (Player.coins < r.price) {
       Sfx.deny();
@@ -209,14 +222,15 @@ const Shop = {
     Sfx.buy();
     this.flash(true);
 
+    // new gear goes straight into his hands
     if (r.kind === 'rod') {
-      Player.rod = Math.max(Player.rod, r.idx);
+      Player.rod = Math.max(Player.rod, r.idx); Player.useRod = -1;
     } else if (r.kind === 'weapon') {
-      Player.weapon = Math.max(Player.weapon, r.idx);
+      Player.weapon = Math.max(Player.weapon, r.idx); Player.useWeapon = -1;
     } else if (r.kind === 'suit') {
-      Player.suit = Math.max(Player.suit, r.idx);
+      Player.suit = Math.max(Player.suit, r.idx); Player.useSuit = -1;
     } else if (r.kind === 'diveweapon') {
-      Player.diveWeapon = Math.max(Player.diveWeapon, r.idx);
+      Player.diveWeapon = Math.max(Player.diveWeapon, r.idx); Player.useDiveWeapon = -1;
     } else {
       const gd = r.def;
       if (gd.type === 'consume') Player.bandages++;
@@ -338,8 +352,7 @@ const Shop = {
           size: 21, color: '#f0cf8a', weight: 'bold', align: 'right', font: 'Verdana, sans-serif'
         });
       } else if (r.owned) {
-        const inUse = (r.kind === 'rod' && r.idx === Player.rod) || (r.kind === 'weapon' && r.idx === Player.weapon) ||
-          (r.kind === 'suit' && r.idx === Player.suit) || (r.kind === 'diveweapon' && r.idx === Player.diveWeapon);
+        const inUse = !!SHOP_SLOTS[r.kind] && gearIndex(SHOP_SLOTS[r.kind]) === r.idx;
         Text.draw(g, inUse ? 'IN USE' : 'OWNED',
           rx, y + 34, { size: 13, color: '#6f9e84', weight: 'bold', align: 'right', font: 'Verdana, sans-serif' });
       } else if (r.locked) {
@@ -358,8 +371,10 @@ const Shop = {
       });
     }
 
-    // footer
-    Text.draw(g, '← → tabs    ↑ ↓ choose    [E] confirm    [ESC] leave',
+    // footer: on gear he owns but isn't using, E takes it in hand
+    const cur = rows[this.sel], slot = cur && cur.owned && SHOP_SLOTS[cur.kind];
+    const eHint = slot && gearIndex(slot) !== cur.idx ? '[E] use this instead' : '[E] confirm';
+    Text.draw(g, '← → tabs    ↑ ↓ choose    ' + eHint + '    [ESC] leave',
       X + W / 2, Y + H - 12, {
         size: 13, align: 'center', color: 'rgba(160,172,200,.65)', font: 'Verdana, sans-serif'
       });
