@@ -19,7 +19,8 @@ function readToTheEnd(h, check, dt) {
     else if (check) check(i); else h.frame(dt);
   }
   h.keyUp('Space');
-  assert.ok(h.until(() => g.Game.state === 'play' && g.Game.fade.dir === 0, 5), 'back on deck');
+  // the credits are the end of the game: it puts you back on the title screen
+  assert.ok(h.until(() => g.Game.state === 'menu' && g.Game.fade.dir === 0, 5), 'back at the title');
   return credits;
 }
 
@@ -33,7 +34,7 @@ describe('the end of the game', () => {
     g.Player.kills = { gnashfin: 2, trenchmaw: 1 };
 
     // over the side and straight back up the ladder
-    F.walkTo(h, g.FISH_X, 40);
+    F.walkTo(h, g.DIVE_X, 40);
     h.tap('KeyE');
     assert.ok(h.until(() => g.Dive.underwater && g.Dive.phase === 'swim' && g.Game.fade.dir === 0, 8), 'in the water');
     g.Dive.mobs.length = 0;
@@ -54,19 +55,21 @@ describe('the end of the game', () => {
 
     assert.equal(readToTheEnd(h), true, 'the credits rolled');
     assert.equal(g.Player.sawEnding, true);
-    assert.equal(g.Game.objective(), 'Lanthorne is lit again. The sea is yours.');
-    assert.match(g.Game.toastText, /still yours/);
 
-    // he can still walk the deck and go back to sea
-    F.walkTo(h, g.FISH_X, 40);
-    assert.equal(g.Game.spotLabel(g.Game.nearestSpot()), 'Dive');
+    // that is the game: the title screen, with the voyage kept
+    assert.ok(h.until(() => g.Game.state === 'menu' && g.Game.fade.dir === 0, 5), 'back at the title');
+    assert.match(g.Menu.notice, /Continue/);
 
-    // and the ending is part of the save
+    // and Continue puts him back aboard, with the ending remembered
     const again = loadGame({ storage: Object.fromEntries(h.storage), draw: false });
     F.chooseMenu(again, 'continue');
     assert.ok(again.until(() => again.g.Game.state === 'play' && again.g.Game.fade.dir === 0, 3));
     assert.equal(again.g.Player.sawEnding, true);
     assert.equal(again.g.Player.kills.gnashfin, 2);
+    assert.equal(again.g.Game.objective(), 'Lanthorne is lit again. The sea is yours.');
+    F.readDialogue(again);
+    F.walkTo(again, again.g.DIVE_X, 40);
+    assert.equal(again.g.Game.spotLabel(again.g.Game.nearestSpot()), 'Dive', 'the sea is still there');
   });
 
   test('every frame of the finale renders soundly, dawn, harbour and credits included, and ESC still skips from the credits', () => {
@@ -90,7 +93,7 @@ describe('the end of the game', () => {
     for (let i = 0; i < 30 * 20; i++) sound('credits frame ' + i);
     assert.ok(g.CUT.credits.y > 400, 'they rolled');
     h.hold('Escape', 1.2);
-    assert.ok(h.until(() => g.Game.state === 'play' && g.Game.fade.dir === 0, 5));
+    assert.ok(h.until(() => g.Game.state === 'menu' && g.Game.fade.dir === 0, 5));
     assert.equal(g.Player.sawEnding, true);
     assert.ok(frames > 30 * 40, 'a proper voyage home: ' + frames + ' frames');
   });

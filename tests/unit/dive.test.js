@@ -2,6 +2,7 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const { loadGame, near, plain } = require('../helpers/harness');
+const F = require('../helpers/flows');
 
 // in the water off the ladder, with the given gear
 function inWater(gear, opts) {
@@ -109,26 +110,27 @@ describe('diveCollide', () => {
 });
 
 describe('going over the side', () => {
-  function atBow() {
+  function atLadder() {
     const h = loadGame({ draw: false, seed: 7 });
     h.startVoyage();
-    Object.assign(h.g.Player, { beatBoss: true, suit: 0, diveWeapon: 0, weapon: 0, x: h.g.FISH_X });
+    Object.assign(h.g.Player, { beatBoss: true, suit: 0, diveWeapon: 0, weapon: 0, x: h.g.DIVE_X });
     return { h, g: h.g, D: h.g.Dive };
   }
 
-  test('once there is a suit, the bow station is for diving', () => {
-    const { h, g } = atBow();
-    assert.equal(g.Game.spotLabel({ id: 'fish' }), 'Dive');
+  test('the ladder amidships is the way into the water, and the bow is still for fishing', () => {
+    const { h, g } = atLadder();
+    assert.equal(g.Game.spotLabel({ id: 'dive' }), 'Dive');
+    assert.equal(g.Game.spotLabel({ id: 'fish' }), 'Cast your line');
     h.tap('KeyE');
     assert.equal(g.Game.state, 'dive');
     assert.equal(g.Dive.phase, 'gear');
   });
 
-  test('suiting up frames the bow, puts the suit on, then runs at the rail', () => {
-    const { h, g, D } = atBow();
+  test('suiting up frames the ladder and the rail, puts the suit on, then runs at the side', () => {
+    const { h, g, D } = atLadder();
     h.tap('KeyE');
     assert.equal(g.Cam.locked, true);
-    assert.equal(g.Cam.x, g.BOAT_R - g.VIEW_W);
+    assert.ok(g.Cam.x <= g.DIVE_X - 60 && g.Cam.x + g.VIEW_W >= 1890, 'the ladder and the rail are both in frame: ' + g.Cam.x);
     assert.equal(D.suited, false);
     h.frames(.7);
     assert.equal(D.suited, true);
@@ -136,11 +138,11 @@ describe('going over the side', () => {
     assert.equal(D.phase, 'leap');
   });
 
-  test('the leap carries him over the rail and into the water, then down', () => {
-    const { h, g, D } = atBow();
+  test('the run and leap carry him over the rail and into the water, then down', () => {
+    const { h, g, D } = atLadder();
     h.tap('KeyE');
     h.until(() => D.phase === 'leap', 3);
-    h.frames(.6);
+    h.frames(.9);
     assert.ok(D.deck.x > 1800 && D.deck.y < g.DECK_Y, 'in the air');
     h.frames(.6);
     assert.equal(D.deck.visible, false, 'in the water');
@@ -170,7 +172,7 @@ describe('going over the side', () => {
   });
 
   test('the music changes once he is under', () => {
-    const { h, g, D } = atBow();
+    const { h, g, D } = atLadder();
     h.tap('KeyE');
     h.frame();
     assert.equal(g.Music.themeName, 'sea');
@@ -180,7 +182,7 @@ describe('going over the side', () => {
   });
 
   test('ESC only pauses once he is swimming', () => {
-    const { h, g, D } = atBow();
+    const { h, g, D } = atLadder();
     h.tap('KeyE');
     h.tap('Escape');
     assert.equal(g.Game.state, 'dive');
@@ -596,7 +598,7 @@ describe('coming back up', () => {
     assert.equal(D.phase, 'climb');
     assert.ok(h.until(() => g.Game.state === 'play', 3));
     assert.equal(D.underwater, false);
-    assert.equal(P.x, g.FISH_X);
+    assert.equal(P.x, g.DIVE_X);
     assert.match(g.Game.toastText, /1 in the net/);
     assert.equal(JSON.parse(h.storage.get('deepsupper.save.v1')).catches.length, 1);
     assert.equal(g.Cam.locked, false);
@@ -612,10 +614,10 @@ describe('coming back up', () => {
     P.hp = 1; D.p.invuln = 0;
     D.hurtPlayer(1, D.p.x + 5, D.p.y);
     assert.equal(D.phase, 'blackout');
-    assert.ok(h.until(() => g.Game.state === 'play', 3));
+    const said = F.wakeOnDeck(h);
     assert.deepEqual(plain(P.catches.map(c => c.id)), ['gnashfin']);
     assert.equal(P.hp, P.maxHp);
-    assert.match(g.Game.toastText, /kept your catch/);
+    assert.ok(said.some(l => /still down there/.test(l)), 'what the sea kept: ' + said.join(' | '));
   });
 
   test('returning to the title or loading a save ends the dive cleanly', () => {
@@ -804,7 +806,7 @@ describe('the Mother Below', () => {
     const s = fighting();
     s.P.hp = 1; s.p.invuln = 0;
     s.D.hurtPlayer(1, s.p.x + 10, s.p.y);
-    assert.ok(s.h.until(() => s.g.Game.state === 'play', 3));
+    F.wakeOnDeck(s.h);
     assert.equal(s.D.boss, null);
     assert.equal(s.P.beatMother, false);
   });

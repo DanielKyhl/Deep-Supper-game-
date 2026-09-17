@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const { loadGame } = require('../helpers/harness');
 const F = require('../helpers/flows');
 
-// a diver on deck at the bow with the given gear
+// a diver on deck by the ladder with the given gear
 function diver(opts, gear) {
   const h = loadGame(Object.assign({ draw: false, seed: 11 }, opts));
   h.startVoyage();
@@ -16,7 +16,7 @@ function diver(opts, gear) {
 }
 
 function goUnder(h) {
-  F.walkTo(h, h.g.FISH_X, 40);
+  F.walkTo(h, h.g.DIVE_X, 40);
   h.tap('KeyE');
   assert.equal(h.g.Game.state, 'dive');
   assert.ok(h.until(() => h.g.Dive.underwater && h.g.Game.fade.dir === 0, 6), 'never got into the water');
@@ -72,14 +72,14 @@ describe('diving', () => {
     assert.ok(swimTo(h, g.DIVE_LADDER_X, 30, 40) < 90, 'could not reach the ladder');
     h.tap('KeyE');
     assert.ok(h.until(() => g.Game.state === 'play', 3));
-    assert.equal(g.Game.spotLabel({ id: 'fish' }), 'Dive');
+    assert.equal(g.Game.spotLabel({ id: 'dive' }), 'Dive');
 
     // sell it, and buy the brass rig with the money
     F.openStall(h);
     h.tap('Enter');
     assert.ok(g.Player.coins >= trophy.value);
     g.Player.coins = Math.max(g.Player.coins, g.SUITS[1].price);
-    g.Shop.tab = 1;
+    g.Shop.tab = g.Shop.tabs().findIndex(t => t.id === 'dive');
     g.Shop.sel = g.Shop.rows().findIndex(r => r.kind === 'suit' && r.idx === 1);
     h.tap('Enter');
     h.tap('Escape');
@@ -107,17 +107,19 @@ describe('diving', () => {
     assert.ok(D.p.y > L.y + L.h, 'through the gap to ' + D.p.y);
   });
 
-  test('drowning costs the dive\'s haul, and you wake on deck', () => {
+  test('drowning: he sinks, the screen says so, and Dorran hauls him out with the haul gone', () => {
     const h = diver();
     goUnder(h);
     const D = h.g.Dive;
     D.mobs.length = 0;
     h.g.Player.catches.push(h.g.makeTrophy(h.g.monsterDef('reefgnasher')));
     Object.assign(D.p, { x: 1500, y: 700, air: 0 });
-    assert.ok(h.until(() => h.g.Game.state === 'play', 30));
+    assert.ok(h.until(() => D.phase === 'blackout', 30), 'the suit gave out');
+    assert.ok(h.until(() => h.g.Player.hp === 0 && D.p.limp > .5, 2), 'he goes limp');
+    F.wakeOnDeck(h);
     assert.equal(h.g.Player.catches.length, 0);
     assert.equal(h.g.Player.hp, h.g.Player.maxHp);
-    assert.match(h.g.Game.toastText, /wake on the deck/);
+    assert.equal(h.g.Player.x, h.g.DIVE_X, 'laid out by the ladder');
   });
 
   test('pausing underwater keeps the sea on screen and freezes it', () => {
@@ -156,7 +158,7 @@ describe('diving', () => {
     assert.equal(h.g.Player.suit, 0);
   });
 
-  test('the test shortcut drops you at the bow, suited, ready to dive', () => {
+  test('the test shortcut drops you by the ladder, suited, ready to dive', () => {
     const h = loadGame({ draw: false, seed: 3 });
     F.chooseMenu(h, 'dev');
     F.chooseMenu(h, 'devDiving');

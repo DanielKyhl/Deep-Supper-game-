@@ -230,7 +230,7 @@ describe('stations and dialogue', () => {
     P.beatBoss = true;
     assert.match(g.Game.objective(), /quiet/);
     P.suit = 0;
-    assert.match(g.Game.objective(), /Dive at the bow/);
+    assert.match(g.Game.objective(), /Dive at the ladder/);
     P.suit = g.SUITS.length - 1;
     assert.match(g.Game.objective(), /Lanthorne is down there/);
     P.beatMother = true;

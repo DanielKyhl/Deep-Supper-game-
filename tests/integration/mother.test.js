@@ -95,7 +95,7 @@ describe('the Mother Below', () => {
     const D = h.g.Dive;
     h.g.Player.hp = 1; D.p.invuln = 0;
     D.hurtPlayer(1, D.p.x + 20, D.p.y);
-    assert.ok(h.until(() => h.g.Game.state === 'play', 3));
+    F.wakeOnDeck(h);
     // straight back down
     h.g.Game.state = 'dive'; D.start(); D.enterWater(); D.mobs.length = 0;
     Object.assign(D.p, { x: h.g.CITY_X - 1300, y: 3500 });
@@ -151,7 +151,7 @@ describe('part two, joined up', () => {
     assert.ok(h.until(() => h.g.Game.state === 'play', 12));
     h.keyUp('Escape');
     assert.equal(h.g.Player.suit, 0);
-    F.walkTo(h, h.g.FISH_X, 40);
+    F.walkTo(h, h.g.DIVE_X, 40);
     h.tap('KeyE');
     assert.ok(h.until(() => h.g.Dive.underwater, 6));
   });
@@ -178,7 +178,7 @@ describe('part two, joined up', () => {
     assert.equal(h.g.Settings.data.bindings.down[0], 'KeyB');
     h.g.Menu.openMain();
     h.startVoyage();
-    Object.assign(h.g.Player, { beatBoss: true, suit: 1, diveWeapon: 0, x: h.g.FISH_X });
+    Object.assign(h.g.Player, { beatBoss: true, suit: 1, diveWeapon: 0, x: h.g.DIVE_X });
     h.tap('KeyE');
     assert.ok(h.until(() => h.g.Dive.underwater && h.g.Game.fade.dir === 0, 6));
     h.g.Dive.mobs.length = 0;
@@ -204,7 +204,7 @@ describe('part two, joined up', () => {
     const native = { isApp: true, setFullscreen() {}, quit: () => quits++ };
     const h = loadGame({ draw: false, seed: 5, native });
     h.startVoyage();
-    Object.assign(h.g.Player, { beatBoss: true, suit: 2, diveWeapon: 3, coins: 4321, x: h.g.FISH_X });
+    Object.assign(h.g.Player, { beatBoss: true, suit: 2, diveWeapon: 3, coins: 4321, x: h.g.DIVE_X });
     h.tap('KeyE');
     assert.ok(h.until(() => h.g.Dive.underwater && h.g.Game.fade.dir === 0, 6));
     h.tap('Escape');
@@ -218,6 +218,6 @@ describe('part two, joined up', () => {
     F.chooseMenu(again, 'slot3');
     assert.ok(again.until(() => again.g.Game.state === 'play', 3));
     assert.deepEqual([again.g.Player.suit, again.g.Player.diveWeapon, again.g.Player.coins], [2, 3, 4321]);
-    assert.equal(again.g.Game.spotLabel({ id: 'fish' }), 'Dive');
+    assert.equal(again.g.Game.spotLabel({ id: 'dive' }), 'Dive');
   });
 });

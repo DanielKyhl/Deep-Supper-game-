@@ -3,6 +3,7 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const { loadGame, plain } = require('../helpers/harness');
+const F = require('../helpers/flows');
 
 function onDeck(opts, gear) {
   const h = loadGame(Object.assign({ draw: false, seed: 8 }, opts));
@@ -286,9 +287,9 @@ describe('the salvage fee', () => {
     Object.assign(g.Player, { beatBoss: true, suit: 0, diveWeapon: 0, coins: 1001 });
     g.Game.state = 'dive'; D.start(); D.enterWater(); D.mobs.length = 0;
     Object.assign(D.p, { x: 1500, y: 600, air: 0 });
-    assert.ok(h.until(() => g.Game.state === 'play', 30));
+    const said = F.wakeOnDeck(h);
     assert.equal(g.Player.coins, 1001 - 250);
-    assert.match(g.Game.toastText, /Salvage fee: 250/);
+    assert.ok(said.some(l => /250/.test(l)), 'he says what it cost: ' + said.join(' | '));
   });
 
   test('with nothing in your pocket there is nothing to take, and no mention of it', () => {

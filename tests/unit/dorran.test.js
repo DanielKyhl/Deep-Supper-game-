@@ -205,7 +205,7 @@ describe('Uncle Dorran at his stall', () => {
     buy('weapon', r => r.kind === 'weapon' && r.idx === 1);
     S.tab = 2;
     for (const type of ['consume', 'maxhp', 'lantern', 'luck']) buy(type, r => r.kind === 'good' && r.def.type === type);
-    P.suit = 0; P.diveWeapon = 0; S.tab = 1;
+    P.suit = 0; P.diveWeapon = 0; S.tab = S.tabs().findIndex(t => t.id === 'dive');
     buy('suit', r => r.kind === 'suit' && r.idx === 1);
     buy('diveweapon', r => r.kind === 'diveweapon' && r.idx === 1);
   });

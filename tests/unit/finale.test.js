@@ -87,7 +87,7 @@ describe('the way home', () => {
 });
 
 describe('the finale, played through', () => {
-  test('home at dawn, THE END, the credits, then back on deck in daylight with the ending seen and saved', () => {
+  test('home at dawn, THE END, the credits, and then the game is over: the title screen, with the voyage saved', () => {
     const h = onDeck({}, beaten);
     const g = h.g;
     g.Player.x = g.FINALE.helmX;
@@ -98,12 +98,13 @@ describe('the finale, played through', () => {
     assert.ok(run.said.some(([who, text]) => who === 'Dad' && /You went down/.test(text)));
     assert.ok(run.said.some(([who, text]) => who === '' && /turns for home/.test(text)));
     assert.ok(!run.said.some(([who]) => who === 'The boy' || who === 'Boy'), 'the boy says nothing, even now');
-    assert.equal(g.Game.state, 'play');
+    assert.equal(g.Game.state, 'menu', 'the game is over');
+    assert.equal(g.Menu.top(), 'main');
+    assert.match(g.Menu.notice, /Continue/);
     assert.equal(g.Player.sawEnding, true);
-    assert.equal(g.Game.night, .12);
-    assert.equal(g.CUT.harbourX, 300, 'moored in the harbour');
     assert.equal(g.CUT.credits, null);
-    assert.equal(h.eval('SaveGame.read()').sawEnding, true);
+    assert.equal(h.eval('SaveGame.read()').sawEnding, true, 'and it is in the save');
+    assert.ok(g.Menu.items('main').some(i => i.id === 'continue'), 'Continue is waiting on the title');
   });
 
   test('Dad only reads the watch if the boy found it on the Shelf', () => {
@@ -120,19 +121,19 @@ describe('the finale, played through', () => {
     assert.match(b, /with my boy inside it/);
   });
 
-  test('holding ESC skips the lot and leaves everything exactly where the ending would', () => {
+  test('holding ESC skips the lot and leaves the game over just the same', () => {
     const h = onDeck({}, beaten);
     const g = h.g;
     g.Game.startFinale();
     h.frames(2);
     h.hold('Escape', 1.2);
-    assert.ok(h.until(() => g.Game.state === 'play' && g.Game.fade.dir === 0, 5));
+    assert.ok(h.until(() => g.Game.state === 'menu' && g.Game.fade.dir === 0, 5));
     assert.equal(g.Player.sawEnding, true);
-    assert.equal(g.Game.night, .12);
     assert.equal(g.CUT.credits, null);
     assert.equal(g.CUT.signal.a, 0);
     assert.equal(g.Cam.locked, false);
     assert.equal(g.Game.endingRun, false);
+    assert.equal(h.eval('SaveGame.read()').sawEnding, true);
   });
 
   test('the test shortcut puts him at the wheel with everything beaten and starts it', () => {

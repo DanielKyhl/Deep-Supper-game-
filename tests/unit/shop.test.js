@@ -175,11 +175,16 @@ describe('the gear tab', () => {
   });
 });
 
-describe('the gear tab after the Old One', () => {
-  const diver = extra => atStall(P => Object.assign(P, { beatBoss: true, suit: 0, diveWeapon: 0 }, extra));
+describe('the diving tab, once there is a suit', () => {
+  const diver = extra => {
+    const t = atStall(P => Object.assign(P, { beatBoss: true, suit: 0, diveWeapon: 0 }, extra));
+    t.S.tab = t.S.tabs().findIndex(x => x.id === 'dive');
+    return t;
+  };
 
-  test('sells suits and underwater arms instead of rods and fishing weapons', () => {
+  test('a section of its own: suits and underwater arms, with the deck gear left on its own tab', () => {
     const { S } = diver();
+    assert.deepEqual(plain(S.tabs().map(t => t.id)), ['sell', 'gear', 'dive', 'goods']);
     const rows = S.rows();
     assert.deepEqual(plain(rows.filter(r => r.kind === 'head').map(r => r.name)), ['SUITS', 'ARMS']);
     assert.equal(rows.filter(r => r.kind === 'suit').length, 4);

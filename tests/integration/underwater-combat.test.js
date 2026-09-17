@@ -17,7 +17,7 @@ function diver(opts, gear) {
 }
 
 function goUnder(h) {
-  F.walkTo(h, h.g.FISH_X, 40);
+  F.walkTo(h, h.g.DIVE_X, 40);
   h.tap('KeyE');
   assert.equal(h.g.Game.state, 'dive');
   assert.ok(h.until(() => h.g.Dive.underwater && h.g.Game.fade.dir === 0, 6), 'never got into the water');
@@ -113,7 +113,7 @@ describe('fighting underwater, at range', () => {
     const h = diver({}, { coins: 5000, diveWeapon: 1 });
     const g = h.g;
     F.openStall(h);
-    g.Shop.tab = 1;
+    g.Shop.tab = g.Shop.tabs().findIndex(t => t.id === 'dive');
     g.Shop.sel = g.Shop.rows().findIndex(r => r.kind === 'diveweapon' && r.idx === 2);
     assert.ok(g.Shop.sel > 0, 'the eel is for sale');
     h.tap('Enter');
@@ -206,7 +206,7 @@ describe('what the sea sounds like, however you leave it', () => {
     goUnder(h);
     h.g.Dive.mobs.length = 0;
     Object.assign(h.g.Dive.p, { x: 1500, y: 700, air: 0 });
-    assert.ok(h.until(() => h.g.Game.state === 'play', 30));
+    F.wakeOnDeck(h);
     assert.equal(h.g.Sfx.under, false);
     assert.equal(h.g.Sfx.muffle.frequency.value, h.g.OPEN_HZ);
   });

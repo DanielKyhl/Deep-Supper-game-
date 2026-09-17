@@ -151,6 +151,20 @@ function fightBot(h, maxSeconds) {
   return won;
 }
 
+/* Drowning, from the moment the suit gives out: he sinks, the screen says so,
+   Dorran hauls him up, and the reader presses on through what he says. */
+function wakeOnDeck(h, seconds) {
+  const g = h.g, said = [];
+  assert.ok(h.until(() => g.Game.state === 'cutscene' || g.Game.state === 'play', seconds || 30), 'never came round');
+  for (let i = 0; i < 24 && g.Game.state === 'cutscene'; i++) {
+    h.until(() => (g.Dialogue.active && g.Dialogue.done && g.Dialogue.hold > .15) || g.Game.state !== 'cutscene', 10);
+    if (g.Dialogue.active && said.indexOf(g.Dialogue.full) < 0) said.push(g.Dialogue.full);
+    h.tap('Enter');
+  }
+  assert.ok(h.until(() => g.Game.state === 'play', 10), 'still not back on deck');
+  return said;
+}
+
 function openStall(h) {
   walkTo(h, 742, 60);
   h.tap('KeyE');
@@ -159,5 +173,5 @@ function openStall(h) {
 
 module.exports = {
   selectMenu, chooseMenu, waitFade, newVoyageFromMenu, skipOpening, readDialogue,
-  walkTo, openCrate, castLine, waitForBite, setHook, landIntroCatch, answerSkill, fightBot, openStall
+  walkTo, openCrate, castLine, waitForBite, setHook, landIntroCatch, answerSkill, fightBot, openStall, wakeOnDeck
 };

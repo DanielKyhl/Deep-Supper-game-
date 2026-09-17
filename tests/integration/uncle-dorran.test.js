@@ -117,7 +117,7 @@ describe('Uncle Dorran, and a boy who says nothing', () => {
     F.readDialogue(h);
     const g = h.g;
     Object.assign(g.Player, { beatBoss: true, suit: 0, diveWeapon: 0, weapon: 5 });
-    F.walkTo(h, g.FISH_X, 40);
+    F.walkTo(h, g.DIVE_X, 40);
     h.tap('KeyE');
     assert.ok(h.until(() => g.Dive.underwater && g.Dive.phase === 'swim' && g.Game.fade.dir === 0, 6));
     g.Dive.mobs.length = 0;

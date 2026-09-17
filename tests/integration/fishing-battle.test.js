@@ -249,7 +249,7 @@ describe('the Old One', () => {
     assert.equal(h.g.CUT.drops.visible, false);
     assert.equal(h.g.Player.catches.find(c => c.id === 'leviathan').id, 'leviathan', 'its carcass is in the hold to sell');
     h.g.Player.catches.length = 0;
-    assert.match(h.g.Game.objective(), /Dive at the bow/);
+    assert.match(h.g.Game.objective(), /Dive at the ladder/);
     const save = JSON.parse(h.storage.get('deepsupper.save.v1'));
     assert.equal(save.suit, 0);
     assert.equal(save.diveWeapon, 0);

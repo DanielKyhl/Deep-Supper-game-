@@ -82,7 +82,7 @@ describe('test shortcuts, diving and the Mother in the app', () => {
     await A.choose(page, 'dev');
     await A.choose(page, 'devDiving');
     await A.until(page, () => Game.state === 'play' && Game.fade.dir === 0, null, 5000);
-    await A.holdUntil(page, 'KeyD', () => Player.x > FISH_X - 60, null, 5000);
+    await A.holdUntil(page, 'KeyD', () => Player.x > DIVE_X - 40, null, 5000);
     await page.keyboard.press('KeyE');
     await A.until(page, () => Game.state === 'dive', null, 2000);
     await A.until(page, () => Dive.underwater && Dive.phase === 'swim' && Game.fade.dir === 0, null, 10000);
@@ -178,7 +178,7 @@ describe('test shortcuts, diving and the Mother in the app', () => {
     assert.equal(s.music, 'abyss');
   });
 
-  test('Sail home: the voyage home plays to its music, ENTER reads on, holding ESC skips it and the credits, and he is back on deck with the ending seen', async () => {
+  test('Sail home: the voyage home plays to its music, ENTER reads on, holding ESC skips it and the credits, and the game ends at the title with the voyage saved', async () => {
     await backToTitle(page);
     await A.choose(page, 'dev');
     await A.choose(page, 'devFinale');
@@ -190,9 +190,11 @@ describe('test shortcuts, diving and the Mother in the app', () => {
     await A.until(page, () => !Dialogue.active, null, 3000);
     assert.equal(await page.evaluate(() => Music.pending || Music.themeName), 'ending');
     await page.keyboard.down('Escape');
-    await A.until(page, () => Game.state === 'play', null, 8000);
+    // the credits end the game: the title screen comes back, with the voyage saved
+    await A.until(page, () => Game.state === 'menu' && Game.fade.dir === 0, null, 8000);
     await page.keyboard.up('Escape');
-    const s = await page.evaluate(() => ({ saw: Player.sawEnding, saved: SaveGame.read().sawEnding, credits: CUT.credits, objective: Game.objective() }));
-    assert.deepEqual(s, { saw: true, saved: true, credits: null, objective: 'Lanthorne is lit again. The sea is yours.' });
+    const s = await page.evaluate(() => ({ saw: Player.sawEnding, saved: SaveGame.read().sawEnding, credits: CUT.credits, notice: Menu.notice, cont: Menu.items('main').some(i => i.id === 'continue') }));
+    assert.deepEqual({ saw: s.saw, saved: s.saved, credits: s.credits, cont: s.cont }, { saw: true, saved: true, credits: null, cont: true });
+    assert.match(s.notice, /Continue/);
   });
 });

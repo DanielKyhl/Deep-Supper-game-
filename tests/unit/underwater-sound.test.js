@@ -96,7 +96,7 @@ describe('what he hears on a dive', () => {
   test('suiting up on deck clanks', () => {
     const s = withAudio();
     s.h.startVoyage();
-    Object.assign(s.g.Player, { beatBoss: true, suit: 0, diveWeapon: 0, x: s.g.FISH_X });
+    Object.assign(s.g.Player, { beatBoss: true, suit: 0, diveWeapon: 0, x: s.g.DIVE_X });
     s.h.tap('KeyE');
     s.h.frames(.8);
     assert.equal(s.calls('suitUp').length, 1);

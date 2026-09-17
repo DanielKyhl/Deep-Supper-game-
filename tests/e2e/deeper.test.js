@@ -295,3 +295,67 @@ describe('gear in the app', () => {
     assert.ok(shown.includes('Dip Net'), shown.filter(s => /Net|Harpoon/i.test(s)).join(', '));
   });
 });
+
+describe('part two on deck, in the app', () => {
+  let profile, app, page;
+  const errors = [];
+  before(async () => {
+    profile = A.tempProfile();
+    ({ app, page } = await A.launch(profile));
+    page.on('pageerror', e => errors.push(e.message));
+    await A.choose(page, 'dev');
+    await A.choose(page, 'devDiving');
+    await A.until(page, () => Game.state === 'play' && Game.fade.dir === 0, null, 6000);
+  });
+  after(async () => { await A.close(app); A.removeProfile(profile); });
+
+  test('the ladder amidships dives, and the bow still casts a line', async () => {
+    await A.holdUntil(page, 'KeyD', () => Math.abs(Player.x - DIVE_X) < 50, null, 8000);
+    assert.equal(await page.evaluate(() => Game.spotLabel(Game.nearestSpot())), 'Dive');
+    await page.keyboard.press('KeyE');
+    await A.until(page, () => Dive.underwater && Dive.phase === 'swim' && Game.fade.dir === 0, null, 12000);
+    await page.evaluate(() => { Dive.mobs.length = 0; Object.assign(Dive.p, { x: DIVE_LADDER_X, y: 40, vx: 0, vy: 0 }); });
+    await page.waitForTimeout(200);
+    await page.keyboard.press('KeyE');
+    await A.until(page, () => Game.state === 'play' && Game.fade.dir === 0, null, 8000);
+
+    await A.holdUntil(page, 'KeyD', () => Player.x > FISH_X - 40, null, 8000);
+    assert.equal(await page.evaluate(() => Game.spotLabel(Game.nearestSpot())), 'Cast your line');
+    await page.keyboard.press('KeyE');
+    await A.until(page, () => Game.state === 'fish', null, 3000);
+    await page.keyboard.press('Escape');
+    await A.until(page, () => Game.state === 'pause', null, 3000);
+    await page.keyboard.press('Escape');
+    await A.until(page, () => Game.state === 'fish', null, 3000);
+  });
+
+  test('drowning: the screen says YOU DIED, and he comes round on the deck with Dorran over him', async () => {
+    await page.evaluate(() => { if (Game.state === 'fish') Fishing.quit(); });
+    await A.until(page, () => Game.state === 'play', null, 6000);
+    await page.evaluate(() => { Settings.set('textSpeed', 'instant'); Player.coins = 800; });
+    const back = await page.evaluate(() => (Player.x > DIVE_X ? 'KeyA' : 'KeyD'));
+    await A.holdUntil(page, back, () => Math.abs(Player.x - DIVE_X) < 50, null, 8000);
+    await page.keyboard.press('KeyE');
+    await A.until(page, () => Dive.underwater && Dive.phase === 'swim' && Game.fade.dir === 0, null, 12000);
+    await page.evaluate(() => { Dive.mobs.length = 0; Object.assign(Dive.p, { x: 1500, y: 700, air: 0, invuln: 0 }); Player.hp = 1; });
+    await A.until(page, () => Dive.phase === 'blackout', null, 20000);
+    await A.until(page, () => Dive.p.limp > .4, null, 3000);
+    await A.until(page, () => Game.state === 'cutscene' && CUT.dorran.visible, null, 12000);
+    // read what he says, a line at a time, as each one finishes typing
+    const lines = [];
+    for (let i = 0; i < 14 && await page.evaluate(() => Game.state === 'cutscene'); i++) {
+      await A.until(page, () => Game.state !== 'cutscene' || (Dialogue.active && Dialogue.done && Dialogue.hold > .1), null, 8000);
+      const line = await page.evaluate(() => (Dialogue.active ? Dialogue.full : ''));
+      if (line && lines.indexOf(line) < 0) lines.push(line);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(180);
+    }
+    await A.until(page, () => Game.state === 'play', null, 8000);
+    const s = await page.evaluate(() => ({ x: Math.round(Player.x), hp: Player.hp === Player.maxHp, coins: Player.coins, dorran: CUT.dorran.visible }));
+    assert.equal(s.dorran, false, 'he goes back to his stall');
+    assert.equal(s.hp, true);
+    assert.ok(s.coins < 800, 'the salvage fee came out of it');
+    assert.ok(lines.some(l => /deck/.test(l)), lines.join(' | '));
+    assert.deepEqual(errors, []);
+  });
+});

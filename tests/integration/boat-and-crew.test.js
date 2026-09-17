@@ -98,7 +98,7 @@ describe('the boat and its crew, frame by frame', () => {
     h.startVoyage();
     F.readDialogue(h);
     Object.assign(h.g.Player, { beatBoss: true, suit: 1, diveWeapon: 2, weapon: 5 });
-    F.walkTo(h, h.g.FISH_X, 40);
+    F.walkTo(h, h.g.DIVE_X, 40);
     h.tap('KeyE');
     assert.ok(h.until(() => h.g.Dive.underwater && h.g.Game.fade.dir === 0, 6), 'never got into the water');
     const D = h.g.Dive;

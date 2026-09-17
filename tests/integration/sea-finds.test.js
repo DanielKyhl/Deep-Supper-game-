@@ -53,7 +53,7 @@ describe('what the sea gives back', () => {
   test('a relic on the bottom: swim to it with the keys, and read it where you found it', () => {
     const h = veteran({}, { beatBoss: true, suit: 3, diveWeapon: 0, weapon: 5 });
     const g = h.g, D = g.Dive;
-    F.walkTo(h, g.FISH_X, 40);
+    F.walkTo(h, g.DIVE_X, 40);
     h.tap('KeyE');
     assert.ok(h.until(() => D.underwater && D.phase === 'swim' && g.Game.fade.dir === 0, 6));
     D.mobs.length = 0;
@@ -96,15 +96,15 @@ describe('what the sea gives back', () => {
   test('drowning: back on deck, the haul gone, and a quarter of your coins with it', () => {
     const h = veteran({}, { beatBoss: true, suit: 0, diveWeapon: 0, weapon: 5, coins: 820 });
     const g = h.g, D = g.Dive;
-    F.walkTo(h, g.FISH_X, 40);
+    F.walkTo(h, g.DIVE_X, 40);
     h.tap('KeyE');
     assert.ok(h.until(() => D.underwater && D.phase === 'swim' && g.Game.fade.dir === 0, 6));
     D.mobs.length = 0;
     g.Player.catches.push(g.makeTrophy(g.monsterDef('shelfcrab')));
     Object.assign(D.p, { x: 1500, y: 700, air: 0 });
-    assert.ok(h.until(() => g.Game.state === 'play', 30));
+    const said = F.wakeOnDeck(h);
     assert.equal(g.Player.coins, 615);
     assert.equal(g.Player.catches.length, 0);
-    assert.match(g.Game.toastText, /Salvage fee: 205/);
+    assert.ok(said.some(l => /205/.test(l)), 'Dorran charges for the haul up: ' + said.join(' | '));
   });
 });
