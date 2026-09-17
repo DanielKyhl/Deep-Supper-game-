@@ -15,14 +15,14 @@ const STUDY_EDGE = 1.15;       // how much harder he hits what he has studied
 const NOTES_BONUS = 1.15;      // every catch is worth this much more once the book is full
 
 const BESTIARY_CHAPTERS = [
-  { id: 'depth1', title: 'Near the Surface', where: 'on the line, depth 1', reward: 200, list: () => MONSTERS.filter(m => m.depth === 1 && !m.boss) },
-  { id: 'depth2', title: 'Under the Swell', where: 'on the line, depth 2', reward: 500, list: () => MONSTERS.filter(m => m.depth === 2 && !m.boss) },
-  { id: 'depth3', title: 'Where the Light Gives Up', where: 'on the line, depth 3', reward: 1100, list: () => MONSTERS.filter(m => m.depth === 3 && !m.boss) },
-  { id: 'depth4', title: 'The Deep Line', where: 'on the line, depth 4', reward: 2600, list: () => MONSTERS.filter(m => m.depth === 4) },
-  { id: 'shelf', title: 'The Shelf', where: 'swimming, the Shelf', reward: 1200, list: () => DIVE_MONSTERS.filter(m => m.zone === 1) },
-  { id: 'drop', title: 'The Drop', where: 'swimming, the Drop', reward: 2600, list: () => DIVE_MONSTERS.filter(m => m.zone === 2) },
-  { id: 'halls', title: 'The Drowned Halls', where: 'swimming, the Drowned Halls', reward: 5000, list: () => DIVE_MONSTERS.filter(m => m.zone === 3) },
-  { id: 'lanthorne', title: 'Lanthorne', where: 'swimming, before the gate', reward: 9000, list: () => DIVE_MONSTERS.filter(m => m.zone === 4) }
+  { id: 'depth1', title: 'Near the Surface', where: 'on the line, depth 1', reward: 150, list: () => MONSTERS.filter(m => m.depth === 1 && !m.boss) },
+  { id: 'depth2', title: 'Under the Swell', where: 'on the line, depth 2', reward: 400, list: () => MONSTERS.filter(m => m.depth === 2 && !m.boss) },
+  { id: 'depth3', title: 'Where the Light Gives Up', where: 'on the line, depth 3', reward: 800, list: () => MONSTERS.filter(m => m.depth === 3 && !m.boss) },
+  { id: 'depth4', title: 'The Deep Line', where: 'on the line, depth 4', reward: 1500, list: () => MONSTERS.filter(m => m.depth === 4) },
+  { id: 'shelf', title: 'The Shelf', where: 'swimming, the Shelf', reward: 600, list: () => DIVE_MONSTERS.filter(m => m.zone === 1) },
+  { id: 'drop', title: 'The Drop', where: 'swimming, the Drop', reward: 1200, list: () => DIVE_MONSTERS.filter(m => m.zone === 2) },
+  { id: 'halls', title: 'The Drowned Halls', where: 'swimming, the Drowned Halls', reward: 2400, list: () => DIVE_MONSTERS.filter(m => m.zone === 3) },
+  { id: 'lanthorne', title: 'Lanthorne', where: 'swimming, before the gate', reward: 4000, list: () => DIVE_MONSTERS.filter(m => m.zone === 4) }
 ];
 
 // what it does that nothing else does, and what to do about it

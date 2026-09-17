@@ -277,22 +277,22 @@ const MONSTERS = [
   /* ------------------------------ depth 4 ------------------------------ */
 
   { id: 'hollow', name: 'The Hollow Trawler', depth: 4, plan: 'husk',
-    hp: 620, len: 380, girth: .34, value: 700, dmg: 2, speed: 126, eyes: 4,
+    hp: 620, len: 380, girth: .34, value: 460, dmg: 2, speed: 126, eyes: 4,
     body: [64, 68, 74], belly: [158, 164, 170], fin: [40, 44, 50], eye: '#9effc4', glow: '#9effc4',
     flavour: 'There are planks in its belly. Painted ones. You know the colour.' },
 
   { id: 'cathedral', name: 'Cathedral Ray', depth: 4, plan: 'ray',
-    hp: 700, len: 440, girth: .28, value: 780, dmg: 2, speed: 134, eyes: 3,
+    hp: 700, len: 440, girth: .28, value: 520, dmg: 2, speed: 134, eyes: 3,
     body: [46, 56, 92], belly: [140, 152, 200], fin: [30, 38, 66], eye: '#ffe9a8', glow: '#8fa8ff',
     flavour: 'It passes over you slowly, the way weather does.' },
 
   { id: 'penance', name: 'Nine-Eyed Penance', depth: 4, plan: 'maw',
-    hp: 780, len: 360, girth: .46, value: 850, dmg: 3, speed: 128, eyes: 9,
+    hp: 780, len: 360, girth: .46, value: 560, dmg: 3, speed: 128, eyes: 9,
     body: [88, 48, 62], belly: [198, 150, 160], fin: [58, 30, 42], eye: '#ffd257', glow: '#ff7a5a',
     flavour: 'Nine eyes and all of them apologetic. That is somehow worse.' },
 
   { id: 'choir', name: 'The Drowned Choir', depth: 4, plan: 'bloom',
-    hp: 660, len: 400, girth: .50, value: 820, dmg: 2, speed: 118, eyes: 12,
+    hp: 660, len: 400, girth: .50, value: 540, dmg: 2, speed: 118, eyes: 12,
     body: [70, 84, 118], belly: [186, 200, 226], fin: [48, 58, 86], eye: '#e8f4ff', glow: '#a8d8ff',
     flavour: 'Every face in it is roughly the same face, and it is nearly yours.' },
 
@@ -598,10 +598,14 @@ const FINALE = {
   helmX: 210             // the wheel, through the wheelhouse window
 };
 
-// what it costs to be fished out: a quarter of what you carry, rounded down
+// what it costs to be fished out: a quarter of what you carry, rounded down,
+// but never more than SALVAGE_CAP, so a long voyage's savings aren't wiped out
 const SALVAGE_CUT = .25;
+const SALVAGE_CAP = 1500;
+// what another Old One sells for, next to the first
+const REPEAT_BOSS_VALUE = .4;
 function salvageFee() {
-  const fee = Math.floor(Player.coins * SALVAGE_CUT);
+  const fee = Math.min(SALVAGE_CAP, Math.floor(Player.coins * SALVAGE_CUT));
   Player.coins -= fee;
   return fee;
 }
@@ -617,7 +621,9 @@ function rollCatch(depth, luck) {
   const pool = MONSTERS.filter(m => m.depth <= depth && !m.boss);
   const boss = MONSTERS.find(m => m.id === 'leviathan');
 
-  if (depth >= 4 && chance(luck ? 0.42 : 0.3)) return boss;
+  // until it is beaten the Old One comes looking often; after that, now and then
+  const bossChance = Player.beatBoss ? (luck ? 0.18 : 0.12) : (luck ? 0.42 : 0.3);
+  if (depth >= 4 && chance(bossChance)) return boss;
 
   // weight toward the deepest thing your line can reach
   const weighted = [];
@@ -631,7 +637,9 @@ function rollCatch(depth, luck) {
 
 function makeTrophy(m) {
   const weight = Math.round(m.len * rand(.45, .8) + rand(0, 24));
-  // a full bestiary knows what everything is worth
-  const value = Math.round(m.value * rand(.85, 1.3) * Bestiary.valueBonus());
+  // a full bestiary knows what everything is worth; a second Old One is worth
+  // less than the first (the market is flooded with teeth)
+  const again = m.id === 'leviathan' && Player.beatBoss ? REPEAT_BOSS_VALUE : 1;
+  const value = Math.round(m.value * rand(.85, 1.3) * Bestiary.valueBonus() * again);
   return { id: m.id, name: m.name, weight, value, body: m.body, belly: m.belly, len: m.len };
 }
