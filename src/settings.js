@@ -11,7 +11,7 @@
 const SETTINGS_KEY = 'deepsupper.settings.v1';
 const SAVE_KEY = 'deepsupper.save.v1';       // the autosave, which Continue loads
 const SLOT_COUNT = 3;                        // manual save slots
-const GAME_VERSION = '1.8.0';
+const GAME_VERSION = '1.9.0';
 
 function slotKey(n) { return 'deepsupper.slot' + n + '.v1'; }
 
@@ -46,7 +46,7 @@ const Store = {
 const REBINDABLE = ['left', 'right', 'jump', 'down', 'up', 'attack', 'roll', 'interact', 'use'];
 
 const ACTION_LABELS = {
-  left: 'Move left', right: 'Move right', jump: 'Jump / reel / swim up', attack: 'Attack',
+  left: 'Move left', right: 'Move right', jump: 'Jump / reel / swim up', attack: 'Attack  (hold: heavy blow)',
   roll: 'Roll / dash', interact: 'Interact / set hook', use: 'Bandage',
   up: 'Swim up (also)', down: 'Swim down'
 };

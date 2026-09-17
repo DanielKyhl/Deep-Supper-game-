@@ -52,6 +52,7 @@ const SPOTS = [
   { id: 'helm',  x: FINALE.helmX, r: 64 },
   { id: 'crate', x: 392, r: 70 },
   { id: 'stall', x: STALL_X, r: 118 },
+  { id: 'dive',  x: DIVE_X, r: 86 },
   { id: 'fish',  x: FISH_X, r: 104 }
 ];
 
@@ -200,10 +201,10 @@ const Game = {
       Player.shortcut = true;
       this.giveFishingGear();
       Object.assign(Player, { beatBoss: true, suit: 0, diveWeapon: 0 });
-      Player.x = FISH_X - 80;
+      Player.x = DIVE_X - 60;
       this.atSea();
       this.state = 'play';
-      this.toast('Test shortcut: the suit is yours. Dive at the bow.');
+      this.toast('Test shortcut: the suit is yours. The ladder is amidships.');
     });
   },
 
@@ -339,23 +340,27 @@ const Game = {
 
   quitToTitle() {
     this.autosave();
-    this.fadeOut(() => {
-      CUT.stop();
-      Dialogue.hide();
-      this.msgs = [];
-      this.viewY = 0;
-      this.endingRun = false;
-      Cam.locked = false;
-      Particles.clear(); Floaters.clear();
-      Lore.open = null; Bestiary.book = null;
-      Dive.reset();
-      this.night = .88;
-      CUT.harbourX = 300;
-      CUT.girl.visible = false;
-      this.cutKind = null;
-      this.state = 'menu';
-      Menu.openMain();
-    });
+    this.fadeOut(() => this.toTitle());
+  },
+
+  // everything put down, and the title screen back up, with a word if there is one
+  toTitle(notice) {
+    CUT.stop();
+    Dialogue.hide();
+    this.msgs = [];
+    this.viewY = 0;
+    this.endingRun = false;
+    Cam.locked = false;
+    Particles.clear(); Floaters.clear();
+    Lore.open = null; Bestiary.book = null;
+    Dive.reset();
+    this.night = .88;
+    CUT.harbourX = 300;
+    CUT.girl.visible = false;
+    this.cutKind = null;
+    this.state = 'menu';
+    Menu.openMain();
+    if (notice) Menu.say(notice);
   },
 
   quitApp() {
@@ -364,6 +369,18 @@ const Game = {
   },
 
   // the girl on the end of the line
+  // hauled out of the water and laid on the deck, with a word from Dorran
+  wakeOnDeck(lost, fee) {
+    const s = buildWake(lost, fee);
+    this.state = 'cutscene';
+    this.cutKind = 'wake';
+    this.bark.text = '';
+    CUT.play(s.steps, {
+      finalize: s.finalize,
+      onEnd: () => { this.cutKind = null; this.state = 'play'; this.autosave(); }
+    });
+  },
+
   startGirlScene() {
     const s = buildGirlScene();
     this.state = 'cutscene';
@@ -438,22 +455,22 @@ const Game = {
   startFinale() {
     // the weather clears for the voyage home
     Weather.reset(); Omens.reset();
+    this.autosave();                 // the voyage as it stands, before he takes the wheel
     const f = buildFinale();
     this.endingRun = true;
     this.bark.text = '';
     this.state = 'cutscene';
     CUT.play(f.steps, {
       finalize: f.finalize,
+      // the credits have rolled: that is the game. The voyage is saved, and
+      // Continue puts him back aboard for whatever he still wants to do.
       onEnd: () => {
         this.fadeOut(() => {
           f.finalize();
-          this.endingRun = false;
           CUT.letterbox = 0;
           CUT.titleCard = null;
-          Cam.snap(Player.x);
-          this.state = 'play';
-          this.toast('The Margaret is still yours. So is the sea.');
           this.autosave();
+          this.toTitle('The Margaret is still yours. Continue to go back aboard.');
         });
       }
     });
@@ -570,7 +587,9 @@ const Game = {
     if (s.id === 'helm')  return FINALE.ready() ? 'Sail home' : null;
     if (s.id === 'crate') return Player.weapon < 0 ? 'Open the crate' : null;
     if (s.id === 'stall') return 'Talk to Dorran';
-    if (s.id === 'fish')  return Player.suit >= 0 ? 'Dive' : 'Cast your line';
+    // the ladder over the side, once there is a suit; the bow stays for fishing
+    if (s.id === 'dive')  return Player.suit >= 0 ? 'Dive' : null;
+    if (s.id === 'fish')  return 'Cast your line';
     return null;
   },
 
@@ -591,12 +610,13 @@ const Game = {
     }
     // at the counter he says it to your face instead
     if (s.id === 'stall') { this.bark.text = ''; Shop.open(); return; }
+    if (s.id === 'dive') {
+      if (Player.suit < 0) return;
+      this.state = 'dive';
+      Dive.start();
+      return;
+    }
     if (s.id === 'fish') {
-      if (Player.suit >= 0) {
-        this.state = 'dive';
-        Dive.start();
-        return;
-      }
       if (Player.weapon < 0) {
         this.narrate('noNet');
         return;
@@ -809,6 +829,8 @@ const Game = {
       Art.dad(g, CUT.dad.x - Cam.x + (this.state === 'cutscene' ? 0 : 0), DECK_Y,
         { face: CUT.dad.face, t: this.t, state: CUT.dad.state });
     }
+    // Dorran, out from behind his counter for once
+    if (CUT.dorran.visible) Art.dorran(g, CUT.dorran.x - Cam.x, DECK_Y, { t: this.t, face: CUT.dorran.face });
 
     if (scene === 'battle') {
       Battle.drawActors(g);
@@ -1036,7 +1058,7 @@ const Game = {
     if (FINALE.ready() && !Player.sawEnding) return 'Take the Margaret home: the wheel is in the wheelhouse';
     if (Player.beatMother) return 'Lanthorne is lit again. The sea is yours.';
     if (Player.suit >= 0) {
-      if (Player.suit < SUITS.length - 1) return 'Dive at the bow. A better suit goes deeper.';
+      if (Player.suit < SUITS.length - 1) return 'Dive at the ladder amidships. A better suit goes deeper.';
       return 'Dive to the bottom. Lanthorne is down there.';
     }
     if (Player.beatBoss) return 'The sea is quiet again. For now.';

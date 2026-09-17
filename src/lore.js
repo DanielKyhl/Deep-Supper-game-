@@ -132,12 +132,20 @@ const Lore = {
     this.t = 0;
     Sfx.select();
   },
-  close() { this.open = null; Sfx.select(); },
+  close() {
+    this.open = null;
+    Sfx.select();
+    // back from reading something on the seabed: a moment before the sea remembers you
+    if (Game.state === 'dive' && Dive.underwater) Dive.afterReading();
+  },
 
   update(dt) {
     this.t += dt;
     if (this.t < .35) return;
-    if (Input.tap('confirm') || Input.tap('interact') || Input.tap('cancel') || Input.mouse().click) this.close();
+    // a click is also the fire button underwater, so it takes a little longer
+    // to close the page than a key does: the page is not shut by accident
+    if (Input.tap('confirm') || Input.tap('interact') || Input.tap('cancel')) this.close();
+    else if (this.t > .9 && Input.mouse().click) this.close();
   },
 
   /* ------------------------------- the page ------------------------------ */

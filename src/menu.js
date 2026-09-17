@@ -167,6 +167,7 @@ const Menu = {
 
       case 'controls': return REBINDABLE.map(a => ({ kind: 'bind', label: ACTION_LABELS[a], action: a })).concat([
         { kind: 'gap' },
+        { kind: 'text', label: 'Hold the attack key after a swing to wind up a heavy blow.' },
         { kind: 'text', label: 'Menus: arrows, ENTER, ESC      Pause: ESC' },
         { kind: 'text', label: 'Mute: M      Music: N      Fullscreen: ' + fullscreenKeyLabel() },
         { kind: 'action', label: 'Reset controls', id: 'resetControls', run: () => { Settings.resetBindings(); this.say('Controls reset to defaults.'); } },
@@ -414,7 +415,8 @@ const Menu = {
     }
     Settings.bind(action, code);
     Sfx.buy();
-    this.say(ACTION_LABELS[action] + ': ' + keyLabel(code));
+    // the label carries a note about holding it; the notice wants the name alone
+    this.say(ACTION_LABELS[action].split('  (')[0] + ': ' + keyLabel(code));
   },
 
   /* -------------------------------- update ------------------------------ */

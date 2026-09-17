@@ -105,7 +105,7 @@ const Skill = {
     else if (A.kind === 'keys') this._drawKeys(g, A);
     else this._drawHold(g, A);
     if (A.result !== null) {
-      Text.draw(g, A.result ? 'YES' : 'NO', VIEW_W / 2, 176, {
+      Text.draw(g, A.result ? 'SUCCESS' : 'FAIL', VIEW_W / 2, 176, {
         size: 26, align: 'center', color: A.result ? '#8ce0a4' : '#ff6a6a', weight: 'bold', outline: 'rgba(0,0,0,.85)', outlineW: 5
       });
     }

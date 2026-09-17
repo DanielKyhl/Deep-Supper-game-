@@ -3,7 +3,14 @@
    shop.js — Uncle Dorran weighs anything with a face, and calls it cod
    ======================================================================== */
 
-const TABS = ['SELL', 'GEAR', 'GOODS'];
+/* His counter, by section. The diving one only opens up once there is a suit
+   to dive in, so part one has the three it always had.                     */
+const SHOP_TABS = [
+  { id: 'sell',  label: 'SELL' },
+  { id: 'gear',  label: 'GEAR' },
+  { id: 'dive',  label: 'DIVING', after: () => Player.suit >= 0 },
+  { id: 'goods', label: 'GOODS' }
+];
 // which piece of gear each kind of row is
 const SHOP_SLOTS = { rod: 'rod', weapon: 'weapon', suit: 'suit', diveweapon: 'dive' };
 
@@ -32,6 +39,10 @@ const Shop = {
   remarked: {},
   TALK_CPS: 38,        // how fast he gets his words out
   SILENCE: 15,         // how long he can stand nobody saying anything
+
+  // the sections he is selling today
+  tabs() { return SHOP_TABS.filter(t => !t.after || t.after()); },
+  tabId() { const l = this.tabs(); return (l[this.tab] || l[0]).id; },
 
   open() {
     Game.state = 'shop';
@@ -62,7 +73,8 @@ const Shop = {
   say(s) { this.line = s; this.lineT = 0; this.shown = 0; },
 
   rows() {
-    if (this.tab === 0) {
+    const tab = this.tabId();
+    if (tab === 'sell') {
       const r = [];
       if (Player.catches.length > 1) {
         const total = Player.catches.reduce((a, c) => a + c.value, 0);
@@ -75,7 +87,7 @@ const Shop = {
       if (!r.length) r.push({ kind: 'none', name: 'Nothing to sell', sub: 'Catch something first. Anything.' });
       return r;
     }
-    if (this.tab === 1 && Player.suit >= 0) {
+    if (tab === 'dive') {
       // after the Old One: suits and things to fight with underwater
       const r = [{ kind: 'head', name: 'SUITS' }];
       SUITS.forEach((s, i) => {
@@ -95,7 +107,7 @@ const Shop = {
       });
       return r;
     }
-    if (this.tab === 1) {
+    if (tab === 'gear') {
       const r = [{ kind: 'head', name: 'RODS' }];
       RODS.forEach((rod, i) => {
         r.push({
@@ -162,8 +174,9 @@ const Shop = {
     if (this.lineT > this.SILENCE) this.say(dorranPick(DORRAN.mutter, this.line));
 
     if (Input.tap('cancel')) { this.close(); return; }
-    if (Input.tap('menuLeft')) { this.tab = (this.tab + 2) % 3; this.sel = this.firstSelectable(); Sfx.select(); }
-    if (Input.tap('menuRight')) { this.tab = (this.tab + 1) % 3; this.sel = this.firstSelectable(); Sfx.select(); }
+    const nTabs = this.tabs().length;
+    if (Input.tap('menuLeft')) { this.tab = (this.tab + nTabs - 1) % nTabs; this.sel = this.firstSelectable(); Sfx.select(); }
+    if (Input.tap('menuRight')) { this.tab = (this.tab + 1) % nTabs; this.sel = this.firstSelectable(); Sfx.select(); }
     if (Input.tap('menuUp')) this.move(-1);
     if (Input.tap('menuDown')) this.move(1);
 
@@ -271,8 +284,9 @@ const Shop = {
     // tabs
     const tabY = Y + 86;
     let tx = X + 26;
-    for (let i = 0; i < TABS.length; i++) {
-      const label = TABS[i] + (i === 0 && Player.catches.length ? ' (' + Player.catches.length + ')' : '');
+    const tabs = this.tabs();
+    for (let i = 0; i < tabs.length; i++) {
+      const label = tabs[i].label + (i === 0 && Player.catches.length ? ' (' + Player.catches.length + ')' : '');
       const w = Text.width(g, label, { size: 16, weight: 'bold', font: 'Verdana, sans-serif' }) + 34;
       const on = i === this.tab;
       panel(g, tx, tabY, w, 34, {

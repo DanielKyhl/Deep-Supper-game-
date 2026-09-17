@@ -613,6 +613,12 @@ const DORRAN = {
       "Back already? Wash your hands.",
       "Touch the bottom, did you? Don't touch me."
     ],
+    // fishing a boy out of the sea, which he does not make a fuss about
+    pulled: [
+      "There he is. Coughed half the sea onto my boots, you did.",
+      "I've hauled up nets lighter than you, lad. Livelier, too.",
+      "Breathing. Good. Your father would have had words for me otherwise."
+    ],
     woke: [
       "Having a lie down? Best part of the night.",
       "Wakey wakey. Sea's still there."

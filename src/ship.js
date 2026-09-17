@@ -276,6 +276,20 @@ const Ship = {
     }
   },
 
+  // a rope ladder over the rail, swinging with the boat: the way down
+  diveLadder(sway) {
+    const cx = DIVE_X, cy = DECK_Y + 16;
+    shipRig(cx, cy);
+    Rig.translate(cx, cy - 46);
+    Rig.rotate(sway * .03);
+    for (const sx of [-9, 9]) Rig.line([[sx, 0], [sx + sway, 76]], 1.6, 1.6, MAT.BONE, sx < 0 ? .42 : .55);
+    for (let i = 0; i < 5; i++) {
+      const y = 12 + i * 15, k = sway * (y / 76);
+      Rig.box(-11 + k, y, 22, 3.4, MAT.WOOD, .5 - i * .04);
+    }
+    Rig.box(-13, -6, 26, 5, MAT.WOOD, .45);      // the cleat it is tied to
+  },
+
   buoys(sway) {
     const cx = 1586, cy = DECK_Y - 34;
     shipRig(cx, cy);
@@ -395,8 +409,8 @@ Object.assign(Art, {
       w: 60, h: 40, face: 1, pal: shipPalette('props'), paint: () => Ship.buoys(Math.round(Math.sin(t * .9) * 2) / 2)
     });
 
-    // the stall keeper, then his counter in front of him
-    Art.dorran(g, X(742) + 8, DECK_Y - 16, { t });
+    // the stall keeper, then his counter in front of him (unless he has left it)
+    if (!CUT.dorran.visible) Art.dorran(g, X(742) + 8, DECK_Y - 16, { t });
     Sprite.draw(g, 'ship-counter', '0', X(742), DECK_Y - 40, {
       w: 100, h: 60, face: 1, pal: shipPalette('props'), paint: () => Ship.counter()
     });
@@ -427,6 +441,12 @@ Object.assign(Art, {
 
   boatFront(g, camX, t, night) {
     const X = x => x - camX;
+    // the diving ladder, over the side amidships, once there is a suit for it
+    if (Player.suit >= 0) {
+      Sprite.draw(g, 'ship-divelad', String(q(Math.sin(t * 1.1), .5)), X(DIVE_X), DECK_Y + 16, {
+        w: 40, h: 90, face: 1, pal: shipPalette('props'), paint: () => Ship.diveLadder(Math.round(Math.sin(t * 1.1) * 2) / 2)
+      });
+    }
     Sprite.draw(g, 'ship-hull', '0', X(960), DECK_Y + 48, {
       w: 1010, h: 70, face: 1, pal: shipPalette('hull'), paint: () => Ship.hull()
     });

@@ -9,6 +9,7 @@
    has a depth past which it starts to buckle.
    ======================================================================== */
 
+const DIVE_X = 1380;                 // where the ladder over the side hangs, on deck
 const DIVE_W = 4800;
 const DIVE_FLOOR = 4000;             // the seabed, and Lanthorne on it
 const DIVE_BOAT_X = 2400;            // the middle of the Margaret, seen from below
@@ -42,6 +43,9 @@ const DIVE_ROCKS = DIVE_LEDGES.flatMap(L => [
 // how far the cliff on each side reaches in, at a depth
 function diveWallL(y) { return 110 + Math.sin(y * .006) * 50 + Math.sin(y * .023 + 1) * 22; }
 function diveWallR(y) { return 110 + Math.sin(y * .005 + 2) * 50 + Math.sin(y * .019 + 4) * 22; }
+
+// how fast his legs beat: a slow flutter drifting, a little quicker swimming
+function diveStroke(p) { return 3.2 + clamp(Math.hypot(p.vx, p.vy) / 240, 0, 1) * 3.4; }
 
 function diveZoneAt(y) {
   for (let i = 0; i < DIVE_ZONES.length; i++) if (y < DIVE_ZONES[i].bottom) return i + 1;
@@ -94,6 +98,7 @@ const Dive = {
 
   reset() {
     this.phase = 'off';
+    this.death = null;
     this.underwater = false;
     this.suited = false;
     this.p = null;
@@ -113,14 +118,14 @@ const Dive = {
 
   /* -------------------------------- on deck ------------------------------- */
 
-  // E at the bow, once there is a suit to dive in
+  // E at the ladder amidships, once there is a suit to dive in
   start() {
     this.reset();
     this.phase = 'gear';
     this.t = 0;
-    Player.x = FISH_X; Player.face = 1; Player.state = 'idle';
-    Object.assign(this.deck, { x: FISH_X, y: DECK_Y, rot: 0, visible: true });
-    Cam.snap(FISH_X);           // the whole run-up and leap stays in frame
+    Player.x = DIVE_X; Player.face = 1; Player.state = 'idle';
+    Object.assign(this.deck, { x: DIVE_X, y: DECK_Y, rot: 0, visible: true });
+    Cam.snap(DIVE_X + 180);     // the whole run-up and leap stays in frame
     Cam.locked = true;
     this.haulStart = Player.catches.length;
     Sfx.select();
@@ -133,7 +138,8 @@ const Dive = {
       case 'leap': this._leap(dt); break;
       case 'swim': this._swim(dt); break;
       case 'scene': this._scene(dt); break;
-      // climb and blackout are waiting on the fade to black
+      case 'blackout': this._dying(dt); break;
+      // climb waits on the fade to black
     }
   },
 
@@ -142,16 +148,16 @@ const Dive = {
     if (!this.suited && this.t > .6) {
       this.suited = true;
       Sfx.suitUp();
-      Particles.burst(FISH_X, DECK_Y - 30, 22, { color: '#d8cdb4', vx: rand(-120, 120), vy: rand(-160, -30), g: 200, size: rand(2, 5), life: .7 });
+      Particles.burst(DIVE_X, DECK_Y - 30, 22, { color: '#d8cdb4', vx: rand(-120, 120), vy: rand(-160, -30), g: 200, size: rand(2, 5), life: .7 });
     }
     if (this.t > 1.5) { this.phase = 'leap'; this.t = 0; }
   },
 
   // a run at the rail and over it
   _leap(dt) {
-    const D = this.deck, run = .45, fly = .6;
+    const D = this.deck, run = .75, fly = .6;
     if (this.t < run) {
-      D.x = lerp(FISH_X, 1800, this.t / run);
+      D.x = lerp(DIVE_X, 1800, this.t / run);
       D.state = 'walk';
     } else if (this.t < run + fly) {
       const p = (this.t - run) / fly;
@@ -184,7 +190,7 @@ const Dive = {
     this.p = {
       x: DIVE_LADDER_X - 40, y: 70, vx: 0, vy: 40, face: 1, aim: 0,
       cd: 0, fireT: 0, harpoonOut: false, dashT: 0, dashCd: 0, invuln: 1, healT: 0,
-      air: suit.air, pressureT: 0, drownT: 0, bubbleT: 0, animT: 0
+      air: suit.air, pressureT: 0, drownT: 0, bubbleT: 0, animT: 0, stroke: 0
     };
     this.deepest = 0;
     this.amb = { breath: 1.5, beep: 0, creak: .3, sonar: rand(6, 14), moan: rand(18, 30) };
@@ -243,6 +249,7 @@ const Dive = {
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     const p = this.p;
     p.animT += dt;
+    p.stroke += dt * diveStroke(p);
     if (Skill.active) {
       Skill.update(dt);
       this._skillPose(dt);
@@ -265,6 +272,22 @@ const Dive = {
     this._ambience(dt);
     this._camera(dt);
     for (let i = this.zaps.length - 1; i >= 0; i--) { this.zaps[i].t += dt; if (this.zaps[i].t > .22) this.zaps.splice(i, 1); }
+  },
+
+  /* The game stands still while a find is being read (nothing updates behind
+     the page). Coming back, whatever was lunging at him has to think again, and
+     nothing lands for a moment: no dying while reading a letter. */
+  afterReading() {
+    const p = this.p;
+    if (!p) return;
+    p.invuln = Math.max(p.invuln, 1.5);
+    for (const m of this.mobs) {
+      if (m.dead || Math.hypot(m.x - p.x, m.y - p.y) > 620) continue;
+      if (m.state !== 'drift' && m.state !== 'hunt') this._recover(m, 1.2);
+      m.cool = Math.max(m.cool, 1.2);
+    }
+    for (let i = this.globs.length - 1; i >= 0; i--) if (Math.hypot(this.globs[i].x - p.x, this.globs[i].y - p.y) < 420) this.globs.splice(i, 1);
+    for (let i = this.rings.length - 1; i >= 0; i--) if (Math.hypot(this.rings[i].x - p.x, this.rings[i].y - p.y) < 560) this.rings.splice(i, 1);
   },
 
   atLadder() {
@@ -567,6 +590,10 @@ const Dive = {
   _mob(m, dt) {
     const def = m.def, p = this.p;
     m.t += dt;
+    // while she is up, the water in front of the gate is hers: nothing else
+    // swims into it, and nothing else picks a fight across the line
+    const kept = !!this.boss && !this.boss.dead && !def.spawnOnly;
+    if (kept && (m.state === 'hunt' || m.state === 'tele')) { m.state = 'drift'; m.t = 0; m.wanderT = 0; }
     m.flash = Math.max(0, m.flash - dt * 4);
     if (!m.dead) { Status.tick(m, dt, dmg => this._bleedMob(m, dmg)); if (m.dead) return; }
     const dx = p.x - m.x, dy = p.y - m.y, dist = Math.hypot(dx, dy) || 1;
@@ -580,7 +607,7 @@ const Dive = {
         const wx = m.wx - m.x, wy = m.wy - m.y, wd = Math.hypot(wx, wy) || 1;
         if (wd > 20) { m.vx += wx / wd * spd * .9 * dt; m.vy += wy / wd * spd * .9 * dt; }
         m.gape = approach(m.gape, .1, dt);
-        if (dist < def.aggro) { m.state = 'hunt'; m.t = 0; m.cool = rand(.5, 1.1); }
+        if (!kept && dist < def.aggro) { m.state = 'hunt'; m.t = 0; m.cool = rand(.5, 1.1); }
         break;
       }
       case 'hunt': {
@@ -754,6 +781,7 @@ const Dive = {
     const Z = DIVE_ZONES[m.zone - 1];
     m.y = clamp(m.y, Math.max(40, Z.top + 30), Z.bottom - 30);
     diveCollide(m, Math.max(16, def.len * (def.girth || .27) * .8));
+    if (kept) this._arenaKeepOut(m);
 
     // face and lean the way it is going
     if (m.state === 'hunt' || m.state === 'tele' || m.state === 'ink' || m.state === 'stun') m.face = dx < 0 ? -1 : 1;
@@ -822,12 +850,36 @@ const Dive = {
     this._arenaClamp(p, 24);
     p.vx = 0; p.vy = 0;
     this.shots.length = 0; p.harpoonOut = false;
+    // whatever was in her water is gone from it before she gets there
+    for (const m of this.mobs) if (!m.def.spawnOnly && this._inArena(m, 300)) m.gone = true;
+    this.globs.length = 0; this.rings.length = 0;
     Object.assign(this.girl, { visible: true, x: CITY_X + 320, y: 3620, face: -1, rot: 0 });
     // the whole conversation only once a session; after a blackout, straight to it
     const steps = this.sawMotherIntro ? motherReturnSteps(this) : motherIntroSteps(this);
     this.sawMotherIntro = true;
     this.phase = 'scene';
     CUT.play(steps.steps, { finalize: steps.finalize, onEnd: () => { this.phase = 'swim'; } });
+  },
+
+  // is something inside the Mother's water (with `pad` to spare)?
+  _inArena(o, pad) {
+    pad = pad || 0;
+    return Math.abs(o.x - CITY_X) < MOTHER_ARENA.w / 2 + pad && o.y > MOTHER_ARENA.top - pad;
+  },
+
+  // put a creature back outside her water, by the nearest way out, and let it
+  // forget whatever it was doing in there
+  _arenaKeepOut(m) {
+    const r = Math.max(30, m.def.len * .3);
+    if (!this._inArena(m, r)) return false;
+    const x0 = CITY_X - MOTHER_ARENA.w / 2 - r, x1 = CITY_X + MOTHER_ARENA.w / 2 + r, top = MOTHER_ARENA.top - r;
+    const dl = m.x - x0, dr = x1 - m.x, du = m.y - top;
+    if (du <= dl && du <= dr) { m.y = top; if (m.vy > 0) m.vy = 0; }
+    else if (dl < dr) { m.x = x0; if (m.vx > 0) m.vx = 0; }
+    else { m.x = x1; if (m.vx < 0) m.vx = 0; }
+    m.homeX = m.x; m.homeY = m.y; m.wx = m.x; m.wy = m.y;
+    if (m.state !== 'drift' && m.state !== 'dead') { m.state = 'drift'; m.t = 0; m.wanderT = 0; }
+    return true;
   },
 
   _arenaClamp(o, r) {
@@ -1121,6 +1173,7 @@ const Dive = {
     if (this.boss) this._boss(dt);
     const p = this.p;
     p.animT += dt;
+    p.stroke += dt * diveStroke(p);
     p.vx *= 1 - Math.min(1, dt * 3); p.vy *= 1 - Math.min(1, dt * 3);
     p.x += p.vx * dt; p.y += p.vy * dt;
     diveCollide(p, 20);
@@ -1141,19 +1194,49 @@ const Dive = {
     Game.fadeOut(() => this.backOnDeck(n ? 'Back aboard with ' + n + ' in the net.' : 'Back aboard. Dry, nearly.', DORRAN.deck.aboard));
   },
 
+  /* The suit gives out. He goes limp, the sea takes him down, the screen says
+     what has happened, and then Dorran gets him up the ladder.             */
   blackout() {
-    if (this.phase !== 'swim') return;
+    if (this.phase !== 'swim' && this.phase !== 'scene') return;
     this.phase = 'blackout';
+    this.death = { t: 0 };
+    this.banner = null;
+    Skill.active = null;
+    Player.hp = 0;
     Sfx.blackout();
-    Game.fadeOut(() => {
-      const lost = Player.catches.length - this.haulStart;
-      Player.catches.length = this.haulStart;
-      Player.hp = Player.maxHp;
-      const fee = salvageFee();
-      if (fee > 0) Achievements.event('salvage');
-      const cost = fee > 0 ? ' Salvage fee: ' + fee + '§' : '';
-      this.backOnDeck((lost ? 'You wake on the deck. The sea kept your catch.' : 'You wake on the deck, coughing.') + cost, DORRAN.deck.woke);
-    });
+  },
+
+  _dying(dt) {
+    const p = this.p, D = this.death;
+    D.t += dt;
+    p.animT += dt;
+    p.stroke += dt * 1.1;
+    p.limp = Math.min(1.25, (p.limp || 0) + dt * 1.2);
+    p.vx *= 1 - Math.min(1, dt * 1.6);
+    p.vy = approach(p.vy, 60, dt * 90);
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    diveCollide(p, 20);
+    if (chance(dt * 7)) this.bubble(p.x + rand(-12, 12), p.y - 12);
+    for (const m of this.mobs) if (m.dead) this._mob(m, dt);
+    this._camera(dt);
+    if (D.t > 3.2 && !this._fading) {
+      this._fading = true;
+      Game.fadeOut(() => this._drowned());
+    }
+  },
+
+  // what it costs, and then Dorran hauling him out of the water
+  _drowned() {
+    const lost = Player.catches.length - this.haulStart;
+    Player.catches.length = this.haulStart;
+    Player.hp = Player.maxHp;
+    const fee = salvageFee();
+    if (fee > 0) Achievements.event('salvage');
+    this.reset();
+    this.firstDive = false;
+    Particles.clear(); Floaters.clear();
+    Cam.locked = false;
+    Game.wakeOnDeck(lost, fee);
   },
 
   backOnDeck(message, dorran) {
@@ -1161,7 +1244,7 @@ const Dive = {
     this.firstDive = false;
     Particles.clear(); Floaters.clear();
     Game.state = 'play';
-    Player.x = FISH_X; Player.face = -1; Player.state = 'idle'; Player.y = DECK_Y; Player.vy = 0;
+    Player.x = DIVE_X; Player.face = -1; Player.state = 'idle'; Player.y = DECK_Y; Player.vy = 0;
     Cam.locked = false;
     Cam.snap(Player.x);
     Game.toast(message);
@@ -1194,6 +1277,17 @@ const Dive = {
     if (!this.underwater) return;
     // ink across the glass of his helmet
     Status.drawInk(g, Player.fx);
+    // the suit gave out: the water goes dark and red, and says so
+    if (this.phase === 'blackout' && this.death) {
+      const k = clamp(this.death.t / 1.4, 0, 1);
+      g.fillStyle = 'rgba(28,2,8,' + (.62 * k).toFixed(3) + ')';
+      g.fillRect(0, 0, VIEW_W, VIEW_H);
+      Text.draw(g, 'YOU DIED', VIEW_W / 2, VIEW_H / 2 + 10, {
+        size: 64, align: 'center', color: '#c8393f', weight: 'bold', font: 'Georgia, serif',
+        alpha: clamp((this.death.t - .4) / 1, 0, 1), shadow: 'rgba(0,0,0,.9)', sdx: 3, sdy: 4
+      });
+      return;
+    }
     this.drawHUD(g);
     this._drawBoss(g);
     if (this.phase === 'scene') { CUT.drawOverlay(g); return; }

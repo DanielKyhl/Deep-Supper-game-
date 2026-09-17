@@ -49,7 +49,14 @@ const Dialogue = {
 
   draw(g) {
     if (!this.active) return;
-    const x = 78, y = 398, w = VIEW_W - 156, h = 108;
+    // whoever is speaking gets a box of his own, to the left of the words
+    const face = !!PORTRAITS[this.who];
+    const fx = 78, y = 398, h = 108, fw = 100;
+    const x = face ? fx + fw + 12 : 78, w = VIEW_W - 78 - x;
+    if (face) {
+      panel(g, fx, y, fw, h, { alpha: .97 });
+      Art.portrait(g, this.who, fx + fw / 2, y + h / 2 + 6, this.tick, !this.done);
+    }
     panel(g, x, y, w, h, { alpha: .97 });
 
     // name plate; a line with no name on it is narration, set apart from speech
@@ -93,6 +100,7 @@ const CUT = {
   steps: null, i: 0, t: 0, running: false, onEnd: null, finalize: null,
   tweens: [], letterbox: 0, skipHold: 0, skippable: true,
   dad: { x: 560, face: -1, state: 'idle', visible: false, pipe: true },
+  dorran: { x: 0, face: -1, visible: false },       // away from his stall, for once
   girl: { x: 0, y: DECK_Y, face: 1, pose: 'stand', rot: 0, visible: false },
   drops: { x: 0, visible: false },
   harbourX: -1200, bigShadow: 0, titleCard: null, wake: 0, allowShadows: 0,
@@ -125,6 +133,7 @@ const CUT = {
   stop() {
     this.running = false;
     this.steps = null;
+    this.dorran.visible = false;
     Dialogue.hide();
     this.tweens.length = 0;
     this.credits = null;
@@ -611,6 +620,47 @@ function buildEnding() {
       sWait(1.2),
       sTitle('END OF PART ONE', 'He did.', 5.0),
       sAct(() => { finalize(); })
+    ]
+  };
+}
+
+/* =========================== PULLED OUT =================================
+   Drowned, or beaten senseless down there: Dorran gets him up the ladder and
+   onto his own boards, and is not sentimental about it.                   */
+
+function buildWake(lost, fee) {
+  const finalize = () => {
+    CUT.dorran.visible = false;
+    Game.viewY = 0;
+    Object.assign(Player, { x: DIVE_X, y: DECK_Y, vy: 0, face: 1, state: 'idle' });
+    Cam.locked = false;
+    Cam.snap(Player.x);
+  };
+  return {
+    finalize,
+    steps: [
+      sAct(() => {
+        Dialogue.hide();
+        Object.assign(Player, { x: DIVE_X, y: DECK_Y, vy: 0, face: 1, state: 'lie' });
+        Object.assign(CUT.dorran, { visible: true, x: DIVE_X + 62, face: -1 });
+        Cam.locked = true;
+        Cam.snap(DIVE_X + 20);
+        Sfx.splash();
+      }),
+      // the deck rides up the screen a little, so a boy flat on it can be seen
+      sTween(.7, p => { Game.viewY = 54 * easeOut(p); }),
+      sWait(.6),
+      sNarrate('Water, then air, then the boards of his own deck, hard under his back.'),
+      sSay('Dorran', dorranPick(DORRAN.deck.pulled)),
+      // he gets himself upright, which is as much as he will say about it
+      sAct(() => { Player.state = 'idle'; Player.face = 1; Sfx.thud(); }),
+      sWait(.35),
+      ...(lost ? [sSay('Dorran', 'Whatever you had on you is still down there. The sea keeps what it takes off a man.')] : []),
+      ...(fee ? [sSay('Dorran', dorranLine('Hauling a lad up a ladder in a suit full of sea is thirsty work. {fee}§, and we say no more about it.', { fee }))] : []),
+      sSay('Dorran', 'Sit a minute. Then go down again, if you must. You will.'),
+      sHideText(),
+      sTween(.5, p => { Game.viewY = 54 * (1 - p); }),
+      sWait(.3)
     ]
   };
 }

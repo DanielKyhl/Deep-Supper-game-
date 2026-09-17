@@ -119,6 +119,9 @@ const Figures = {
     }
     const sq = o.squash === undefined ? 1 : o.squash;
 
+    // flat out on the deck, where Dorran dropped him
+    if (st === 'lie') { Rig.translate(12, -3.5); Rig.rotate(-Math.PI / 2); }
+
     if (st === 'roll') {
       Rig.translate(0, -8.5);
       Rig.rotate((o.rollT || 0) * 6.9);
@@ -535,7 +538,7 @@ Object.assign(Figures, {
     const leg = (hx, a, lit) => {
       Rig.save(); Rig.translate(hx, -9); Rig.rotate(a);
       Rig.line([[0, 0], [0, 7.4]], 1.9, 1.8, MAT.BODY, lit);
-      Rig.poly([[-2, 7], [6.5, 7], [7, 9], [-2, 9]], MAT.FIN, lit);
+      Rig.poly([[-2, 6.8], [8.6, 7.2], [9, 9.2], [-2, 9]], MAT.FIN, lit);
       Rig.restore();
     };
     leg(-1.5, -walk * .5, .3);
@@ -548,32 +551,38 @@ Object.assign(Figures, {
     Rig.save(); Rig.translate(4, -19); Rig.rotate(-walk * .4); Rig.line([[0, 0], [0, 7]], 1.9, 1.7, MAT.BODY, .56); Rig.restore();
   },
 
-  /* The boy swimming: stretched out, helmet leading, fins kicking. (0, 0) is his
-     middle. Legs flutter from the hips; the arm and launcher follow his aim. */
+  /* The boy swimming: stretched out, helmet leading, long flippers trailing.
+     (0, 0) is his middle. The legs flutter from the hips — a small, lazy beat,
+     the knee following a moment behind the thigh, the way a diver really kicks
+     — and the arm and launcher follow his aim. */
   diver(o, suit, w) {
     const t = o.t || 0, kick = o.kick || 0;
     Rig.rotate(o.tilt || 0);
-    const beat = Math.sin(t * (5 + kick * 9));
-    const amp = .28 + kick * .5;
+    // the stroke runs at its own pace, so speeding up never jumps the legs
+    const ph = o.stroke !== undefined ? o.stroke : t * (3.2 + kick * 3.4);
+    const amp = .09 + kick * .15;
     // the far leg, then the tank and body, then the near leg
-    const leg = (a, lit, dy) => {
-      Rig.save(); Rig.translate(-7.5, dy); Rig.rotate(Math.PI / 2 + a * amp);
+    const leg = (off, lit, dy) => {
+      const hip = Math.sin(ph + off), knee = Math.sin(ph + off - .8);
+      Rig.save(); Rig.translate(-7.5, dy); Rig.rotate(Math.PI / 2 + hip * amp);
       Rig.line([[0, 0], [0, 6]], 2, 1.8, MAT.BODY, lit);
-      Rig.translate(0, 6); Rig.rotate(a * amp * .9);
-      Rig.line([[0, 0], [0, 5.4]], 1.8, 1.6, MAT.BODY, lit - .04);
-      Rig.translate(0, 5.2); Rig.rotate(a * amp * .6);
-      Rig.poly([[-1.8, -.4], [1.8, -.4], [1.2, 8.6], [-.6, 8.6]], MAT.FIN, lit + .05);
+      Rig.translate(0, 6); Rig.rotate(knee * amp * .8);
+      Rig.line([[0, 0], [0, 5.2]], 1.8, 1.5, MAT.BODY, lit - .04);
+      // the flipper: a long blade, wider at the tip, with a rib down it
+      Rig.translate(0, 5); Rig.rotate(knee * amp * .9);
+      Rig.poly([[-1.5, -.6], [1.5, -.6], [2.6, 8], [1.8, 11.2], [-.9, 11.4], [-2.2, 8.2]], MAT.FIN, lit + .06);
+      Rig.line([[.2, .4], [.5, 10.4]], .45, .3, MAT.C1, lit - .12);
       Rig.restore();
     };
-    leg(-beat, .28, -1);
+    leg(Math.PI, .28, -1.2);
     Rig.box(-9, -8, 15, 3.8, MAT.C2, .55);
     Rig.box(5, -7.8, 2, 2, MAT.C2, .75);
     Rig.ell(-.5, 0, 9, 4.6, MAT.BODY, {});
     Rig.box(-3, -4.4, 1.6, 8.8, MAT.SHELL, .6);
     this.suitTrim(suit.id, true);
-    leg(beat, .52, 1.6);
+    leg(0, .52, 1.6);
     // the back arm, sculling
-    Rig.save(); Rig.translate(2, 3); Rig.rotate(.9 + beat * .25); Rig.line([[0, 0], [0, 6]], 1.6, 1.4, MAT.BODY, .3); Rig.restore();
+    Rig.save(); Rig.translate(2, 3); Rig.rotate(.9 + Math.sin(ph) * .12); Rig.line([[0, 0], [0, 6]], 1.6, 1.4, MAT.BODY, .3); Rig.restore();
     // the near arm and the launcher, pointing wherever he aims
     Rig.save();
     Rig.translate(6, 2.5);
@@ -639,6 +648,77 @@ Object.assign(Figures, {
     }
   },
 
+
+  /* ------------------------------- portraits -------------------------------
+     Who is talking, drawn as a bust for the box beside the dialogue: 46x46,
+     (0, 0) in the middle of the frame, the shoulders running off the bottom.
+     `blink` shuts the eyes; `mouth` opens it, a word at a time.            */
+
+  portraitDad(blink, mouth) {
+    Rig.poly([[-22, 23], [-15, 11], [15, 11], [22, 23]], MAT.BODY, .42);        // coat
+    Rig.box(-7, 8, 14, 5, MAT.SHELL, .3);                                       // collar
+    Rig.box(-4.5, 2, 9, 8, MAT.BELLY, .34);                                     // neck
+    Rig.ell(0, -3, 10, 11, MAT.BELLY, {});                                      // face
+    Rig.ell(1.5, 0, 3, 2.6, MAT.BELLY, { lit: .66 });                           // nose
+    Rig.poly([[-9.5, 1], [9.5, 1], [8, 9], [3, 12.5], [-4, 12.5], [-8.5, 8]], MAT.C1, .5);   // beard
+    Rig.box(-3.5, 3, 7, mouth ? 2.6 : 1.4, MAT.DARK, .18);                      // mouth in the beard
+    if (blink) { Rig.box(-7.5, -4.4, 5, 1.4, MAT.DARK, .2); Rig.box(2.5, -4.4, 5, 1.4, MAT.DARK, .2); }
+    else {
+      Rig.ell(-5, -4, 2.2, 2.2, MAT.WHITE, { lit: .9 }); Rig.ell(5, -4, 2.2, 2.2, MAT.WHITE, { lit: .9 });
+      Rig.ell(-4.6, -4, 1.2, 1.4, MAT.DARK, { lit: .12 }); Rig.ell(5.4, -4, 1.2, 1.4, MAT.DARK, { lit: .12 });
+    }
+    Rig.box(-8.5, -8, 6, 1.8, MAT.C1, .36); Rig.box(2.5, -8, 6, 1.8, MAT.C1, .36);   // brows
+    Rig.poly([[-11, -11], [11, -11], [9, -19], [-8, -18]], MAT.SHELL, .45);     // cap
+    Rig.box(-11.5, -12.5, 23, 3, MAT.C1, .3);
+    Rig.poly([[4, -12.5], [17, -11.5], [17, -9], [4, -9.5]], MAT.SHELL, .52);   // the brim
+    Rig.line([[7, 6], [13, 8]], 1.2, 1.2, MAT.WOOD, .5);                        // the pipe
+    Rig.box(12, 4, 4.5, 4.5, MAT.WOOD, .42);
+    Rig.box(12.5, 3.4, 3.5, 1, MAT.DARK, .1);
+  },
+
+  portraitDorran(blink, mouth) {
+    Rig.poly([[-23, 23], [-16, 12], [16, 12], [23, 23]], MAT.BODY, .4);         // coat
+    Rig.box(-5, 4, 10, 9, MAT.BELLY, .3);                                       // neck
+    Rig.ell(0, -2, 10, 10.5, MAT.BELLY, {});                                    // face
+    Rig.poly([[-9.5, 2.5], [9.5, 2.5], [7.5, 10], [-7, 10]], MAT.C1, .4);       // stubble
+    Rig.box(-3.5, 5.5, 8, mouth ? 3 : 1.4, MAT.DARK, .15);                      // mouth
+    Rig.ell(2.5, .5, 4.4, 3.6, MAT.C2, {});                                     // a nose like a plum
+    Rig.dot(1, -.6, MAT.C2, .75); Rig.dot(4, 1.6, MAT.C2, .32);
+    if (blink || !mouth) { Rig.box(-8, -5, 5.5, 1.6, MAT.DARK, .2); Rig.box(2, -5.4, 5.5, 1.6, MAT.DARK, .2); }
+    else {
+      Rig.ell(-5.4, -5, 2, 2, MAT.WHITE, { lit: .85 }); Rig.ell(4.6, -5.4, 2, 2, MAT.WHITE, { lit: .85 });
+      Rig.dot(-5, -5, MAT.DARK, .12); Rig.dot(5, -5.4, MAT.DARK, .12);
+    }
+    Rig.ell(0, -11.5, 18, 3.4, MAT.SHELL, { lit: .38 });                        // the hat, wide and soft
+    Rig.poly([[-9, -11], [9, -11], [7, -21], [-6.5, -20]], MAT.SHELL, .5);
+    Rig.box(-9, -13.5, 18, 2.6, MAT.GUM, .45);
+    Rig.box(14, 13, 6.5, 10, MAT.METAL, .62);                                   // the flask, never far
+    Rig.box(15.5, 11, 3.5, 2.4, MAT.METAL, .8);
+  },
+
+  portraitNerys(blink, mouth) {
+    Rig.poly([[-14, -13], [14, -13], [17, 10], [12, 23], [-13, 23], [-17, 9]], MAT.C2, .3);  // hair, behind
+    Rig.poly([[-18, 23], [-13, 13], [13, 13], [18, 23]], MAT.BODY, .42);        // kelp tunic
+    Rig.box(-4.6, 5, 9.2, 9, MAT.BELLY, .34);                                   // neck
+    Rig.box(-6.5, 8, 5, 1.2, MAT.DARK, .2); Rig.box(1.5, 8, 5, 1.2, MAT.DARK, .2);   // gills
+    Rig.poly([[-8, -4], [-17, -9], [-14.5, 4]], MAT.FIN, .5);                   // ear fins
+    Rig.poly([[8, -4], [16, -8], [13.5, 4]], MAT.FIN, .4);
+    Rig.ell(0, -3, 9.6, 10.6, MAT.BELLY, {});                                   // face
+    Rig.ell(0, 1.4, 2, 1.6, MAT.BELLY, { lit: .62 });                           // nose
+    Rig.box(-2.5, 5, 5, mouth ? 2.8 : 1.2, MAT.DARK, .18);                      // mouth
+    if (blink) { Rig.box(-6.6, -4, 4.6, 1.4, MAT.DARK, .25); Rig.box(2, -4, 4.6, 1.4, MAT.DARK, .25); }
+    else {
+      Rig.ell(-4.2, -4, 3, 2.8, MAT.BONE, { lit: .92 }); Rig.ell(4.2, -4, 3, 2.8, MAT.BONE, { lit: .92 });
+      Rig.ell(-3.8, -4, 1.7, 1.8, MAT.EYE, { lit: .95 }); Rig.ell(4.6, -4, 1.7, 1.8, MAT.EYE, { lit: .95 });
+      Rig.dot(-3.8, -4, MAT.DARK, .1); Rig.dot(4.6, -4, MAT.DARK, .1);
+      Rig.glow(0, -4, 12, '#9ff0ff', .12);
+    }
+    Rig.poly([[-10.5, -9], [10.5, -9], [9, -14], [-9.5, -13]], MAT.C2, .36);    // a fringe, wet through
+    Rig.box(-7.5, -11, 15, 1.6, MAT.C3, .5);                                    // a circlet of shell
+    Rig.ell(0, -11, 1.8, 1.8, MAT.GLOW, { lit: .95 });
+    Rig.glow(0, -11, 7, '#9ff0ff', .2);
+  },
+
   // what the Old One leaves on the deck: the suit, flat and empty, and the harpoon
   drops(t) {
     Rig.box(-22, -5, 22, 5, MAT.BODY, .42);
@@ -659,7 +739,29 @@ function suitPalette(suit, w) {
   }, w ? { METAL: w.metal, WOOD: w.grip, C3: w.accent, C4: w.kind === 'eel' ? '#3f5a2e' : '#6b4a2a', EYE: w.kind === 'eel' ? '#bff4ff' : '#fff0b0' } : {}));
 }
 
+/* Who is talking, drawn big: a bust for the box beside the dialogue. Each
+   one is the same figure as on deck, scaled up and shifted so the head sits in
+   the middle of the frame, with the shoulders running off the bottom of it. */
+const PORTRAITS = {
+  Dad:    { pal: () => spritePalette('portrait-dad', Object.assign({ WHITE: '#efe6d4' }, DAD_COLORS)), paint: (b, m) => Figures.portraitDad(b, m) },
+  Dorran: { pal: () => spritePalette('portrait-dorran', Object.assign({ WHITE: '#efe6d4' }, DORRAN_COLORS)), paint: (b, m) => Figures.portraitDorran(b, m) },
+  Nerys:  { pal: () => spritePalette('portrait-nerys', NERYS_COLORS), paint: (b, m) => Figures.portraitNerys(b, m) }
+};
+
 Object.assign(Art, {
+  // a speaker's face, drawn round (x, y). `talk` moves his mouth with the words
+  portrait(g, who, x, y, t, talk) {
+    const P = PORTRAITS[who];
+    if (!P) return false;
+    const blink = (t % 4.6) < .15;
+    const mouth = talk && Math.sin(t * 13) > 0;
+    Sprite.draw(g, 'portrait:' + who, (blink ? 1 : 0) + ',' + (mouth ? 1 : 0), x, y, {
+      w: 46, h: 46, face: 1, pal: P.pal(),
+      paint: () => { Rig.begin(); P.paint(blink, mouth); }
+    });
+    return true;
+  },
+
   dad(g, x, y, o) {
     o = o || {};
     const f = o.face === undefined ? 1 : o.face, t = o.t || 0, walk = o.state === 'walk';
@@ -683,7 +785,7 @@ Object.assign(Art, {
     const t = o.t || 0, cyc = t % 9;
     const pose = [(t % 3.7) < .12 ? 1 : 0, cyc > 6.5 && cyc < 8 ? q(Math.sin((cyc - 6.5) / 1.5 * Math.PI), .1) : 0, q(Math.sin(t * 1.3), .5), Math.round(Math.sin(t * 2))].join(',');
     Sprite.draw(g, 'dorran', pose, x, y, {
-      w: 70, h: 110, face: -1, pal: spritePalette('dorran', DORRAN_COLORS),
+      w: 70, h: 110, face: o.face === undefined ? -1 : o.face, pal: spritePalette('dorran', DORRAN_COLORS),
       paint: () => { Rig.begin(); Figures.dorran(o); }
     });
   },
@@ -719,7 +821,8 @@ Object.assign(Art, {
     const opts = Object.assign({}, o, { localAim });
     g.save();
     if (o.alpha !== undefined) g.globalAlpha *= o.alpha;
-    Sprite.draw(g, 'diver', [suit.id, w.id, q((t * (5 + kick * 9)) % 6.2832, Math.PI / 4), q(kick, .25), q(localAim, .06), q(o.tilt, .06),
+    const ph = o.stroke !== undefined ? o.stroke : t * (3.2 + kick * 3.4);
+    Sprite.draw(g, 'diver', [suit.id, w.id, q(ph % 6.2832, Math.PI / 6), q(kick, .25), q(localAim, .06), q(o.tilt, .06),
       q(o.recoil, .34), o.loaded === false ? 0 : 1, w.kind === 'eel' ? q((t * 7) % 6.2832, .8) : 0, suit.id === 'trench' ? q(Math.sin(t * 3), .5) : 0].join(','), x, y, {
       w: 110, h: 100, face: f, pal: suitPalette(suit, w),
       paint: () => { Rig.begin(); Figures.diver(opts, suit, w); }

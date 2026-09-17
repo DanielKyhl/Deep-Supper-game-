@@ -216,8 +216,9 @@ Object.assign(Art, {
     const mz = D.muzzle();
     for (const s of D.shots) this._shotBody(g, s, mz, t);
     this.diver(g, p.x, p.y, {
-      face: p.face, suit, weapon: w, t: p.animT, aim: p.aim,
-      kick: clamp(Math.hypot(p.vx, p.vy) / 240, 0, 1), tilt: clamp(p.vy / 520, -.5, .5),
+      face: p.face, suit, weapon: w, t: p.animT, stroke: p.stroke, aim: p.aim,
+      kick: p.limp ? 0 : clamp(Math.hypot(p.vx, p.vy) / 240, 0, 1),
+      tilt: p.limp ? clamp(p.limp, 0, 1.3) : clamp(p.vy / 520, -.5, .5),
       recoil: p.fireT / .18, loaded: p.cd <= 0 && !p.harpoonOut,
       alpha: blink ? .45 : 1
     });
