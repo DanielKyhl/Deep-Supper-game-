@@ -20,6 +20,7 @@ const Player = {
   sawEnding: false,                              // sailed home and watched the credits
   records: {}, chapters: [],                     // the heaviest of each kind landed; bestiary chapters paid for
   omens: 0,                                      // strange things seen at night
+  lostOldOne: false, chum: false,                // beaten by the Old One once; a bucket of chum to call it back
   shortcut: false,                               // started from a test shortcut: earns no achievements
   // battle scratch
   attackT: 0, attackDur: .32, attackDone: false, combo: 0, comboBuffer: false,
@@ -37,6 +38,7 @@ const Player = {
     this.excalibur = false; this.lore = [];
     this.sawEnding = false;
     this.records = {}; this.chapters = []; this.omens = 0; this.shortcut = false;
+    this.lostOldOne = false; this.chum = false;
     this.attackT = 0; this.rollT = 0; this.invuln = 0; this.knock = 0;
     this.state = 'idle'; this.bState = 'idle';
   }
@@ -386,7 +388,10 @@ const Game = {
       this.state = 'play';
       const fee = salvageFee();
       if (fee > 0) Achievements.event('salvage');
-      this.say(...NARRATION.lost, ...(fee > 0 ? [NARRATION.fee.replace('{fee}', fee)] : []));
+      const oldOne = Battle.def && Battle.def.id === 'leviathan';
+      if (oldOne) Player.lostOldOne = true;
+      this.say(...NARRATION.lost, ...(fee > 0 ? [NARRATION.fee.replace('{fee}', fee)] : []),
+        ...(oldOne ? [NARRATION.chumHint] : []));
       this.autosave();
       return;
     }

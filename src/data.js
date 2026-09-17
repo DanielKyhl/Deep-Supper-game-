@@ -155,7 +155,10 @@ const GOODS = [
   { id: 'lantern', name: 'Storm Lantern',  price: 95,  type: 'lantern', max: 1,
     desc: 'Curious things rise to the light. Bites come far quicker.' },
   { id: 'charm',   name: 'Drowned Charm',  price: 210, type: 'luck', max: 1,
-    desc: 'Barnacled and cold. Bigger things take the bait.' }
+    desc: 'Barnacled and cold. Bigger things take the bait.' },
+  // only on sale once the Old One has beaten you, so there is no waiting on luck for a rematch
+  { id: 'chum',    name: 'Bucket of Chum', price: 250, type: 'chum', max: 1, unlocked: () => Player.lostOldOne,
+    desc: 'It died badly. The Old One will take your very next bite.' }
 ];
 
 /* -------------------------------- attacks --------------------------------
@@ -504,7 +507,11 @@ const DORRAN = {
     consume: ["Wrap it tight. Wrap it twice. Wrap me one while you're at it."],
     maxhp:   ["Somebody loved somebody. Now it's yours. Lucky somebody."],
     lantern: ["They come to the light. So do I. Where's my bottle."],
-    luck:    ["Cold, isn't it. It was on a neck once. Nice neck."]
+    luck:    ["Cold, isn't it. It was on a neck once. Nice neck."],
+    chum:    [
+      "Don't ask what's in it. I don't ask what's in me.",
+      "Tip it over the side and stand well back. Further. Further than that."
+    ]
   },
   owned:  ["You've got one of those. I've got two. Of something."],
   locked: ["One thing at a time, lad. I can only count to one just now."],
@@ -578,6 +585,9 @@ const NARRATION = {
     "You come to flat on the deck, soaked. Whatever it was has gone back down with your catch."
   ],
   fee: "Dorran fished you out of the scuppers. His salvage fee: {fee} coins.",
+  // after the Old One wins: how to get it back without waiting on luck
+  chumHint: "Dorran is waving a bucket at you from his stall. Whatever is in it, he swears the Old One will come back for it.",
+  chumCast: "The chum goes over in a dark, oily cloud. Something far below turns toward it.",
   excalibur: [
     "The line comes up heavy, and not with a fish.",
     "A sword. Bright as the day it went into the water, without a speck of rust on it.",

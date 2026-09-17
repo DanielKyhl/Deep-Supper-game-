@@ -13,6 +13,7 @@ const Battle = {
 
   start(def) {
     this.def = def;
+    if (def.id === 'leviathan') Player.chum = false;     // the chum brought it; it's spent
     this.phase = 'intro';
     this.t = 0;
     this.waves.length = 0;

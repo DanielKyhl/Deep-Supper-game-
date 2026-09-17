@@ -11,7 +11,7 @@
 const SETTINGS_KEY = 'deepsupper.settings.v1';
 const SAVE_KEY = 'deepsupper.save.v1';       // the autosave, which Continue loads
 const SLOT_COUNT = 3;                        // manual save slots
-const GAME_VERSION = '1.6.0';
+const GAME_VERSION = '1.7.0';
 
 function slotKey(n) { return 'deepsupper.slot' + n + '.v1'; }
 
@@ -276,6 +276,8 @@ const SAVE_FIELDS = {
   excalibur:  { type: 'bool' },
   sawEnding:  { type: 'bool' },
   omens:      { type: 'int', min: 0, max: 9999999 },
+  lostOldOne: { type: 'bool' },
+  chum:       { type: 'bool' },
   shortcut:   { type: 'bool' }
 };
 

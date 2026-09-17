@@ -112,12 +112,13 @@ const Shop = {
       });
       return r;
     }
-    return GOODS.map(gd => {
+    return GOODS.filter(gd => !gd.unlocked || gd.unlocked()).map(gd => {
       let owned = false, price = gd.price, sub = gd.desc;
       if (gd.type === 'consume') { owned = Player.bandages >= gd.max; sub = gd.desc + '   (' + Player.bandages + '/' + gd.max + ')'; }
       if (gd.type === 'maxhp') { owned = Player.lockets >= gd.max; price = Math.round(gd.price * Math.pow(gd.scale, Player.lockets)); sub = gd.desc + '   (' + Player.lockets + '/' + gd.max + ')'; }
       if (gd.type === 'lantern') owned = Player.lantern;
       if (gd.type === 'luck') owned = Player.luck;
+      if (gd.type === 'chum') owned = Player.chum;
       return { kind: 'good', id: gd.id, name: gd.name, sub, price, owned, def: gd };
     });
   },
@@ -222,6 +223,7 @@ const Shop = {
       if (gd.type === 'maxhp') { Player.lockets++; Player.maxHp++; Player.hp++; }
       if (gd.type === 'lantern') Player.lantern = true;
       if (gd.type === 'luck') Player.luck = true;
+      if (gd.type === 'chum') Player.chum = true;
     }
     this.say(dorranPick(DORRAN.buy[r.kind === 'good' ? r.def.type : r.kind]));
   },

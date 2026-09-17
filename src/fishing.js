@@ -35,7 +35,8 @@ const Fishing = {
     this.warned = false;
     // once in a long while the sea hands something up instead: a sword, or a bottle
     this.special = null;
-    if (!this.intro) {
+    this.chummed = !this.intro && this.chumWorks();
+    if (!this.intro && !this.chummed) {
       if (!Player.excalibur && SeaDice.chance(EXCALIBUR_CHANCE)) this.special = 'excalibur';
       else if (Lore.nextBottle() && SeaDice.chance(BOTTLE_CHANCE)) this.special = 'bottle';
     }
@@ -191,7 +192,8 @@ const Fishing = {
 
     if (this.t >= this.waitFor) {
       this.phase = 'bite'; this.t = 0;
-      this.target = this.intro ? MINNOW : this.girlDue() ? GIRL : this.special ? this._specialCatch() : rollCatch(RODS[Player.rod].depth, Player.luck || Weather.luckyWater());
+      this.target = this.intro ? MINNOW : this.girlDue() ? GIRL : this.chummed ? monsterDef('leviathan')
+        : this.special ? this._specialCatch() : rollCatch(RODS[Player.rod].depth, Player.luck || Weather.luckyWater());
       Sfx.bite();
       this.hook.tug = 22;
       Cam.kick(this.target.gentle ? 1 : 4);
@@ -219,6 +221,10 @@ const Fishing = {
   },
 
   // Nerys comes up once, somewhere around the second or third rod
+  // a bucket of chum over the side brings the Old One, if the line reaches it.
+  // It is used up when the fight begins, so a snapped line keeps it in the water.
+  chumWorks() { return !!Player.chum && RODS[Player.rod].depth >= 4 && !this.girlDue(); },
+
   girlDue() {
     if (Player.girlMet || Player.beatBoss) return false;
     return Player.rod >= 2 || (Player.rod >= 1 && Player.totalKills >= 6);
@@ -603,7 +609,9 @@ const Fishing = {
     const d = Math.max(0, Math.round(this.hook.depth / 50));
 
     if (this.phase === 'cast') this._tip(g, 'Casting…');
+    else if (this.phase === 'sink' && this.chummed) this._tip(g, NARRATION.chumCast, '#e89a8a');
     else if (this.phase === 'sink') this._tip(g, 'Paying out line…   ' + d + ' fathoms', '#9fd4e4');
+    else if (this.phase === 'deep' && this.chummed) this._tip(g, 'Chum in the water at ' + d + ' fathoms. Something enormous is coming.', '#e89a8a');
     else if (this.phase === 'deep') this._tip(g, 'Holding at ' + d + ' fathoms.   [' + keyLabel(ACTIONS.interact[0]) + '] reel in', '#9fd4e4');
     else if (this.phase === 'bite') this._tip(g, 'SOMETHING TOOK IT — press [E]!', '#ffe066');
     else if (this.phase === 'fail') this._tip(g, this.msg, '#e28a8a');
