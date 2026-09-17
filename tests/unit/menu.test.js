@@ -10,9 +10,9 @@ const labels = (M, id) => plain(M.items(id).map(i => i.label));
 const key = (h, code) => { h.press(code); h.g.Menu.update(1 / 60); h.g.Input.endFrame(); };
 
 describe('menu screens', () => {
-  test('the title menu without a save offers a new voyage, options, test shortcuts and credits', () => {
+  test('the title menu without a save offers a new voyage, options, test shortcuts, credits and achievements', () => {
     const { g } = loadGame({ draw: false });
-    assert.deepEqual(labels(g.Menu, 'main'), ['New voyage', 'Options', 'Test shortcuts', 'Credits']);
+    assert.deepEqual(labels(g.Menu, 'main'), ['New voyage', 'Options', 'Test shortcuts', 'Credits', 'Achievements']);
   });
 
   test('the test shortcuts screen warns what it does and ends with Back', () => {

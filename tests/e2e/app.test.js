@@ -52,7 +52,7 @@ describe('the desktop app', () => {
   test('boots into the title menu, with Quit because it is the app', async () => {
     const menu = await page.evaluate(() => ({ state: Game.state, items: Menu.items('main').map(i => i.label) }));
     assert.equal(menu.state, 'menu');
-    assert.deepEqual(menu.items, ['New voyage', 'Options', 'Test shortcuts', 'Credits', 'Quit']);
+    assert.deepEqual(menu.items, ['New voyage', 'Options', 'Test shortcuts', 'Credits', 'Achievements', 'Quit']);
   });
 
   test('the page has no Node.js, only the three-call native bridge', async () => {
