@@ -480,6 +480,24 @@ describe('the mouse on the option screens', () => {
     assert.equal(S.data.flashes, 'full', 'the name cycles round');
   });
 
+  test('a pointer that has not moved never takes the cursor off what the keys chose', () => {
+    const { h, g, M, row, frame } = screen('audio');
+    const r = row('muted');
+    h.mouseMove(r.x + 20, r.y + r.h / 2);      // the pointer comes to rest on a row
+    frame();
+    assert.equal(M.items('audio')[M.sel.audio].key, 'muted');
+    h.tap('ArrowUp');
+    const picked = M.items('audio')[M.sel.audio].key;
+    assert.notEqual(picked, 'muted', 'the keys moved it');
+    // the page sends a mousemove without the mouse having moved
+    h.mouseMove(r.x + 20, r.y + r.h / 2);
+    frame();
+    assert.equal(M.items('audio')[M.sel.audio].key, picked, 'and it stays where the keys put it');
+    h.mouseMove(r.x + 60, r.y + r.h / 2);      // a real move, and it follows again
+    frame();
+    assert.equal(M.items('audio')[M.sel.audio].key, 'muted');
+  });
+
   test('a toggle flips from a click anywhere on its row, and nothing is hit off the rows', () => {
     const { M, S, row, click } = screen('audio');
     const r = row('muted');

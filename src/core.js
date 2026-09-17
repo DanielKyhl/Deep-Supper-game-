@@ -207,12 +207,19 @@ const Input = (function () {
   let capture = null;                   // a pending "press a key" request
   const mouse = { x: -1, y: -1, moved: false, click: false, down: false, inside: false };
 
+  /* Where the pointer is, in game pixels. Returns false when it has not
+     actually moved: browsers send a mousemove when the page changes under a
+     still pointer, and a still pointer must never take the menu cursor off
+     whatever the keys have chosen. */
   function toGame(e) {
     const r = canvas.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    mouse.x = (e.clientX - r.left) / r.width * VIEW_W;
-    mouse.y = (e.clientY - r.top) / r.height * VIEW_H;
-    mouse.inside = mouse.x >= 0 && mouse.y >= 0 && mouse.x <= VIEW_W && mouse.y <= VIEW_H;
+    if (!r.width || !r.height) return false;
+    const x = (e.clientX - r.left) / r.width * VIEW_W;
+    const y = (e.clientY - r.top) / r.height * VIEW_H;
+    const still = Math.abs(x - mouse.x) < .5 && Math.abs(y - mouse.y) < .5;
+    mouse.x = x; mouse.y = y;
+    mouse.inside = x >= 0 && y >= 0 && x <= VIEW_W && y <= VIEW_H;
+    return !still;
   }
 
   addEventListener('keydown', e => {
@@ -231,7 +238,7 @@ const Input = (function () {
   addEventListener('keyup', e => held.delete(e.code));
   addEventListener('blur', () => { held.clear(); mouse.down = false; });
   addEventListener('mouseup', e => { if (e.button === 0) mouse.down = false; });
-  canvas.addEventListener('mousemove', e => { toGame(e); mouse.moved = true; });
+  canvas.addEventListener('mousemove', e => { if (toGame(e)) mouse.moved = true; });
   canvas.addEventListener('mousedown', e => {
     Sfx.unlock();
     toGame(e);
