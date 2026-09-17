@@ -13,12 +13,12 @@ synthesised from oscillators. There are no asset files of any kind.
 Download the game from the
 [Releases page](https://github.com/DanielKyhl/Deep-Supper-game-/releases/latest).
 
-**Windows:** run `DeepSupper-1.5.0.exe`. It is a single portable file: no installer, and
+**Windows:** run `DeepSupper-1.6.0.exe`. It is a single portable file: no installer, and
 nothing to uninstall. It isn't code-signed, so Windows SmartScreen may ask you to
 confirm the first time ("More info" → "Run anyway").
 
-**Mac:** download `DeepSupper-1.5.0-mac-arm64.dmg` for an Apple Silicon Mac (M1 or
-later), or `DeepSupper-1.5.0-mac-x64.dmg` for an Intel Mac (Apple menu → About This Mac shows
+**Mac:** download `DeepSupper-1.6.0-mac-arm64.dmg` for an Apple Silicon Mac (M1 or
+later), or `DeepSupper-1.6.0-mac-x64.dmg` for an Intel Mac (Apple menu → About This Mac shows
 which). Open it and drag Deep Supper into Applications. The game isn't signed by Apple,
 so the first time you open it macOS refuses. Click **Done**, then go to **System Settings →
 Privacy & Security**, scroll down and click **Open Anyway**. After that it opens normally.
@@ -48,7 +48,7 @@ npm start
 npm run dist
 ```
 
-This writes `dist/DeepSupper-1.5.0.exe`. `npm run dist:folder` builds an unpacked
+This writes `dist/DeepSupper-1.6.0.exe`. `npm run dist:folder` builds an unpacked
 `dist/win-unpacked/` instead, which is quicker to rebuild while testing.
 
 **Building for Mac** has to happen on a Mac:
@@ -57,7 +57,7 @@ This writes `dist/DeepSupper-1.5.0.exe`. `npm run dist:folder` builds an unpacke
 npm run dist:mac
 ```
 
-This writes `dist/DeepSupper-1.5.0-mac-arm64.dmg` and `dist/DeepSupper-1.5.0-mac-x64.dmg`.
+This writes `dist/DeepSupper-1.6.0-mac-arm64.dmg` and `dist/DeepSupper-1.6.0-mac-x64.dmg`.
 
 You don't need a Mac for a release, though. GitHub builds both versions
 (`.github/workflows/build.yml`):
@@ -87,7 +87,7 @@ that browser's local storage, and there is no Quit option.
    a slam that sends a shockwave down the deck) plus one that belongs to its body alone.
    Eels spring over you and lash down behind, anglers flare their lure and lunge out of
    the glare, tentacled things burst up through the boards where you stand, and crabs
-   tuck in and bowl across the deck. Swing, roll and jump.
+   tuck in and bowl across the deck. Swing, roll and jump, or hold the swing for a heavy blow.
 6. **Sell it to Uncle Dorran** at the stall amidships, and spend the coin on a deeper rod or
    something heavier to hit things with.
 
@@ -125,7 +125,40 @@ miss costs you hearts.
 
 **Losing costs you.** Going down in a fight, or blacking out on a dive, loses what you
 caught. On top of that, Dorran charges a salvage fee for fishing you out of the
-scuppers: a quarter of your coins.
+scuppers: a quarter of your coins, but never more than 1,500§.
+
+## Fighting
+
+Press `J` to swing. Keep holding it once the swing is over and the boy winds up a
+**heavy blow**, slower to walk while he does and cancelled by a roll. A row of pips over
+his head fills, the blow's name lights up with a spark and a note when it is ready, and
+letting go swings it. Every weapon has its own:
+
+| Weapon | Heavy blow | |
+|---|---|---|
+| Dip net | Scoop | stuns |
+| Gaff hook | Haul | drags the creature in, and stuns |
+| Cleaver | Cleave | three times the damage, and it bleeds |
+| Harpoon | Lunge | dashes forward a long way, and it bleeds |
+| Anchor chain | Whirl | hits both sides of him, and stuns |
+| The tooth | Rend | always a critical hit, and it bleeds |
+| Excalibur | Judgement | both sides, and nothing survives it |
+
+Catch a creature winding up an attack with a heavy blow and it is knocked out of it.
+
+**Things that linger.** Some hits leave something behind, shown as a small icon over
+whoever has it:
+- **Bleeding:** the cleaver, the harpoon and the tooth sometimes open a wound (a heavy blow
+  always does). It keeps taking a little health for three seconds, and it can finish a
+  creature off. Underwater, the Narwhal Tusk bleeds too.
+- **Stunned:** the anchor chain sometimes rings a creature's head, and so do the net's and
+  the gaff's heavy blows. It stands there for a moment. Bosses shake it off quickly.
+  Underwater, the Sunken Bell stuns everything its wave reaches.
+- **Poisoned:** the Weeping Bell's curtains of stingers, and the stinging rings of the
+  blooms below, poison the boy. The sting costs a heart when it runs its course, unless
+  a bandage (`Q`) draws it out first.
+- **Inked:** underwater, a squirt of ink blots out the view and slows him to under half
+  speed for a couple of seconds.
 
 Lines of dialogue wait for you: the first press (`E`, `ENTER`, `SPACE` or a click)
 finishes typing a line, and the next moves on.
@@ -133,15 +166,56 @@ finishes typing a line, and the next moves on.
 ## Letters, relics and a sword
 
 About one cast in seventeen brings up a bottle instead of a fish, with a letter inside.
-Six come up, in order: from a great-grandfather who saw lights under his boat, from the
-city those lights belong to, from a whaler who met the Old One, and one in a hand you
-will recognise. In part two, eight more things lie on the sea floor for you to swim over
-and pick up: three letters, and five relics that shouldn't be down there. Everything you
-find goes into the **Journal** in the pause menu, where you can read it again.
+Eight come up, in order: from a great-grandfather who saw lights under his boat, from the
+city those lights belong to, from a whaler who met the Old One, one in a hand you
+will recognise, the reply that was never sent, and, once you have met Nerys, a green
+bottle from Lanthorne. In part two, twelve more things lie on the sea floor for you to
+swim over and pick up: four letters, and eight relics that shouldn't be down there.
+Everything you find goes into the **Journal** in the pause menu, where you can read it again.
 
 Once in a hundred casts, the line comes up with **Excalibur** on it. From then on it is
 your weapon on deck, and it kills anything on the boat in one blow. It is no use
 underwater.
+
+## The bestiary and records
+
+The **Bestiary** in the pause menu has a page for all 35 creatures, in chapters: the four
+depths you fish, and the four bands of sea you dive. A creature you haven't killed yet is a
+question mark. One you have is drawn, with a note on how it fights, how many you've
+killed, and your **record**: every catch is weighed, and landing a heavier one than before
+says so.
+
+Kill five of a kind (one, for a boss) and the boy has **studied** it: he knows where to hit
+it, and hits it 15% harder from then on. Killing every creature in a chapter earns a
+reward, because the town museum buys the drawings: from 150§ for the shallowest fishing up
+to 4,000§ for Lanthorne. Fill the whole book and every catch is worth 15% more.
+
+## Storms and quiet nights
+
+Out at sea the weather turns. Now and then a **storm** rolls in over a quarter of a minute,
+rages for a couple of minutes and blows over. The rain comes down, the swell lifts the
+boat, and the sky goes dark until lightning strikes, with the thunder coming
+after it, later the further off it was. Fish bite faster in a storm, and bigger things
+come up on the hook. And sometimes the lightning shows something in the water, much
+longer than the boat. If the flashes are too much, set **Lightning flashes** to Soft or
+Off under Options → Graphics.
+
+On a **quiet night** at sea, when nobody is talking and there is no storm, something
+strange happens once in a long while. It's never dangerous, and never explained. A
+lantern goes out on its own, the bell rings with no wind, there are wet footprints on
+the deck, or something knocks on the hull from below. Turn off **Strange things at
+night** under Options → Gameplay if you'd rather it didn't.
+
+## Achievements
+
+Thirty-one of them, two of them secret: the first catch, the first sale, the best rod,
+weapon, suit and launcher, parrying the Old One, beating it without losing a heart, a
+creature bled to death, a kill with a heavy blow, a catch in a storm, a record, climbing
+out with almost no air, filling in the bestiary, and so on. A card slides in when you earn
+one, and the **Achievements** screen on the title and pause menus lists them all.
+
+They're kept apart from your saves, so starting a new voyage never loses them. The test
+shortcuts don't earn any.
 
 ## Part two: diving
 
@@ -199,10 +273,10 @@ home and the credits after whatever comes next.
 ## Menus, options and saves
 
 The game opens on a title menu: **Continue** (when there is a save), **Load game** (when a
-slot is used), **New voyage**, **Options**, **Test shortcuts**, **Credits** and **Quit**. `ESC`
-during play opens the pause menu: **Save game** and **Load game** (three save slots, which
-ask before overwriting or throwing away progress), Options, save and return to the title,
-or save and quit.
+slot is used), **New voyage**, **Options**, **Test shortcuts**, **Credits**, **Achievements**
+and **Quit**. `ESC` during play opens the pause menu: **Save game** and **Load game** (three
+save slots, which ask before overwriting or throwing away progress), the **Journal**, the
+**Bestiary**, **Achievements**, Options, save and return to the title, or save and quit.
 
 **Test shortcuts** jump straight to later parts of the game with the right gear: the Old
 One with every fishing item bought, a fresh diving suit at the bow, the bottom of the
@@ -212,10 +286,10 @@ want to keep a voyage.
 
 | Options screen | What's on it |
 |---|---|
-| Graphics | windowed / fullscreen, sharp whole-number pixel scaling or fill the window, render quality (auto steps down on slow machines), brightness, screen shake, particles, FPS counter |
+| Graphics | windowed / fullscreen, sharp whole-number pixel scaling or fill the window, render quality (auto steps down on slow machines), brightness, screen shake, particles, lightning flashes (full, soft or off), FPS counter |
 | Audio | master, music and effects volume; mute everything; music off; mute when the window is in the background |
 | Controls | rebind every gameplay action; reset controls |
-| Gameplay | text speed (slow to instant), damage numbers |
+| Gameplay | text speed (slow to instant), damage numbers, strange things at night |
 
 Everything saves as you change it. The voyage autosaves whenever something worth keeping
 happens: starting out, taking the dip net, leaving Dorran's stall, the end of every
@@ -231,7 +305,7 @@ These are the defaults. Every gameplay key can be rebound under Options → Cont
 | `SPACE` / `W` | jump · hold to reel · swim up |
 | `S` / ↓ | swim down (↑ swims up too) |
 | `E` | interact · set the hook · put the rod down · dive · climb aboard |
-| `J` / left click | swing your weapon on deck · fire underwater (hold to keep firing) |
+| `J` / left click | swing your weapon on deck (hold for a heavy blow) · fire underwater (hold to keep firing) |
 | mouse | aim underwater (otherwise you aim the way you swim) |
 | `K` / `L-SHIFT` | roll on deck, dash underwater (brief invulnerability) |
 | `Q` | bandage |
@@ -266,7 +340,7 @@ strings of bulbs glow over it all.
 **Six weapons**, only one of which is a blade you would recognise: a bent dip net, a
 gaff hook, a gutting cleaver, a whaling harpoon, six feet of anchor chain, and a tooth.
 Each has its own pixel art and swing style — wide arcs, slow overhead chops, or fast
-narrow thrusts that whiff against anything rearing up.
+narrow thrusts that whiff against anything rearing up — and a heavy blow of its own.
 
 **Eight pieces of music**, crossfaded by game state, played on synthesised
 harp, lead, pad, bell, drums and a drone.
@@ -274,11 +348,14 @@ harp, lead, pad, bell, drums and a drone.
 **Two three-phase bosses**, each of which changes its attack pool twice on the way down
 and has three skill checks.
 
-**Fourteen letters and relics**, a journal to keep them in, and one sword.
+**Twenty letters and relics**, a journal to keep them in, and one sword.
+
+**A bestiary** of 35 creatures with records and rewards, **31 achievements**, **storms**,
+and **nine strange things** that can happen on a quiet night.
 
 ## Tests
 
-854 tests: 685 unit (80%), 129 integration (15%) and 40 end-to-end (5%).
+943 tests: 757 unit (80%), 138 integration (15%) and 48 end-to-end (5%).
 
 ```bash
 npm test
@@ -301,8 +378,10 @@ packaged build. `npm run test:all` runs everything.
   the ambush, Nerys, combat and boss phases, every creature's two shared attacks and its
   own, the skill checks, diving (swimming, air, pressure, every launcher, every creature,
   the Mother), underwater sound, the shop and everything Dorran says there and on deck,
-  narration, the salvage fee, bottles, letters, relics, the journal and Excalibur, a boy
-  who never speaks, the voyage home and the credits, menus, cutscenes, the icon encoder, the pixel-art rasteriser and its
+  narration, the salvage fee and its cap, bottles, letters, relics, the journal and
+  Excalibur, heavy blows for every weapon, bleeding, stuns, poison and ink, the bestiary,
+  records and chapter rewards, storms and lightning, the strange things at night,
+  achievements, what the sea pays at each depth, a boy who never speaks, the voyage home and the credits, menus, cutscenes, the icon encoder, the pixel-art rasteriser and its
   animation caches, the posing rig for people, the layered boat, and every drawing
   routine.
 - **Integration** (`tests/integration`) play through whole journeys with real key presses
@@ -313,13 +392,17 @@ packaged build. `npm run test:all` runs everything.
   like however you leave it, creatures animating in a crowd, Dorran talking across the deck
   and over the counter while the boy stays silent, answering both bosses' skill checks,
   finding letters and relics, the Mother and the end of part two, sailing home through
-  the credits to a save that remembers it, pausing, walking the
+  the credits to a save that remembers it, heavy blows that bleed a creature out, a
+  sting drawn out with a bandage, records and a filled bestiary chapter, a cast in a
+  storm, a quiet night, an achievement kept across launches, what a second Old One sells for, pausing, walking the
   pixel-art deck, a line tied to the painted rod tip, and every screen through the
   renderer.
 - **End-to-end** (`tests/e2e`) drive the Electron app with Playwright: the window and its
   lockdown (and a Mac's menu), fullscreen however the window gets there, a voyage played with the keyboard, what a frame on deck costs, Dorran calling out from his stall, dialogue that waits, save slots, settings
   and fullscreen surviving a restart, the test shortcuts, diving with real mouse aiming,
-  creatures on screen, the Mother, the ending, quitting,
+  creatures on screen, the Mother, the ending, a heavy blow held on a real
+  key, poison and a bandage, the bestiary, lightning on screen with flashes on and off,
+  the strange things at night, achievements and both new options surviving a restart, quitting,
   and the single-instance lock. Each launch gets a throwaway profile,
   so tests never touch your real saves.
 
@@ -338,6 +421,11 @@ src/beasts.js            the pixel-art rasteriser, every creature, and the anima
 src/figures.js           the boy, Dad, Dorran, Nerys, suits, weapons and launchers, posed in pixels
 src/ship.js              the Margaret and everything on her deck, as layered pixel art
 src/lore.js              letters, relics, bottles, Excalibur, and what the journal holds
+src/status.js            bleeding, stuns, poison and ink: who has them, what they do, their icons
+src/bestiary.js          the bestiary: creatures met and studied, records, chapter rewards, the book
+src/weather.js           storms: rain, swell, lightning, thunder, and what shows in the flash
+src/omens.js             the strange things that happen on quiet nights
+src/achievements.js      achievements, kept apart from saves, their cards and their screen
 src/skill.js             boss skill checks: the closing ring, the key sequence, the hold
 src/cutscene.js          dialogue box, step sequencer, opening, Nerys, both part endings, the voyage home and the credits
 src/fishing.js           cast → sink → wait → hook → reel, and the ambush
@@ -358,7 +446,11 @@ development; the game does not need them.
 
 ## Notes on balance
 
-Losing a fight costs you the catch and a quarter of your coins, but not your progress:
-you wake up on the deck at full health, a little poorer. Rods and weapons must be bought in order. A Heart Locket raises your maximum
+Losing a fight costs you the catch and a quarter of your coins (at most 1,500§), but not
+your progress: you wake up on the deck at full health, a little poorer. Rods and weapons must be bought in order. A Heart Locket raises your maximum
 health (four available, price climbs), the Storm Lantern makes bites come faster, and
 the Drowned Charm pulls bigger things onto your hook.
+
+The deepest fishing pays more than it used to, so the Abyssal Rod earns its price. Once
+the Old One is beaten it bites less often, and a second one is worth well under half of
+the first. By then diving is the better living.
