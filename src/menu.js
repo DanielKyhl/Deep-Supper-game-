@@ -99,6 +99,7 @@ const Menu = {
         { kind: 'action', label: 'Options', id: 'options', run: () => this.push('options') },
         { kind: 'action', label: 'Test shortcuts', id: 'dev', run: () => this.push('dev') },
         { kind: 'action', label: 'Credits', id: 'credits', run: () => this.push('credits') },
+        { kind: 'action', label: 'Achievements', id: 'achievements', run: () => Achievements.open() },
         { kind: 'action', label: 'Quit', id: 'quit', hidden: !isApp, run: () => this.push('confirmQuit') }
       ].filter(i => !i.hidden);
 
@@ -108,6 +109,7 @@ const Menu = {
         { kind: 'action', label: 'Load game', id: 'load', hidden: !SaveGame.anySlot(), run: () => this.push('loadSlots') },
         { kind: 'action', label: 'Journal  (' + Player.lore.length + '/' + LORE.length + ')', id: 'journal', run: () => this.push('journal') },
         { kind: 'action', label: 'Bestiary  (' + Bestiary.count() + '/' + Bestiary.total() + ')', id: 'bestiary', run: () => Bestiary.open() },
+        { kind: 'action', label: 'Achievements  (' + Achievements.count() + '/' + Achievements.total() + ')', id: 'achievements', run: () => Achievements.open() },
         { kind: 'action', label: 'Options', id: 'options', run: () => this.push('options') },
         { kind: 'action', label: 'Save and return to title', id: 'title', run: () => Game.quitToTitle() },
         { kind: 'action', label: 'Save and quit game', id: 'quit', hidden: !isApp, run: () => Game.quitApp() },
@@ -445,8 +447,8 @@ const Menu = {
 
     // rows centred on ry: the 28px-tall label sits in the middle of its box;
     // a long menu packs its rows tighter so the last one clears the hint
-    const tight = items.length > 5;
-    const top = tight ? 240 : 262, rowH = tight ? 38 : 46, boxH = rowH - 6;
+    const tight = items.length > 5, tighter = items.length > 7;
+    const top = tighter ? 228 : tight ? 240 : 262, rowH = tighter ? 34 : tight ? 38 : 46, boxH = rowH - 6;
     const w = 320, x = VIEW_W / 2 - w / 2;
     items.forEach((it, i) => {
       const ry = top + i * rowH;
@@ -458,8 +460,8 @@ const Menu = {
         g.fillRect(x, ry - boxH / 2, 4, boxH);
         g.fillRect(x + w - 4, ry - boxH / 2, 4, boxH);
       }
-      Text.draw(g, it.label, VIEW_W / 2, ry + 14, {
-        size: 26, align: 'center', color: on ? '#f6e9c6' : '#9aa7c4', outline: 'rgba(0,0,0,.85)'
+      Text.draw(g, it.label, VIEW_W / 2, ry + (tighter ? 11 : 14), {
+        size: tighter ? 21 : 26, align: 'center', color: on ? '#f6e9c6' : '#9aa7c4', outline: 'rgba(0,0,0,.85)'
       });
       this.hits.push({ x, y: ry - boxH / 2, w, h: boxH, index: i });
     });

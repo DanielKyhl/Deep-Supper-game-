@@ -275,7 +275,8 @@ const SAVE_FIELDS = {
   beatMother: { type: 'bool' },
   excalibur:  { type: 'bool' },
   sawEnding:  { type: 'bool' },
-  omens:      { type: 'int', min: 0, max: 9999999 }
+  omens:      { type: 'int', min: 0, max: 9999999 },
+  shortcut:   { type: 'bool' }
 };
 
 const SaveGame = {

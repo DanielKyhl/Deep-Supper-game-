@@ -20,6 +20,7 @@ const Player = {
   sawEnding: false,                              // sailed home and watched the credits
   records: {}, chapters: [],                     // the heaviest of each kind landed; bestiary chapters paid for
   omens: 0,                                      // strange things seen at night
+  shortcut: false,                               // started from a test shortcut: earns no achievements
   // battle scratch
   attackT: 0, attackDur: .32, attackDone: false, combo: 0, comboBuffer: false,
   chargeT: 0, heavy: false,          // holding the attack key for a heavy blow, and whether this one is
@@ -35,7 +36,7 @@ const Player = {
     this.suit = -1; this.diveWeapon = -1; this.beatMother = false;
     this.excalibur = false; this.lore = [];
     this.sawEnding = false;
-    this.records = {}; this.chapters = []; this.omens = 0;
+    this.records = {}; this.chapters = []; this.omens = 0; this.shortcut = false;
     this.attackT = 0; this.rollT = 0; this.invuln = 0; this.knock = 0;
     this.state = 'idle'; this.bState = 'idle';
   }
@@ -69,6 +70,7 @@ const Game = {
 
   init() {
     Settings.load();
+    Achievements.load();
     Art.init();
     CUT.harbourX = 300;
     this.night = 0.5;
@@ -178,6 +180,7 @@ const Game = {
     Sfx.select();
     this.fadeOut(() => {
       Player.reset();
+      Player.shortcut = true;
       this.giveFishingGear();
       Player.x = 1100;
       this.atSea();
@@ -190,6 +193,7 @@ const Game = {
     Sfx.select();
     this.fadeOut(() => {
       Player.reset();
+      Player.shortcut = true;
       this.giveFishingGear();
       Object.assign(Player, { beatBoss: true, suit: 0, diveWeapon: 0 });
       Player.x = FISH_X - 80;
@@ -204,6 +208,7 @@ const Game = {
     Sfx.select();
     this.fadeOut(() => {
       Player.reset();
+      Player.shortcut = true;
       this.giveFishingGear();
       Object.assign(Player, { beatBoss: true, suit: SUITS.length - 1, diveWeapon: DIVE_WEAPONS.length - 1 });
       Player.x = FISH_X;
@@ -221,6 +226,7 @@ const Game = {
     Sfx.select();
     this.fadeOut(() => {
       Player.reset();
+      Player.shortcut = true;
       this.giveFishingGear();
       Object.assign(Player, { beatBoss: true, beatMother: true, suit: SUITS.length - 1, diveWeapon: DIVE_WEAPONS.length - 1 });
       Player.x = FINALE.helmX;
@@ -379,6 +385,7 @@ const Game = {
       Player.hp = Player.maxHp;
       this.state = 'play';
       const fee = salvageFee();
+      if (fee > 0) Achievements.event('salvage');
       this.say(...NARRATION.lost, ...(fee > 0 ? [NARRATION.fee.replace('{fee}', fee)] : []));
       this.autosave();
       return;
@@ -504,6 +511,7 @@ const Game = {
 
     if (Lore.open) Lore.update(dt);
     else if (Bestiary.book) Bestiary.update(dt);
+    else if (Achievements.book) Achievements.updateBook(dt);
     else switch (this.state) {
       case 'menu':     this.updateMenu(dt); break;
       case 'cutscene': CUT.update(dt); break;
@@ -517,6 +525,7 @@ const Game = {
 
     // weather and the night keep their own time, but not while the game is paused
     if (this.state !== 'pause' && this.state !== 'menu') { Weather.update(dt); Omens.update(dt); }
+    Achievements.update(dt);
 
     Cam.update(dt);
     Particles.update(dt);
@@ -718,7 +727,9 @@ const Game = {
     }
 
     if (Bestiary.book) Bestiary.draw(g);
+    if (Achievements.book) Achievements.drawBook(g);
     if (Lore.open) Lore.draw(g);
+    Achievements.drawToast(g);
 
     if (this.fade.a > 0) {
       g.fillStyle = 'rgba(3,4,10,' + this.fade.a + ')';

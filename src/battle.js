@@ -19,6 +19,7 @@ const Battle = {
     this.globs.length = 0;
     this.spikes.length = 0; this.curtains.length = 0; this.shards.length = 0;
     this.glare = 0; this.lastSkill = -99; this.parried = 0;
+    this.hurtTaken = 0;
     Skill.active = null;
     this.hitstop = 0;
     this.banner = null;
@@ -389,6 +390,7 @@ const Battle = {
     const P = Player;
     if (this.phase !== 'fight') return;
     P.hp -= dmg;
+    this.hurtTaken += dmg;
     Sfx.hurt();
     Game.hurtFlash = .6;
     if (Prefs.damageNumbers) Floaters.add(P.x, P.y - 70, '-' + dmg, { color: '#8ee07a', size: 22 });
@@ -419,7 +421,8 @@ const Battle = {
     Player.totalKills++;
     Bestiary.landed(trophy);
     Bestiary.settle();
-    if (Weather.raging() && typeof Achievements !== 'undefined') Achievements.event('stormCatch');
+    if (Weather.raging()) Achievements.event('stormCatch');
+    if (this.def.boss && this.hurtTaken === 0) Achievements.event('flawless');
     if (this.lastBlowHeavy && Player.attackDone && Player.heavy && typeof Achievements !== 'undefined') Achievements.event('heavyKill');
     this.banner = { text: 'DEFEATED', t: 0, dur: 3, color: '#8ce0a4' };
   },
@@ -428,6 +431,7 @@ const Battle = {
     const P = Player;
     if ((P.invuln > 0 && !force) || this.phase !== 'fight') return;
     P.hp -= dmg;
+    this.hurtTaken += dmg;
     if (o && o.poison && P.hp > 0 && Status.poison(P) && Prefs.damageNumbers) Floaters.add(P.x, P.y - 96, 'POISONED', { color: '#8ee07a', size: 18, life: 1 });
     P.invuln = 1.05;
     P.knock = (P.x < fromX ? -1 : 1) * 340;
@@ -901,6 +905,7 @@ const Battle = {
     }, ok => {
       if (ok) {
         this.parried = 2.4;
+        Achievements.event('parry');
         m.flash = 1; Cam.kick(12); Sfx.crit();
         if (Prefs.damageNumbers) Floaters.add(Player.x, Player.y - 90, 'PARRIED', { color: '#f0cf6a', size: 26, life: 1 });
         m.x -= m.face * 60;

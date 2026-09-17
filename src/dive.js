@@ -1134,6 +1134,7 @@ const Dive = {
 
   climb() {
     if (this.phase !== 'swim') return;
+    if (this.p.air < 3) Achievements.event('fine');
     this.phase = 'climb';
     Sfx.climbOut();
     const n = Player.catches.length - this.haulStart;
@@ -1149,6 +1150,7 @@ const Dive = {
       Player.catches.length = this.haulStart;
       Player.hp = Player.maxHp;
       const fee = salvageFee();
+      if (fee > 0) Achievements.event('salvage');
       const cost = fee > 0 ? ' Salvage fee: ' + fee + '§' : '';
       this.backOnDeck((lost ? 'You wake on the deck. The sea kept your catch.' : 'You wake on the deck, coughing.') + cost, DORRAN.deck.woke);
     });
