@@ -101,7 +101,7 @@ const SeaDice = {
 };
 
 // the rare and the odd, per cast
-const EXCALIBUR_CHANCE = .01;
+const EXCALIBUR_CHANCE = .001;
 const BOTTLE_CHANCE = .06;
 
 const Lore = {
