@@ -309,6 +309,41 @@ describe('rollCatch and makeTrophy', () => {
     assert.ok(count(true, c => c.boss) > count(false, c => c.boss));
   });
 
+  test('once the Old One is beaten it comes looking far less often, and another one sells for less than the first', () => {
+    const P = g.Player, old = MONSTERS.find(m => m.id === 'leviathan');
+    const rate = () => { let k = 0; for (let i = 0; i < 2000; i++) if (g.rollCatch(4, false).boss) k++; return k / 2000; };
+    P.beatBoss = false;
+    const before = rate();
+    let first = 0;
+    for (let i = 0; i < 200; i++) first += g.makeTrophy(old).value;
+    P.beatBoss = true;
+    const after = rate();
+    let again = 0;
+    for (let i = 0; i < 200; i++) again += g.makeTrophy(old).value;
+    P.beatBoss = false;
+    assert.ok(before > .22 && before < .36, 'before: ' + before);
+    assert.ok(after > .07 && after < .17, 'after: ' + after);
+    assert.ok(Math.abs(again / first - g.REPEAT_BOSS_VALUE) < .06, (again / first).toFixed(2));
+  });
+
+  test('deeper water still pays more, rod by rod, without the deepest line outearning diving', () => {
+    const avg = d => { const list = MONSTERS.filter(m => m.depth === d && !m.boss); return list.reduce((a, m) => a + m.value, 0) / list.length; };
+    for (let d = 2; d <= 4; d++) assert.ok(avg(d) > avg(d - 1) * 1.3, 'depth ' + d);
+    const zone2 = g.DIVE_MONSTERS.filter(m => m.zone === 2).reduce((a, m) => a + m.value, 0) / 4;
+    assert.ok(avg(4) < zone2 * 1.8, 'depth 4 averages ' + avg(4) + ' against the Drop at ' + zone2);
+  });
+
+  test("the salvage fee is a quarter of what you carry, but never more than the cap", () => {
+    const P = g.Player;
+    P.coins = 800;
+    assert.equal(g.salvageFee(), 200);
+    assert.equal(P.coins, 600);
+    P.coins = 40000;
+    assert.equal(g.salvageFee(), g.SALVAGE_CAP);
+    assert.equal(P.coins, 40000 - g.SALVAGE_CAP);
+    P.coins = 0;
+  });
+
   test('trophies stay within their weight and value ranges', () => {
     for (const m of MONSTERS) {
       for (let i = 0; i < 30; i++) {
