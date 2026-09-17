@@ -13,12 +13,12 @@ synthesised from oscillators. There are no asset files of any kind.
 Download the game from the
 [Releases page](https://github.com/DanielKyhl/Deep-Supper-game-/releases/latest).
 
-**Windows:** run `DeepSupper-1.6.0.exe`. It is a single portable file: no installer, and
+**Windows:** run `DeepSupper-1.7.0.exe`. It is a single portable file: no installer, and
 nothing to uninstall. It isn't code-signed, so Windows SmartScreen may ask you to
 confirm the first time ("More info" → "Run anyway").
 
-**Mac:** download `DeepSupper-1.6.0-mac-arm64.dmg` for an Apple Silicon Mac (M1 or
-later), or `DeepSupper-1.6.0-mac-x64.dmg` for an Intel Mac (Apple menu → About This Mac shows
+**Mac:** download `DeepSupper-1.7.0-mac-arm64.dmg` for an Apple Silicon Mac (M1 or
+later), or `DeepSupper-1.7.0-mac-x64.dmg` for an Intel Mac (Apple menu → About This Mac shows
 which). Open it and drag Deep Supper into Applications. The game isn't signed by Apple,
 so the first time you open it macOS refuses. Click **Done**, then go to **System Settings →
 Privacy & Security**, scroll down and click **Open Anyway**. After that it opens normally.
@@ -48,7 +48,7 @@ npm start
 npm run dist
 ```
 
-This writes `dist/DeepSupper-1.6.0.exe`. `npm run dist:folder` builds an unpacked
+This writes `dist/DeepSupper-1.7.0.exe`. `npm run dist:folder` builds an unpacked
 `dist/win-unpacked/` instead, which is quicker to rebuild while testing.
 
 **Building for Mac** has to happen on a Mac:
@@ -57,7 +57,7 @@ This writes `dist/DeepSupper-1.6.0.exe`. `npm run dist:folder` builds an unpacke
 npm run dist:mac
 ```
 
-This writes `dist/DeepSupper-1.6.0-mac-arm64.dmg` and `dist/DeepSupper-1.6.0-mac-x64.dmg`.
+This writes `dist/DeepSupper-1.7.0-mac-arm64.dmg` and `dist/DeepSupper-1.7.0-mac-x64.dmg`.
 
 You don't need a Mac for a release, though. GitHub builds both versions
 (`.github/workflows/build.yml`):
@@ -126,6 +126,12 @@ miss costs you hearts.
 **Losing costs you.** Going down in a fight, or blacking out on a dive, loses what you
 caught. On top of that, Dorran charges a salvage fee for fishing you out of the
 scuppers: a quarter of your coins, but never more than 1,500§.
+
+**A rematch with the Old One.** Once the Old One has beaten you, you don't have to wait for
+it to bite again by chance. Dorran starts selling a **Bucket of Chum** (250§). Tip it over
+the side with the Abyssal Rod and the very next bite is the Old One. The bucket is used up
+when the fight starts, so a missed bite or a snapped line leaves the chum in the water for
+the next cast. If you lose again, he has another bucket.
 
 ## Fighting
 
@@ -355,7 +361,7 @@ and **nine strange things** that can happen on a quiet night.
 
 ## Tests
 
-943 tests: 757 unit (80%), 138 integration (15%) and 48 end-to-end (5%).
+958 tests: 769 unit (80%), 140 integration (15%) and 49 end-to-end (5%).
 
 ```bash
 npm test
@@ -378,7 +384,7 @@ packaged build. `npm run test:all` runs everything.
   the ambush, Nerys, combat and boss phases, every creature's two shared attacks and its
   own, the skill checks, diving (swimming, air, pressure, every launcher, every creature,
   the Mother), underwater sound, the shop and everything Dorran says there and on deck,
-  narration, the salvage fee and its cap, bottles, letters, relics, the journal and
+  narration, the salvage fee and its cap, the bucket of chum, bottles, letters, relics, the journal and
   Excalibur, heavy blows for every weapon, bleeding, stuns, poison and ink, the bestiary,
   records and chapter rewards, storms and lightning, the strange things at night,
   achievements, what the sea pays at each depth, a boy who never speaks, the voyage home and the credits, menus, cutscenes, the icon encoder, the pixel-art rasteriser and its
@@ -394,7 +400,7 @@ packaged build. `npm run test:all` runs everything.
   finding letters and relics, the Mother and the end of part two, sailing home through
   the credits to a save that remembers it, heavy blows that bleed a creature out, a
   sting drawn out with a bandage, records and a filled bestiary chapter, a cast in a
-  storm, a quiet night, an achievement kept across launches, what a second Old One sells for, pausing, walking the
+  storm, a quiet night, an achievement kept across launches, what a second Old One sells for, a rematch bought from Dorran after losing, and a bucket of chum kept in a save, pausing, walking the
   pixel-art deck, a line tied to the painted rod tip, and every screen through the
   renderer.
 - **End-to-end** (`tests/e2e`) drive the Electron app with Playwright: the window and its
@@ -402,7 +408,8 @@ packaged build. `npm run test:all` runs everything.
   and fullscreen surviving a restart, the test shortcuts, diving with real mouse aiming,
   creatures on screen, the Mother, the ending, a heavy blow held on a real
   key, poison and a bandage, the bestiary, lightning on screen with flashes on and off,
-  the strange things at night, achievements and both new options surviving a restart, quitting,
+  the strange things at night, achievements and both new options surviving a restart, losing to the Old One
+  and buying a bucket of chum for the rematch, quitting,
   and the single-instance lock. Each launch gets a throwaway profile,
   so tests never touch your real saves.
 
@@ -449,7 +456,8 @@ development; the game does not need them.
 Losing a fight costs you the catch and a quarter of your coins (at most 1,500§), but not
 your progress: you wake up on the deck at full health, a little poorer. Rods and weapons must be bought in order. A Heart Locket raises your maximum
 health (four available, price climbs), the Storm Lantern makes bites come faster, and
-the Drowned Charm pulls bigger things onto your hook.
+the Drowned Charm pulls bigger things onto your hook. The Bucket of Chum, on sale once the
+Old One has beaten you, makes it take your next bite.
 
 The deepest fishing pays more than it used to, so the Abyssal Rod earns its price. Once
 the Old One is beaten it bites less often, and a second one is worth well under half of
