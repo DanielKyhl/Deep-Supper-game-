@@ -2,7 +2,8 @@
 /* The deeper systems in the real desktop app with a real keyboard: a heavy
    blow held and let go, a sting drawn out with a bandage, the bestiary,
    lightning on the screen and the options that tame it, quiet nights, and
-   achievements that are still there when the app opens again. */
+   achievements that are still there when the app opens again, and the
+   bucket of chum that brings the Old One back after it has won. */
 const { describe, test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const A = require('../helpers/app');
@@ -185,5 +186,56 @@ describe('the deeper systems in the app', () => {
     await A.until(page, () => Achievements.book.page === 1, null, 2000);
     await page.keyboard.press('Escape');
     await A.until(page, () => !Achievements.book && Menu.top() === 'main', null, 2000);
+  });
+});
+
+describe('a rematch with the Old One in the app', () => {
+  let profile, app, page;
+  before(async () => {
+    profile = A.tempProfile();
+    ({ app, page } = await A.launch(profile));
+    await A.startVoyage(page);
+  });
+  after(async () => { await A.close(app); A.removeProfile(profile); });
+
+  test('the Old One wins, Dorran sells a Bucket of Chum, bought with the keys, and the next bite is the Old One', async () => {
+    await fightOn(page, 'leviathan', { weapon: 5, rod: 3, coins: 2000 });
+    await page.evaluate(() => { Object.assign(Player, { hp: 1, invuln: 0 }); Battle._hurtPlayer(1, Player.x + 40); });
+    await A.until(page, () => Game.state === 'play' && Dialogue.active, null, 10000);
+    const lines = [];
+    for (let i = 0; i < 8 && await page.evaluate(() => Dialogue.active); i++) {
+      await A.until(page, () => Dialogue.done, null, 5000);
+      lines.push(await page.evaluate(() => Dialogue.full));
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(150);
+    }
+    assert.ok(lines.some(l => /bucket/.test(l)), lines.join(' | '));
+
+    const key = await page.evaluate(() => Player.x > STALL_X ? 'KeyA' : 'KeyD');
+    await A.holdUntil(page, key, () => Math.abs(Player.x - STALL_X) < 60, null, 8000);
+    await page.keyboard.press('KeyE');
+    await A.until(page, () => Game.state === 'shop');
+    for (let i = 0; i < 3 && await page.evaluate(() => Shop.tab !== 2); i++) {
+      const tab = await page.evaluate(() => Shop.tab);
+      await page.keyboard.press('ArrowRight');
+      await A.until(page, tab => Shop.tab !== tab, tab, 2000);
+    }
+    for (let i = 0; i < 6 && await page.evaluate(() => Shop.rows()[Shop.sel].id !== 'chum'); i++) {
+      const sel = await page.evaluate(() => Shop.sel);
+      await page.keyboard.press('ArrowDown');
+      await A.until(page, sel => Shop.sel !== sel, sel, 2000);
+    }
+    const coins = await page.evaluate(() => Player.coins);
+    await page.keyboard.press('KeyE');
+    await A.until(page, () => Player.chum === true, null, 2000);
+    assert.equal(await page.evaluate(() => Player.coins), coins - 250);
+    await page.keyboard.press('Escape');
+    await A.until(page, () => Game.state === 'play');
+
+    await A.holdUntil(page, 'KeyD', () => Player.x > FISH_X - 40, null, 8000);
+    await page.keyboard.press('KeyE');
+    await A.until(page, () => Game.state === 'fish', null, 2000);
+    await A.until(page, () => Fishing.phase === 'bite', null, 30000);
+    assert.equal(await page.evaluate(() => Fishing.target.id), 'leviathan');
   });
 });

@@ -2,7 +2,7 @@
 /* The deeper systems, played the way a player meets them, with real keys and
    whole frames: heavy blows and what they leave behind, stings and bandages,
    records and the bestiary, storms and quiet nights, achievements, and what
-   the rebalanced sea pays. */
+   the rebalanced sea pays, and a bucket of chum for a rematch with the Old One. */
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const { loadGame } = require('../helpers/harness');
@@ -178,5 +178,59 @@ describe('what the sea pays now', () => {
     h.tap('Enter');
     h.frames(.3);
     assert.equal(g.Player.coins, coins + worth);
+  });
+});
+
+describe('a rematch with the Old One', () => {
+  // lose to the Old One on deck, and read through what follows
+  function beaten(h) {
+    const g = h.g, B = fightOn(h, 'leviathan');
+    g.Player.hp = 1; g.Player.invuln = 0;
+    B._hurtPlayer(1, g.Player.x + 40);
+    const lines = [];
+    assert.ok(h.until(() => { if (g.Dialogue.active && lines.indexOf(g.Dialogue.full) < 0) lines.push(g.Dialogue.full); return g.Game.state === 'play'; }, 8));
+    for (let i = 0; i < 8 && g.Dialogue.active; i++) { if (lines.indexOf(g.Dialogue.full) < 0) lines.push(g.Dialogue.full); h.tap('Enter'); h.frames(.1); h.tap('Enter'); h.frames(.1); }
+    return lines;
+  }
+
+  test('beaten by it, he buys a Bucket of Chum from Dorran with the keys, and the very next bite is the Old One, spending the bucket', () => {
+    const h = voyage({}, { weapon: 5, rod: 3, coins: 2000 });
+    const g = h.g, P = g.Player, S = g.Shop;
+    const lines = beaten(h);
+    assert.ok(lines.some(l => /bucket/.test(l)), lines.join(' | '));
+
+    F.openStall(h);
+    for (let i = 0; i < 3 && S.tab !== 2; i++) h.tap('ArrowRight');
+    assert.equal(S.tab, 2);
+    for (let i = 0; i < 6 && S.rows()[S.sel].id !== 'chum'; i++) h.tap('ArrowDown');
+    assert.equal(S.rows()[S.sel].name, 'Bucket of Chum');
+    const coins = P.coins;
+    h.tap('KeyE');
+    assert.equal(P.chum, true);
+    assert.equal(P.coins, coins - 250);
+    h.tap('Escape');
+    assert.equal(g.Game.state, 'play');
+
+    F.castLine(h);
+    F.waitForBite(h, 30);
+    assert.equal(g.Fishing.target.id, 'leviathan');
+    F.setHook(h);
+    h.autoReel(90);
+    assert.ok(h.until(() => g.Game.state === 'battle', 6), 'the fight is on');
+    assert.equal(g.Battle.def.id, 'leviathan');
+    assert.equal(P.chum, false);
+  });
+
+  test('a bucket bought and not yet used is still in hand after quitting to the title and pressing Continue', () => {
+    const h = voyage({}, { weapon: 5, rod: 3, lostOldOne: true, chum: true });
+    h.g.Game.autosave();
+    const again = loadGame({ draw: false, seed: 21, storage: Object.fromEntries(h.storage) });
+    F.chooseMenu(again, 'continue');
+    assert.ok(again.until(() => again.g.Game.state === 'play', 3));
+    F.readDialogue(again);
+    assert.equal(again.g.Player.chum, true);
+    F.castLine(again);
+    F.waitForBite(again, 30);
+    assert.equal(again.g.Fishing.target.id, 'leviathan');
   });
 });

@@ -127,7 +127,7 @@ describe('diving weapons', () => {
 
 describe('goods', () => {
   test('each good has a known type, a price and a stock limit', () => {
-    assert.deepEqual(plain(GOODS.map(x => x.type)).sort(),['consume', 'lantern', 'luck', 'maxhp']);
+    assert.deepEqual(plain(GOODS.map(x => x.type)).sort(),['chum', 'consume', 'lantern', 'luck', 'maxhp']);
     for (const gd of GOODS) assert.ok(gd.price > 0 && gd.max >= 1, gd.id);
     assert.ok(GOODS.find(x => x.type === 'maxhp').scale > 1);
   });
