@@ -13,12 +13,12 @@ synthesised from oscillators. There are no asset files of any kind.
 Download the game from the
 [Releases page](https://github.com/DanielKyhl/Deep-Supper-game-/releases/latest).
 
-**Windows:** run `DeepSupper-1.8.0.exe`. It is a single portable file: no installer, and
+**Windows:** run `DeepSupper-1.9.0.exe`. It is a single portable file: no installer, and
 nothing to uninstall. It isn't code-signed, so Windows SmartScreen may ask you to
 confirm the first time ("More info" → "Run anyway").
 
-**Mac:** download `DeepSupper-1.8.0-mac-arm64.dmg` for an Apple Silicon Mac (M1 or
-later), or `DeepSupper-1.8.0-mac-x64.dmg` for an Intel Mac (Apple menu → About This Mac shows
+**Mac:** download `DeepSupper-1.9.0-mac-arm64.dmg` for an Apple Silicon Mac (M1 or
+later), or `DeepSupper-1.9.0-mac-x64.dmg` for an Intel Mac (Apple menu → About This Mac shows
 which). Open it and drag Deep Supper into Applications. The game isn't signed by Apple,
 so the first time you open it macOS refuses. Click **Done**, then go to **System Settings →
 Privacy & Security**, scroll down and click **Open Anyway**. After that it opens normally.
@@ -48,7 +48,7 @@ npm start
 npm run dist
 ```
 
-This writes `dist/DeepSupper-1.8.0.exe`. `npm run dist:folder` builds an unpacked
+This writes `dist/DeepSupper-1.9.0.exe`. `npm run dist:folder` builds an unpacked
 `dist/win-unpacked/` instead, which is quicker to rebuild while testing.
 
 **Building for Mac** has to happen on a Mac:
@@ -57,7 +57,7 @@ This writes `dist/DeepSupper-1.8.0.exe`. `npm run dist:folder` builds an unpacke
 npm run dist:mac
 ```
 
-This writes `dist/DeepSupper-1.8.0-mac-arm64.dmg` and `dist/DeepSupper-1.8.0-mac-x64.dmg`.
+This writes `dist/DeepSupper-1.9.0-mac-arm64.dmg` and `dist/DeepSupper-1.9.0-mac-x64.dmg`.
 
 You don't need a Mac for a release, though. GitHub builds both versions
 (`.github/workflows/build.yml`):
@@ -89,7 +89,9 @@ that browser's local storage, and there is no Quit option.
    the glare, tentacled things burst up through the boards where you stand, and crabs
    tuck in and bowl across the deck. Swing, roll and jump, or hold the swing for a heavy blow.
 6. **Sell it to Uncle Dorran** at the stall amidships, and spend the coin on a deeper rod or
-   something heavier to hit things with.
+   something heavier to hit things with. His counter has a section for what you sell, one
+   for rods and deck weapons, one for goods, and — once you have a suit — one for diving
+   gear and underwater weapons.
 
 Your first cast is a lie. An ordinary little fish takes the bait, and you start reeling
 it up. Halfway to the surface, something comes out of the dark underwater, eats it off
@@ -120,8 +122,8 @@ going out of sight, and what the thing under the boat was not.
 - **The Mother below:** she makes you shoot her eye as the ring closes, swim against her
   whirlpool, and slip her coils.
 
-Each check freezes the fight while you answer. Checks get faster in the last phase, and a
-miss costs you hearts.
+Each check freezes the fight while you answer, and says **SUCCESS** or **FAIL**. Checks get
+faster in the last phase, and a miss costs you hearts.
 
 **Losing costs you.** Going down in a fight, or blacking out on a dive, loses what you
 caught. On top of that, Dorran charges a salvage fee for fishing you out of the
@@ -166,6 +168,11 @@ whoever has it:
 - **Inked:** underwater, a squirt of ink blots out the view and slows him to under half
   speed for a couple of seconds.
 
+Whoever is talking is drawn beside what they say: Dad under his cap, Dorran under his
+hat with his nose and his flask, Nerys with her gills and her glowing eyes. They blink,
+and their mouths move while the line is still typing itself out. Narration — what happens,
+told by nobody in particular — has no face and sits in the middle of the box.
+
 Lines of dialogue wait for you: the first press (`E`, `ENTER`, `SPACE` or a click)
 finishes typing a line, and the next moves on.
 
@@ -178,6 +185,8 @@ will recognise, the reply that was never sent, and, once you have met Nerys, a g
 bottle from Lanthorne. In part two, twelve more things lie on the sea floor for you to
 swim over and pick up: four letters, and eight relics that shouldn't be down there.
 Everything you find goes into the **Journal** in the pause menu, where you can read it again.
+Picking one up underwater stops the sea while you read: nothing swims, no air goes, and
+when you look up, whatever was lunging at you has to start again.
 
 Once in a thousand casts, the line comes up with **Excalibur** on it. From then on it is
 your weapon on deck, and it kills anything on the boat in one blow. It is no use
@@ -226,7 +235,9 @@ shortcuts don't earn any.
 ## Part two: diving
 
 Beating the Old One ends part one, and it leaves something on the deck: a diving suit
-and a harpoon. From then on, `E` at the bow suits the boy up and he goes over the rail.
+and a harpoon. A rope ladder goes over the side amidships, and `E` there suits the boy up
+and sends him over the rail in flippers. The bow is still the bow: you can fish for the
+rest of the game whenever you would rather do that.
 
 Below the *Margaret* is an open sea in four bands, each walled off from the next by a
 rock shelf with a gap in it: **the Shelf**, **the Drop**, **the Drowned Halls** and, on the
@@ -242,8 +253,10 @@ crosshair) or with the direction you swim, and hold the button to keep firing. T
 the **Barnacle Trident** throws a spread of three prongs; the **Eel on a Rope** spits a ball of
 lightning that jumps to the creatures around whatever it hits; the **Narwhal Tusk** goes
 through everything in a line; and the **Sunken Bell** sends out a widening wave of sound that
-shoves a whole crowd back. Blacking out, from injury or lack of air, costs you what you
-caught on that dive.
+shoves a whole crowd back. Blacking out, from injury or lack of air, is its own small scene: he
+goes limp, the suit takes him down, the screen says **YOU DIED** — and then he comes round
+flat on his own deck, with Uncle Dorran standing over him, having hauled him up the ladder
+and charged him for it. It costs what he caught on that dive, and nothing else.
 
 It sounds like being underwater, too. Going over the side closes a low-pass filter over
 every sound in the game and starts the rumble of deep water; you hear your own breathing
@@ -252,7 +265,8 @@ calls in the deep, creatures growling as they wind up (only when they are close)
 each launcher's own shot. Climbing out, drowning, loading or quitting opens it back up.
 
 At the bottom, in front of Lanthorne's gate, Nerys is in trouble, and the Old One turns
-out not to have been the worst thing in the sea.
+out not to have been the worst thing in the sea. That water is hers: when she comes up,
+everything else is driven out of it and stays out, so the fight is between the two of you.
 
 ## The end
 
@@ -268,9 +282,10 @@ question mark. Last come your voyage's numbers: casts, kills, letters and relics
 and whether Excalibur ever came up. Hold `ENTER`, `SPACE` or `E` to roll them faster,
 or hold `ESC` to skip.
 
-Afterwards you're back on deck in the harbour, in daylight, with your save intact. The sea
-is still there to fish and dive, and the wheel will take you home again if you want to
-watch it twice.
+When the credits finish, that is the game: it goes back to the title screen, with the
+voyage saved. **Continue** puts you back aboard in the harbour with everything you had, so
+the sea is still there to fish and dive, and the wheel will take you home again if you want
+to watch it twice.
 
 When there's more story to tell, the ending can move: it's unlocked by `FINALE.ready` in
 `src/data.js`, currently "the Mother is beaten". Change that one line to put the voyage
@@ -375,7 +390,7 @@ and **nine strange things** that can happen on a quiet night.
 
 ## Tests
 
-986 tests: 791 unit (80%), 144 integration (15%) and 51 end-to-end (5%).
+1,009 tests: 808 unit (80%), 148 integration (15%) and 53 end-to-end (5%).
 
 ```bash
 npm test
@@ -398,7 +413,9 @@ packaged build. `npm run test:all` runs everything.
   the ambush, Nerys, combat and boss phases, every creature's two shared attacks and its
   own, the skill checks, diving (swimming, air, pressure, every launcher, every creature,
   the Mother), underwater sound, the shop and everything Dorran says there and on deck,
-  narration, the salvage fee and its cap, the bucket of chum, gear in hand (the Gear screen, the stall, and what the rod,
+  narration, the salvage fee and its cap, the bucket of chum, the faces beside the dialogue,
+  the flippers and the kick, drowning and coming round on deck, her water kept clear of
+  everything else, the two stations at the rail, gear in hand (the Gear screen, the stall, and what the rod,
   weapon, suit and launcher in hand change), menus under the mouse (sliders clicked and
   dragged, the arrows of a choice), bottles, letters, relics, the journal and
   Excalibur, heavy blows for every weapon, bleeding, stuns, poison and ink, the bestiary,
@@ -417,6 +434,8 @@ packaged build. `npm run test:all` runs everything.
   the credits to a save that remembers it, heavy blows that bleed a creature out, a
   sting drawn out with a bandage, records and a filled bestiary chapter, a cast in a
   storm, a quiet night, an achievement kept across launches, what a second Old One sells for, a rematch bought from Dorran after losing, and a bucket of chum kept in a save,
+  diving from the ladder and then casting from the bow, a find read with the sea held
+  still, drowning through to Dorran's fee, the diving counter at the stall,
   an older weapon taken back in hand from the Gear screen and fought with, a rod picked
   with the mouse and cast with, a rod picked at the stall kept through Continue, a
   volume slider dragged with the mouse, pausing, walking the
@@ -428,7 +447,8 @@ packaged build. `npm run test:all` runs everything.
   creatures on screen, the Mother, the ending, a heavy blow held on a real
   key, poison and a bandage, the bestiary, lightning on screen with flashes on and off,
   the strange things at night, achievements and both new options surviving a restart, losing to the Old One
-  and buying a bucket of chum for the rematch, swapping gear with a real mouse, dragging
+  and buying a bucket of chum for the rematch, the ladder and the bow as two stations,
+  drowning and being hauled out, swapping gear with a real mouse, dragging
   a volume slider and clicking a setting's arrow, quitting,
   and the single-instance lock. Each launch gets a throwaway profile,
   so tests never touch your real saves.
