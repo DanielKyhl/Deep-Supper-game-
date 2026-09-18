@@ -57,11 +57,12 @@ function feetShadow(g, x, y, w) {
 }
 
 /* ------------------------------ the boy ------------------------------
-   A sou'wester pulled so low you never quite see his face: one eye catches
-   the light under the brim, and that is all. Feet at (0, 0).           */
+   Nine years old under a sou'wester two sizes too big: a round face, a pair
+   of eyes a pixel wide, a button nose, and an oilskin coat down to his shins.
+   Feet at (0, 0).                                                       */
 
 const BOY_COLORS = {
-  BODY: '#e2aa3a', BELLY: '#efc08e', FIN: '#34527a', SHELL: '#dca33a', GUM: '#b4464a',
+  BODY: '#e2aa3a', BELLY: '#efc08e', FIN: '#34527a', SHELL: '#c98c2a', GUM: '#b4464a',
   C1: '#5e3c24', DARK: '#1c141e', WOOD: '#6b4a2a', C2: '#26252e', EYE: '#fff1c0', METAL: '#9aa6b4', BONE: '#d9d2b8',
   outline: '#1a1018'
 };
@@ -95,6 +96,41 @@ function boyArm(sx, sy, angle, lit, hold) {
   if (hold) { Rig.translate(0, 8); hold(); }
   Rig.restore();
 }
+
+/* His head, pixel by pixel, facing right. One character is one pixel of the
+   game, so what is drawn here is exactly what ends up on screen:
+
+     Y  the sou'wester, pushed back off his face      H  hair
+     y  its shadowed side                             h  hair, caught by the light
+     S  his face            s  the shaded side of it   N  the tip of his nose
+     E  an eye              M  an eye, shut            .  nothing
+
+   The sou'wester pushed back, his hair swept across under it, eyes a pixel
+   each with a pixel of face between them, a nose that sticks out past his
+   cheek, and a jaw that comes to a chin. No mouth: at this size one only ever
+   made him look surprised. */
+const BOY_HEAD = [
+  '...YYYYY...',
+  '..YYYYYYY..',
+  '.YYYYYYYYY.',
+  '..HHHHHHHh.',
+  '..HHHHSSSh.',
+  '..HHsESES..',
+  '..HsSSSSSN.',
+  '...sSSSSS..',
+  '...ssSSSS..',
+  '....sSS....'
+];
+const BOY_HEAD_MAT = {
+  Y: [MAT.SHELL, .62], y: [MAT.SHELL, .42], H: [MAT.C1, .44], h: [MAT.C1, .56],
+  S: [MAT.BELLY, .54], s: [MAT.BELLY, .36], N: [MAT.BELLY, .82], c: [MAT.GUM, .3],
+  E: [MAT.DARK, .1], B: [MAT.C1, .28], M: [MAT.BELLY, .12], m: [MAT.BELLY, .22]
+};
+// the baker darkens a pixel that sits on a different material, as a crease; on
+// a face this small that smudges grey over his eyes, so his skin is lifted by
+// the same amount wherever it happens and the face comes out as drawn
+const BOY_FACE = { S: 1, s: 1, N: 1, c: 1, m: 1 };
+const BOY_HEAD_X = -5, BOY_HEAD_Y = -10;
 
 const Figures = {
 
@@ -155,21 +191,25 @@ const Figures = {
     if (st === 'walk' || st === 'jump') Rig.line([[-3.5, -18], [-6.5, -17.6 + flutter], [-9, -17 - flutter]], 1, .7, MAT.GUM, .45);
     else Rig.line([[-3.5, -17.8], [-4.2, -14 + (Math.sin(t * 3) > .6 ? 1 : 0)]], 1, .8, MAT.GUM, .42);
 
-    // head: a face in the shade of the brim
+    // his head, from the grid above, and the hat's long back brim behind it
     Rig.save();
-    Rig.translate(0, -19);
+    Rig.translate(0, -18.4);
     Rig.rotate(st === 'walk' ? Math.sin(t * 12 + 1) * .04 : 0);
-    Rig.ell(.6, -3.2, 3.6, 3.4, MAT.BELLY, {});
-    Rig.dot(4.2, -2.6, MAT.BELLY, .75);                       // nose
-    Rig.poly([[-3.4, -6.2], [-.4, -6.2], [-.6, -.4], [-3.8, -1.2]], MAT.C1, .4);   // hair
-    Rig.poly([[.4, -6], [4.6, -6], [4.4, -3.8], [.6, -3.4]], MAT.DARK, .1);        // the shade
-    Rig.dot(2.8, -4.2, MAT.EYE, Math.sin(t * .7) > .95 ? .2 : 1);                  // an eye in it
-    Rig.dot(3.2, -1.2, MAT.BELLY, .35);                       // mouth
-    // the sou'wester: round crown, short front brim, long back brim
-    Rig.ell(-.2, -7.4, 3.8, 2.4, MAT.SHELL, {});
-    Rig.poly([[-4.4, -6.2], [5.6, -6.2], [5.2, -5.1], [-4.4, -5.1]], MAT.SHELL, .62);
-    Rig.poly([[-5, -6.4], [-2.2, -6.4], [-3, -.6], [-6.4, -1.8]], MAT.SHELL, .45);
-    Rig.dot(-1.2, -9, MAT.SHELL, .95);
+    Rig.poly([[-5.4, -7.6], [-2.6, -8], [-3.4, -1], [-6.6, -2.4]], MAT.SHELL, .44);   // the brim over his neck
+    Rig.poly([[-4.6, -5.6], [-3, -5.8], [-3.4, -.8], [-5, -1.6]], MAT.C1, .38);       // hair down his neck
+    const blink = st === 'idle' && ((t + 1.7) % 4.6) < .13;      // quick, every few seconds
+    for (let r = 0; r < BOY_HEAD.length; r++) {
+      const row = BOY_HEAD[r];
+      for (let c = 0; c < row.length; c++) {
+        let ch = row[c];
+        if (ch === '.') continue;
+        if (ch === 'E' && blink) ch = 'M';                       // eyes shut
+        const m = BOY_HEAD_MAT[ch];
+        const under = BOY_HEAD[r + 1] ? BOY_HEAD[r + 1][c] : '.';
+        const creased = BOY_FACE[ch] && under !== '.' && under !== undefined && BOY_HEAD_MAT[under][0] !== m[0];
+        Rig.dot(BOY_HEAD_X + c, BOY_HEAD_Y + r, m[0], creased ? Math.min(1, m[1] + .25) : m[1]);
+      }
+    }
     Rig.restore();
 
     // the near arm, and whatever it holds
@@ -294,7 +334,7 @@ Object.assign(Art, {
     const w = o.hold === 'weapon' ? (o.weapon || WEAPONS[0]) : null;
     const walkStep = st === 'walk' ? q((t * 12) % (Math.PI * 2), Math.PI / 4) : 0;
     const pose = [
-      st, walkStep, st === 'idle' ? (Math.sin(t * 2.4) > .3 ? 1 : 0) + (Math.sin(t * .7) > .95 ? 2 : 0) : 0,
+      st, walkStep, st === 'idle' ? (Math.sin(t * 2.4) > .3 ? 1 : 0) + (((t + 1.7) % 4.6) < .13 ? 2 : 0) : 0,
       st === 'roll' ? q(o.rollT, .02) : 0, q(o.squash === undefined ? 1 : o.squash, .03),
       o.hold || '-', w ? w.id : '-', q(o.weaponAngle, .07), q(o.frontArm, .07), q(o.backArm, .07),
       q(o.swingP, .12), q(o.rodAngle, .025), q(o.rodBend, 2),

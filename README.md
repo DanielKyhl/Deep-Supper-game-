@@ -390,7 +390,7 @@ and **nine strange things** that can happen on a quiet night.
 
 ## Tests
 
-1,010 tests: 809 unit (80%), 148 integration (15%) and 53 end-to-end (5%).
+1,013 tests: 812 unit (80%), 148 integration (15%) and 53 end-to-end (5%).
 
 ```bash
 npm test

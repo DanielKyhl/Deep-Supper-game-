@@ -100,6 +100,43 @@ describe('the rig', () => {
 });
 
 describe('the people', () => {
+  // what is actually painted on his face, by material, in his own pixels
+  function facePixels(o) {
+    Spr.begin(110, 110);
+    Rig.begin();
+    g.Figures.boy(Object.assign({ state: 'idle', t: 0 }, o));
+    const out = [];
+    for (let y = 0; y < 110; y++) for (let x = 0; x < 110; x++) {
+      const m = Spr.mat[y * 110 + x];
+      if (m) out.push({ x, y, m });
+    }
+    return out;
+  }
+
+  test("his face is a boy's: two eyes a pixel wide with his face between them, and no band across it", () => {
+    const eyes = facePixels().filter(p => p.m === MAT.DARK);
+    assert.ok(eyes.length > 0 && eyes.length <= 4, 'a few dark pixels, not a visor: ' + eyes.length);
+    const cols = [...new Set(eyes.map(p => p.x))].sort((a, b) => a - b);
+    assert.equal(cols.length, 2, 'two of them, side by side: ' + cols.join(','));
+    assert.ok(cols[1] - cols[0] >= 2, 'with his face showing between: ' + (cols[1] - cols[0]));
+  });
+
+  test('he shuts his eyes only when he is standing still, so his face never sticks mid-stride', () => {
+    const shut = t => facePixels({ state: 'idle', t }).filter(p => p.m === MAT.DARK).length === 0;
+    let blinked = 0, open = 0;
+    for (let t = 0; t < 12; t += .05) (shut(t) ? blinked++ : open++);
+    assert.ok(blinked > 0 && open > blinked * 8, 'a blink now and then: ' + blinked + ' of ' + (blinked + open));
+    /* Walking, his eyes stay open: a blink there would never show anyway, since
+       what his sprite is keyed on mid-stride does not carry one. */
+    for (let t = 0; t < 12; t += .05) {
+      assert.ok(facePixels({ state: 'walk', t }).some(p => p.m === MAT.DARK), 'eyes open at ' + t.toFixed(2));
+    }
+  });
+
+  test("the sou'wester is its own colour, so the hat never reads as a mop of hair", () => {
+    assert.notEqual(g.BOY_COLORS.SHELL, g.BOY_COLORS.BODY);
+  });
+
   test('the boy facing left is the exact mirror of the boy facing right', () => {
     for (const o of [{ state: 'walk', t: 1 }, { hold: 'weapon', weapon: g.WEAPONS[2], weaponAngle: -1 }, { hold: 'rod', rodAngle: -.4, rodBend: 10 }]) {
       const [right] = raster(() => g.Art.boy(bctx, 400, g.DECK_Y, Object.assign({ face: 1 }, o))).baked;
